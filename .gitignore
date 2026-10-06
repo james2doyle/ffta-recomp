@@ -1,0 +1,149 @@
+# =============================================================================
+# FFTA Recomp — .gitignore (GBA recompilation / decompilation project)
+# =============================================================================
+#
+# GOLDEN RULE: no ROM-derived bytes ever enter this repository.
+# Never commit the base ROM, BIOS dumps, save data/savestates, ROM patch
+# files, assets extracted from the ROM, or captures made from the ROM.
+# This includes ROMs built from the decompiled source — every .gba stays out.
+#
+# The retail ROM lives at the repo root as game.gba and nowhere else.
+
+# -----------------------------------------------------------------------------
+# ROMs & BIOS dumps
+# -----------------------------------------------------------------------------
+*.gba
+*.agb
+*.mb
+*.rom
+*.gba.gz
+*.gba.zip
+
+# Explicit base ROM — belt-and-suspenders with *.gba above
+game.gba
+
+# BIOS dumps — supply locally when bios.hle = false; never redistribute
+bios.bin
+gba_bios.bin
+bios*.bin
+*.bios
+
+# -----------------------------------------------------------------------------
+# Save data & savestates
+# -----------------------------------------------------------------------------
+*.sav
+*.srm
+*.state
+
+# VisualBoyAdvance savestate
+*.sgm
+
+# mGBA savestates (ss0-ss9)
+*.ss[0-9]
+
+# -----------------------------------------------------------------------------
+# ROM patch files (binary diffs against the ROM — treat as ROM data)
+# -----------------------------------------------------------------------------
+*.ips
+*.bps
+*.ups
+*.aps
+*.xdelta
+*.xdelta3
+
+# -----------------------------------------------------------------------------
+# Extracted ROM contents (graphics / audio / maps / text ripped from game.gba)
+# Extend this list to match whatever your extractor outputs.
+# -----------------------------------------------------------------------------
+extracted/
+dumps/
+
+# -----------------------------------------------------------------------------
+# gbarecomp output & diagnostics
+# -----------------------------------------------------------------------------
+# generated/ is written by the recompiler — never edited, never committed
+# (all curation lives in game.toml and src/)
+/generated/
+
+logs/
+/coverage/
+*.log
+
+# -----------------------------------------------------------------------------
+# Build artifacts (CMake / GCC / Clang — recomp binary and future decomp build)
+# -----------------------------------------------------------------------------
+build/
+build-*/
+out/
+cmake-build-*/
+CMakeCache.txt
+CMakeFiles/
+CMakeUserPresets.json
+cmake_install.cmake
+CTestTestfile.cmake
+Testing/
+compile_commands.json
+.cache/
+.ninja_deps
+.ninja_log
+*.o
+*.obj
+*.d
+*.a
+*.lib
+*.so
+*.so.*
+*.dylib
+*.dll
+*.exe
+*.elf
+*.out
+*.gcda
+*.gcno
+
+# Linker map files
+*.map
+
+# -----------------------------------------------------------------------------
+# Frame-diff harness captures (ROM-derived — keep out of history)
+# Adjust paths to wherever the harness writes frames/video.
+# -----------------------------------------------------------------------------
+frames/
+captures/
+diffs/
+
+# -----------------------------------------------------------------------------
+# Editors & OS cruft
+# -----------------------------------------------------------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.orig
+*.rej
+.DS_Store
+Thumbs.db
+
+# -----------------------------------------------------------------------------
+# Python (audit + frame-diff scripts)
+# -----------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+/tmp/
+/roms/
+saves/
+/recomp_cache/
+recomp_coverage*.json
+recomp_master_misses*.toml.frag
+recomp_seed_proposals.toml
+selfheal*.json
+*.tga
+
+# -----------------------------------------------------------------------------
+# Intentionally tracked — do NOT add rules for these:
+#   game.toml, src/, inputs/, mods/, BRINGUP.md, CLAUDE.md,
+#   ffta-bootstrap-prompt.md, and the gbarecomp / recomp-ui submodules
+# -----------------------------------------------------------------------------
