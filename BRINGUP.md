@@ -500,17 +500,60 @@ writes (e.g. IRQ vector/dispatcher setup 0x03000E10/0x03000F10 region,
 0x030034B0-B3) on both sides at 1-frame granularity to pin the handoff
 vblank, then drill 0x03007E80/E84/E89.
 
-### Tooling note corrections
-- Pinned TCP surface (earlier note was wrong): `step`, `run_frames`,
-  `set_keyinput`, `screenshot`, `registers`, `state_hash`, memory reads ARE
-  present; `run_to_pc` / `get_registers` / `call_stack` / `rdb_*` are NOT.
-- `GBARECOMP_INPUT_REPLAY=<file>` exists for deterministic inputs
-  (format `<frame>,0x<hex>`, active-low, 0x03FF = none) — relevant for later
-  milestones (start press etc.).
+### Handoff cluster — RESOLVED as phase artifacts (probe + LCG chain math)
+Cell identities (agent audit + own disasm): 0x030034B0 = LCG RNG state
+(next = state*0x41C64E6D + 0x3039; seeded to 1 at vblank 280; stepped once
+per main-loop iteration; step fn 0x08002804, 4-step/output variant
+0x08002838; writer sites 0x08002810/28/72; getter 0x08002830); 0x03000E10 =
+VBlank scheduler queue (+0 u16 tick flag, +2 count=3, +3 current; task ptr
+array 0x03002800, state bytes 0x030027D0; init 0x08006A7C, runner 0x080069F4,
+tick set in the VBlank handler 0x080004B0); 0x03000884 = second queue
+0x03000880 +4 (tasks-run counter); 0x03002BBC = saved DISPCNT mirror
+(save @0x080006D0, restore @0x08000788, DMA1 restore @0x08000718);
+0x03007E80-9F = IRQ/SYS stack arena (per-IRQ 0x28 B: BIOS save 0x18 + cart
+dispatcher 0x10).
+Probe (both engines, vblanks 270-306, per-frame values): every cell shows
+the SAME values with a one-frame sample offset (DISPCNT save native @282 /
+oracle @283; queue counters @285/@286; stack bytes 0/4/0x20/1 toggling in
+opposite phase from f287+). RNG: native@f281 = chain step 167, oracle@f281 =
+step 171, both @f282 = step 251 (positions verified by walking/inverting the
+LCG); steady state advances exactly 1 step/frame (9/9 transitions verified).
+Conclusion: the whole >280 cluster = sampling-instant artifacts (pre-IRQ vs
+post-IRQ plus mid-burst sampling), **not** value divergence. No genuine
+divergence found in vblanks 0-306.
+Corrections recorded: 0x03000E50 is an IF-ack mask cell, NOT the callback
+table; the IRQ callback table is 0x030008D0 (thumb ptrs copied from ROM
+0x0814942C); its +8 slot = VBlank fn 0x080004B0.
+
+### Horizon extension: strict 600 (audit loop, in progress)
+The strict-600 run replaces 480 as the frontier test; it aborts at the first
+non-static PC beyond the old horizon — serial audit loop, recipe as Phase 4
+(evidence → game.toml entry → regenerate → rebuild → cold run). Progress
+this stretch (corpus 1438 → 2690 discovered):
+- #10 0x08148740 — m4a-region fn (`push {lr}` after prev ret+pool+stubs);
+  ptr 0x08148741 unique @0x089A5CFC (m4a ptr table).
+- #11 0x0813BF5C — byte-switch handler; ptr 0x0813BF5D @0x080036FC (the same
+  0x08003660 case-0 handler table as #7).
+- #12 0x0813C0EC — 4.8 KB state machine (switch on [r1]; case 0 seeds the
+  RNG via `bl 0x08002824`); ptr 0x0813C0ED @0x0813BFB4 (pool of #11).
+- #13 0x08144B2C — m4a callback registered via pool word 0x08144B2D
+  @0x081458A8 (beside m4a ident 0x68736D53 / struct ptr 0x03007FF0).
+- #14 0x08145CAC — m4a callback (reads [0x03007FF0]-struct +0xa countdown).
+- #15 `[[code_copy]]` iwram_m4a_blob — 0x030034DC ← 0x08144594, 896 B
+  verbatim (miss-IWRAM-dump vs ROM, forward+backward run): the m4a engine's
+  SoundMain-style IWRAM relocation; + thumb entry 0x030034DC and ARM entry
+  0x030034E8 (= 0x081445A0, via the head's `adr r1,#4; bx r1`).
+- Current frontier: strict 600 aborts at pc=0x08144A0C (thumb, m4a region)
+  — next in the loop. ARM corpus grew 19→40 (blob ARM section walked).
 
 ### Next in Phase 5
-- Extend delta scans through the logo/attract phases (300+ vblanks), then
-  pixel-level compares (TCP `screenshot` vs oracle `emu_screenshot`, both
-  240x160 RGB888), and wire the attract diff as the game.toml regression
-  test. Refine `framediff.py` to classify constant-offset wrap events
-  (known-phase bytes) without hiding real step mismatches.
+- Continue the strict-600 audit loop (next miss 0x08144A0C; one entry per
+  cold cycle) until FULLY_STATIC at 600.
+- Then re-run `tools/framediff.py --lo 4 --hi 600` (the tool now forces
+  `GBARECOMP_STRICT_STATIC=1` on the native side) and extend the horizon to
+  1200 in steps.
+- Pixel-level compares (TCP `screenshot` vs oracle `emu_screenshot`, both
+  240x160 RGB888) and the attract-screen diff wired as the game.toml
+  regression test.
+- Refine `framediff.py` to classify constant-offset wrap events for the
+  known phase bytes without hiding real step mismatches.

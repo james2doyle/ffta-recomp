@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import pathlib
 import socket
 import subprocess
@@ -126,9 +127,11 @@ def main() -> int:
     report: dict = {"lo": a.lo, "hi": a.hi, "regions": regions,
                     "mismatches": [], "offsets_info": [], "clean_frames": 0}
     try:
+        nenv = os.environ.copy()
+        nenv["GBARECOMP_STRICT_STATIC"] = "1"  # no self-heal; deterministic
         procs.append(subprocess.Popen(
             [a.native_exe, "--bios", a.bios, "--rom", a.rom, "--tcp", str(a.native_port)],
-            cwd=str(REPO), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL))
+            cwd=str(REPO), env=nenv, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL))
         procs.append(subprocess.Popen(
             [a.oracle, "--bios", a.bios, "--rom", a.rom, "--port", str(a.oracle_port)],
             cwd=str(GBARECOMP), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL))

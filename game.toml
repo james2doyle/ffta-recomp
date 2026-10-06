@@ -276,3 +276,113 @@ addr = 0x03007E60
 mode = "thumb"
 source_addr = 0x08141AAC
 note = "flash read getter called via bx r5 veneer @0x08142258 (r5=sp|1); fp-ring: r14=0x08141907, r0=0x0E000001 at hit; dump bytes 00787047; cold-run miss x2"
+
+# Audit entry #10 — miss 0x08148740 (strict run, first beyond the 480-frame
+# horizon; PC is the function start). Evidence (own disasm): preceded by the
+# previous routine's return `pop {r0}; bx r0` @0x0814872C..2E and its pool
+# words 0x0000FFDF/0x0000F87F @0x08148730..37 (loaded by `ldr r1,[pc,#0xc]`
+# @0x08148722 -> 0x08148730 and `ldr r0,[pc,#0xc]` @0x08148726 -> 0x08148734),
+# then two `bx lr` stubs @0x08148738/3C with nop padding; prologue
+# `00b5 push {lr}` @0x08148740; body: tests [r3+2]&0x20 -> 0x0814877E, mask
+# 0x780 test -> 0x08148770/0x0814877E, bumps byte [r3+0x10], bit-select
+# (0x80<<([r3+2]&3)) @0x0814875E..6C, `eors #0x40` path @0x08148770..7C,
+# `bl 0x081465E8` @0x08148780; ends `pop {r0}; bx r0` @0x08148784..86; next
+# function `f0b5 push {r4-r7,lr}` @0x08148788 — clean boundary.
+# No BL/BLX targets it; thumb word 0x08148741 occurs uniquely in ROM at
+# 0x089A5CFC (pointer-table region 0x089A5CFC.., siblings 0x08146865/0x08146BB1/
+# 0x08146C8D/0x08146D39 — m4a-region functions).
+[[extra_func]]
+addr = 0x08148740
+mode = "thumb"
+note = "prologue 00b5 push {lr} @0x08148740 after prev ret+pool 0x0814872C..37 and bx-lr stubs 0x08148738/3C; tests [r3+2]&0x20 / 0x780, bumps [r3+0x10], bl 0x081465E8 @0x08148780, ends pop {r0}; bx r0 @0x08148784..86; next func 0x08148788; no BL sites; thumb ptr 0x08148741 unique @0x089A5CFC (m4a ptr table); strict-run miss x1 (>480 f horizon)"
+
+# Audit entry #11 — miss 0x0813BF5C (strict run, next after #10; PC is the
+# function start). Evidence (own disasm): preceded by prior epilogue
+# `pop {r4}; pop {r0}; bx r0` @0x0813BF34..38 and its pool [0x0813BF3C,
+# 0x0813BF5C) (words 0x0836D4BC/0x03003860/0x089569AC); prologue
+# `30b5 push {r4,r5,lr}` @0x0813BF5C; byte-switch on [r5]: 0x00->0x0813BF7E,
+# 0x01->0x0813BFBC, 0x02->0x0813BFF4, 0x03->0x0813C02C, 0xFF->0x0813C044,
+# default->0x0813C05E; case 0 calls bl 0x0813C064 / bl 0x08006A7C (queue
+# init) / bl 0x08006ADC (task register); case 0xFF calls bl 0x0813C0A8 /
+# bl 0x0800395C / 0x08003918|0x080038C8; ends `pop {r4,r5}; pop {r0}; bx r0`
+# @0x0813C05E..62; next function `30b5 push {r4,r5,lr}` @0x0813C064. No
+# BL/BLX targets it; thumb word 0x0813BF5D @0x080036FC (the same 0x08003660
+# case-0 handler table as audit #7 — siblings 0x08135891/0x08138EFD/0x08139C71
+# @0x080036EC..F4, 0x0804C889 @0x080036F8, 0x08070C95 @0x08003700).
+[[extra_func]]
+addr = 0x0813BF5C
+mode = "thumb"
+note = "prologue 30b5 push {r4,r5,lr} @0x0813BF5C after prev epilogue+pool 0x0813BF34..5B; byte-switch [r5]: 0->0x0813BF7E,1->0x0813BFBC,2->0x0813BFF4,3->0x0813C02C,0xFF->0x0813C044,default->0x0813C05E; case0 bl 0x0813C064/0x08006A7C/0x08006ADC; ends pop {r4,r5}; pop {r0}; bx r0 @0x0813C05E..62; next func 0x0813C064; no BL sites; thumb ptr 0x0813BF5D @0x080036FC (0x08003660 case-0 handler table); strict-run miss x1"
+
+# Audit entry #12 — miss 0x0813C0EC (strict run, next after #11; PC is the
+# function start). Evidence (own disasm): preceded by a small routine ending
+# `pop {r0}; bx r0` @0x0813C0E4..E6 + pad word 0x0200F3BC @0x0813C0E8..EB;
+# prologue `f0b5 push {r4-r7,lr} / mov r7,sl / mov r6,sb / mov r5,r8 /
+# push {r5,r6,r7} / sub sp,#0x30` @0x0813C0EC..F6; large state handler,
+# switch on [r1]: 0x00->0x0813C12E (case 0 seeds RNG via `bl 0x08002824`
+# @0x0813C130), 0x01->0x0813C268, 0x02->0x0813C800, 0x04->`bl 0x0813D2FC`,
+# 0xFF->`bl 0x0813D338`, else `bl 0x0813D35C`, default->0x0813C8E8; tail
+# unwind `add sp,#0x30 / pop {r3,r4,r5}->r8,sb,sl / pop {r4-r7} / pop {r0} /
+# bx r0` @0x0813D484..92 (matches prologue save set). No BL/BLX targets it;
+# thumb word 0x0813C0ED occurs uniquely in ROM at 0x0813BFB4 (pool word of
+# audit-#11's function 0x0813BF5C — its case-1 loader).
+[[extra_func]]
+addr = 0x0813C0EC
+mode = "thumb"
+note = "prologue f0b5 push {r4-r7,lr}+hi-save+sub sp,#0x30 @0x0813C0EC after prev ret+pad 0x0813C0E4..EB; switch [r1]: 0->0x0813C12E (seeds RNG bl 0x08002824), 1->0x0813C268, 2->0x0813C800, 4->bl 0x0813D2FC, 0xFF->bl 0x0813D338, default->0x0813C8E8; ends add sp,#0x30/pop r3-r5->hi/pop {r4-r7}/pop {r0}/bx r0 @0x0813D484..92; no BL sites; thumb ptr 0x0813C0ED unique @0x0813BFB4 (audit-11 case-1 pool); strict-run miss x1"
+
+# Audit entry #13 — miss 0x08144B2C (strict run, next after #12; m4a player
+# region). Evidence (own disasm): preceded by previous routine's `bx lr`
+# @0x08144B22 + pool 0x08144B24..2B; head `ldr r2,[pc,#0x260] / ldr r3,
+# [r0,#0x34] / cmp / beq / bx lr` guard @0x08144B2C..34, then increments
+# [r0+0x34], `push {r0,lr}` + `bl 0x08144D84` @0x08144B3A..44; followed by
+# a second entry block (`push {r4-r7}`+hi-save, `bl 0x081459D0` @0x08144B4A+,
+# shared-tail/multi-entry shape — walker handles). Registered via thumb word
+# 0x08144B2D in the m4a player's literal pool @0x081458A8, next to the m4a
+# ident 0x68736D53 @0x081458A4 and the sound-struct pointer 0x03007FF0
+# @0x081458A0 (callback registration). No BL/BLX targets it.
+[[extra_func]]
+addr = 0x08144B2C
+mode = "thumb"
+note = "head ldr r2,[pc,#0x260]/cmp [r0+0x34]/bx lr guard @0x08144B2C..34 (prev func bx lr @0x08144B22 + pool ..2B); mid push {r0,lr}/bl 0x08144D84 @0x08144B3A..44; second entry block push {r4-r7}+hi-save @0x08144B4A; registered via thumb word 0x08144B2D @0x081458A8 (m4a pool: ident 0x68736D53, struct ptr 0x03007FF0); no BL sites; strict-run miss x1"
+
+# Audit entry #14 — miss 0x08145CAC (strict run, next after #13; m4a region).
+# Evidence (own disasm): preceded by previous routine's `pop {r4}; pop {r0};
+# bx r0` @0x08145CA6..AA; prologue `f0b5 push {r4-r7,lr} + hi-save + sub
+# sp,#0x1c` @0x08145CAC..B6; loads [0x03007FF0] -> struct base (pool word
+# 0x03007FF0 @0x08145CCC), reads byte +0xa: if nonzero decrement else reload
+# 0x0E @0x08145CBE..C4/D0..D4; then reads [struct+0x1c], mask 0xC7 path
+# @0x08145CD6+. No BL/BLX targets it; thumb word 0x08145CAD @0x081454FC
+# (m4a region pool — callback registration).
+[[extra_func]]
+addr = 0x08145CAC
+mode = "thumb"
+note = "prologue f0b5 push {r4-r7,lr}+hi-save+sub sp,#0x1c @0x08145CAC (prev func pop/pop/bx r0 @0x08145CA6..AA); reads [0x03007FF0]-struct byte +0xa: dec/else=0x0E (pool word 0x03007FF0 @0x08145CCC); then [struct+0x1c] mask 0xC7 path; no BL sites; thumb word 0x08145CAD @0x081454FC (m4a pool); strict-run miss x1"
+
+# Audit entry #15 — miss 0x030034DC (strict run, next after #14; IWRAM
+# code-copy class). Evidence: GBARECOMP_MISS_IWRAM_DUMP at the miss shows
+# IWRAM [0x030034DC, 0x0300385C) byte-identical to ROM [0x08144594,
+# 0x08144914) — 896 bytes verbatim (run measured forward+backward; first
+# mismatch right after 0x08144914). This is the m4a engine's runtime
+# relocation of its mixer (SoundMainRAM-style) into IWRAM, executed from
+# there. Blob head disasm: `ldrb r3,[r0,#5] / cmp #0 / beq blob+0x4C
+# (0x081445E0) / adr r1,#4 / bx r1` — the adr/bx targets Align(pc,4)+4 =
+# 0x081445A0 = runtime 0x030034E8, an ARM section (0xE3540002 `cmp r4,#2`),
+# so both a thumb and an ARM entry are declared. No BL/BLX/pointer sites
+# beyond this (runtime address is built at copy time).
+[[code_copy]]
+runtime_start = 0x030034DC
+source_start = 0x08144594
+size = 0x00000380
+name = "iwram_m4a_blob"
+note = "relocated m4a mixer routine: IWRAM [0x030034DC,0x0300385C) == ROM [0x08144594,0x08144914) verbatim (896 B vs miss-IWRAM-dump; first mismatch after source end); mixed thumb head + ARM section"
+[[extra_func]]
+addr = 0x030034DC
+mode = "thumb"
+source_addr = 0x08144594
+note = "thumb entry of relocated m4a blob (strict miss pc 0x030034DC); head ldrb r3,[r0,#5]/beq blob+0x4C/adr r1,#4; bx r1 -> ARM 0x081445A0; copy verified byte-identical 896 B to source"
+[[extra_func]]
+addr = 0x030034E8
+mode = "arm"
+source_addr = 0x081445A0
+note = "ARM entry of the same relocated blob (derived from thumb head adr r1,#4; bx r1 @blob+0x6 -> 0x081445A0 = runtime 0x030034E8; first word 0xE3540002 cmp r4,#2; blob byte-identical to ROM source)"

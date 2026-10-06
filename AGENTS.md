@@ -170,18 +170,18 @@ recomp-net @ c58f125.
   mapped from live-dump + ROM byte-match; ROM gaps seeded at verified
   prologues (walks cascade). Artifacts: `logs/{cov,miss,run}_v*`, 
   `logs/strict_v9.log`.
-- Next milestone: Phase 5 (in progress) — mGBA oracle built
-  (`gbarecomp/build/oracle/gbarecomp_oracle`, via
-  `gbarecomp/oracle/setup-mgba.sh` + `-DGBARECOMP_BUILD_ORACLE=ON`);
-  `tools/framediff.py` delta scans (phase-offset-aware) running against it —
-  see BRINGUP.md § "Phase 5 start". Status: BIOS phase clean to ~vblank 280
-  (only known phase artifacts); candidate divergence cluster at the BIOS→cart
-  handoff (~281+) is the active root-cause target. Next: root-cause the
-  handoff cluster, extend scans through logo/attract phases + pixel compares,
-  then wire the attract diff as the game.toml regression test. Horizon:
-  strict runs still capped ≈480 f (non-strict 600 f aborts via
-  heal-bridge stack growth). New misses re-enter the audit loop with the
-  cold-cache protocol below.
+- Next milestone: Phase 5 (in progress) — oracle harness done
+  (`gbarecomp/build/oracle/gbarecomp_oracle`; `tools/framediff.py`
+  phase-aware delta scans, native side forced strict). The v281+ BIOS→cart
+  "divergence" is **resolved as sampling-phase artifacts** (BRINGUP § "Phase 5
+  start" — cells identified: m4a LCG RNG, VBlank queues, DISPCNT mirror,
+  IRQ-stack arena; RNG verified on one deterministic chain). Active work:
+  strict-600 horizon audit loop — entries #10-#15 added (incl. code_copy
+  `iwram_m4a_blob` 0x030034DC←0x08144594, 896 B); currently aborts at
+  0x08144A0C; corpus 1438→2690. Then: framediff re-scan to 600 (and 1200),
+  pixel compares, attract diff as the game.toml regression test. Non-strict
+  runs still capped ≈480 f (600 f aborts via heal-bridge stack growth). New
+  misses re-enter the audit loop with the cold-cache protocol below.
 
 ## Environment gotchas (learned in Phase 3)
 
