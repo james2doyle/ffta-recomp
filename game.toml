@@ -826,3 +826,12 @@ note = "iwram tail blob function start (source 0x08A398B8, thumb push prologue; 
 addr = 0x03006B6C
 mode = "thumb"
 note = "strict frontier island after tail-blob batch; source 0x08A39720 via code_copy mapping"
+
+# Map-data hard guard (FFTAUtils study, cross-checked by ffta-decomp
+# map-data.md): 162 x 0x58 map record table at 0x08569104 + the compressed
+# gfx/arrangement/height blobs 0x0856C8B4..0x08698218. Zero dispatch entries
+# or extra_func addrs inside at time of adding (scan 2026-10-06).
+[[data_range]]
+start = 0x08569104
+end = 0x08698218
+note = "map data span: 162x0x58 record table + compressed map blobs (FFTAUtils; corroborated by charlie-troy/ffta-decomp map-data.md)"

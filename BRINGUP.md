@@ -778,6 +778,28 @@ ROM-derived).
   0x08122680/0x08122AAA/0x0812386C; 0x08096E18 and 0x08096E46-5E around our
   seed 0x08096E78; full read of the AI docs when the battle path opens.
 
+### Conversion queue — reference studies → artifacts (2026-10-06)
+Status of the user-requested queue (turning recorded studies into repo output):
+- [DONE] FFTAUtils map-data guard: `[[data_range]]` 0x08569104–0x08698218
+  (162×0x58 table + compressed gfx/arrangement/height blobs; zero
+  dispatch/extra_func overlap at add time). Regen accepted (no control flow
+  enters), strict 2400 FULLY_STATIC after.
+- [DONE] ffta-decomp symbols: `symbols/ffta_symbols.tsv` (173 byte-matched
+  functions from their data/functions.json + verified descriptive overrides;
+  section 2 = engine-hacks-derived rows) and `symbols/ffta_data_symbols.tsv`
+  (13 debug-only memory names). Wired into `tools/cycle.py` and
+  `tools/coverage_report.py` regen; discovery grew +55 units (23,450);
+  attract gate PASS with the **same pinned hash** (SYMBOL_OVERLAY step-4
+  validation: names/seeds must not change behaviour) and strict 2400
+  FULLY_STATIC after.
+- [DONE] Engine Hacks: 5 game.toml seeds annotated as event-interpreter
+  region (commit 5536cf3) + 2 start-verified names in the symbols file
+  (section 2; the rest of its index is interior patch sites — filtered).
+- [FUTURE] decomp full build-route import (agbcc ELF → readelf/ld -Map →
+  import_decomp_symbols.py) only if the 176-seed subset proves limiting;
+  targeted VM checks (their 0x08123670 vs our 0x08122680/0x08122AAA/
+  0x0812386C) when the interpreter moves to the audit front.
+
 ### Android port findings (research 2026-10-06; not started)
 Researched ahead of a possible Android release (user question: what gates
 Android playability — answer: not the pointer-pool lens; only the executed

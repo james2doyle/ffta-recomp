@@ -52,8 +52,14 @@ def parse_toml_path(text: str, section: str, key: str) -> str | None:
 def regen(config: Path, out: Path, workdir: Path, rom: Path) -> dict:
     cmd = [
         str(RECOMPILER), "--rom", str(rom), "--config", str(config),
-        "--out", str(out), "--max-functions", "65536",
     ]
+    sym = ROOT / "symbols" / "ffta_symbols.tsv"
+    dsym = ROOT / "symbols" / "ffta_data_symbols.tsv"
+    if sym.exists():
+        cmd += ["--symbols", str(sym)]
+    if dsym.exists():
+        cmd += ["--data-symbols", str(dsym)]
+    cmd += ["--out", str(out), "--max-functions", "65536"]
     res = subprocess.run(
         cmd, cwd=workdir, capture_output=True, text=True, timeout=900
     )

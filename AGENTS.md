@@ -67,6 +67,12 @@ Regenerate static code (Phase 3+; uses `game.toml`):
   --out generated --max-functions 65536
 ```
 
+The canonical regen also passes `--symbols symbols/ffta_symbols.tsv` and
+`--data-symbols symbols/ffta_data_symbols.tsv` when present (facts from
+charlie-troy/ffta-decomp + engine-hacks-derived rows; seeds/names must not
+change behaviour — the attract gate guards this). `tools/cycle.py` and
+`tools/coverage_report.py` add them automatically.
+
 Build the game binary (Phase 3+):
 
 ```sh
@@ -175,6 +181,7 @@ commands: `emu_step`/`emu_step_to_vblank` (one runFrame = one PPU frame),
 | `gbarecomp/`, `recomp-ui/` | Pinned submodules (see below) |
 | `tools/` | `disarm.py` (capstone disassembler), `m4a_detect.py`, `framediff.py` (native↔oracle delta scan), `dualrun.py` (lockstep probes), `coverage_report.py` (three-lens coverage table), `attract_check.py` (golden attract gate), `misspack.py` (miss evidence packs), `cycle.py` (standard change cycle), `ringscan.py` (instruction-ring queries) |
 | `inputs/` | Deterministic keyinput traces — `title_to_newgame.csv` (Start/A taps through the title menu; verified via headless `GBARECOMP_INPUT_REPLAY`). Format `<frame>,0x<hex>` active-low, sticky |
+| `symbols/` | Curated symbol seeds + data names (charlie-troy/ffta-decomp facts + engine-hacks-derived, attributed); consumed via `--symbols` / `--data-symbols` |
 | `BRINGUP.md` | Decision log — the project's memory |
 | `game.gba` | Retail ROM, gitignored |
 

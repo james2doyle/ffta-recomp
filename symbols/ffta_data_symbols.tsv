@@ -1,0 +1,15 @@
+# ffta_data_symbols.tsv — debug-only memory names from
+# charlie-troy/ffta-decomp (symbols.txt, sym_*.txt); size unknown -> 0x0.
+0x02000000	ewram	0x0	gEwram
+0x020020D0	ewram	0x0	gUnk_020020D0
+0x02009000	ewram	0x0	gUnk_02009000
+0x020091A0	ewram	0x0	gUnk_020091A0
+0x03000028	iwram	0x0	gUnk_03000028
+0x03000890	iwram	0x0	gUnk_03000890
+0x03002710	iwram	0x0	gUnk_03002710
+0x03002F58	iwram	0x0	gUnk_03002F58
+0x030034B0	iwram	0x0	gRngState
+0x030034B8	iwram	0x0	gUnk_030034B8
+0x0814BB24	rom	0x0	gMPlayTable
+0x0814BB48	rom	0x0	gSongTable
+0x0855187C	rom	0x0	gAbilityTable

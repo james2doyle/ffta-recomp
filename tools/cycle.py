@@ -43,9 +43,15 @@ def run(cmd, **kw):
 
 def stage_regen():
     shutil.rmtree(REPO / "recomp_cache", ignore_errors=True)
-    res = run([RECOMPILER, "--rom", ROM, "--config", REPO / "game.toml",
-               "--out", REPO / "generated", "--max-functions", "65536"],
-              timeout=900)
+    cmd = [RECOMPILER, "--rom", ROM, "--config", REPO / "game.toml"]
+    sym = REPO / "symbols" / "ffta_symbols.tsv"
+    dsym = REPO / "symbols" / "ffta_data_symbols.tsv"
+    if sym.exists():
+        cmd += ["--symbols", sym]
+    if dsym.exists():
+        cmd += ["--data-symbols", dsym]
+    cmd += ["--out", REPO / "generated", "--max-functions", "65536"]
+    res = run(cmd, timeout=900)
     out = res.stdout + res.stderr
     if res.returncode != 0:
         print("regen: FAIL")
