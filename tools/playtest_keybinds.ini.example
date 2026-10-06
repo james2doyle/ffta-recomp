@@ -1,0 +1,21 @@
+# FFTA Recomp — example all-letters keyboard map for desktop playtests.
+#
+# Why all letters: on Linux desktops with an active input-method daemon
+# (e.g. IBus on GNOME), special keys (Enter, Backspace) can be swallowed
+# inside the game window while letters pass through. This exact map was
+# verified on 2026-10-06 — input recording showed every button registering.
+#
+# Install as a copy at build/keybinds.ini (read when the game window opens;
+# relaunch after edits). Left-column names are fixed; values are SDL
+# scancode names = physical key positions on a QWERTY keyboard.
+[player1]
+a      = X
+b      = Z
+select = Q
+start  = D
+l      = W
+r      = R
+up     = Up
+down   = Down
+left   = Left
+right  = Right

@@ -248,6 +248,11 @@ recomp-net @ c58f125.
 - `[[code_copy]]` maps decoding only; runtime entry PCs inside a copied span
   still need `[[extra_func]]` entries (seed via tools/misspack + a
   source-side prologue scan of the copied span).
+- Desktop playtest keyboard: on Linux desktops with an input-method daemon
+  (IBus/GNOME), special keys (Enter/Backspace) can be swallowed inside the
+  game window. Use a letter-only map (`build/keybinds.ini`; example:
+  `tools/playtest_keybinds.ini.example`) and verify presses with
+  `GBARECOMP_INPUT_RECORD` or `tools/keyprobe.py`.
 
 - BIOS recompile must run with cwd = `gbarecomp/` (or output lands in the
   wrong `src/runtime/generated_bios/`); after generating, **re-run CMake

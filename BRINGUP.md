@@ -800,6 +800,21 @@ Status of the user-requested queue (turning recorded studies into repo output):
   targeted VM checks (their 0x08123670 vs our 0x08122680/0x08122AAA/
   0x0812386C) when the interpreter moves to the audit front.
 
+### Desktop playtest input — IBus special-key swallowing (2026-10-06)
+Interactive play initially received only some keys on the user's
+GNOME/Wayland session: `GBARECOMP_INPUT_RECORD` showed Up/X registering while
+Enter/Backspace/C intermittently vanished. Synthetic injection (ydotool with
+HELD presses, all 10 codes) proved the runtime + keybinds pipeline registers
+every button, isolating the loss to the host input layer — an input-method
+daemon (IBus present on the host) swallowing special keys in game windows, a
+known Linux/GNOME gotcha. Resolution: a **letter-only player map** — working
+map committed as `tools/playtest_keybinds.ini.example`, installed at
+`build/keybinds.ini` (local, gitignored); the user can now play the desktop
+build interactively. Verification tooling that made this debuggable:
+`GBARECOMP_INPUT_RECORD`, `tools/keyprobe.py`, and `ydotool key <code>:1/:0`
+with held presses (note: single-tick synthetic taps can fall between 60 Hz
+input samples — a test artifact, not a game bug).
+
 ### Android port findings (research 2026-10-06; not started)
 Researched ahead of a possible Android release (user question: what gates
 Android playability — answer: not the pointer-pool lens; only the executed
