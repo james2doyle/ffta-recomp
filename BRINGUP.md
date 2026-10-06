@@ -631,23 +631,26 @@ end-to-end 2026-10-06: reproduces the numbers above in ~4 s (commit ae6966d).
   Fade/transition frames can flip whole-frame visibility (native scene vs
   oracle black at f1300) — same class; pick stable frames for golden hashes.
 
-### Next in Phase 5
-- Build `tools/dualrun.py` — dual-engine probe library+CLI (spawn/boot/step;
-  per-side read commands; region/pixel/cell diffs; PNG dumps; phase-aware:
-  native post-handler / oracle pre-handler; free-port allocation).
-  Replaces the 8×-reimplemented inline scaffolding (and its copy-paste bugs).
-- Build `tools/attract_check.py` — the attract regression gate for every
-  game.toml change: strict headless run + banner asserts + stable-frame
-  golden SHA-256 pinned in-script (WarioWare `verify-attract.ps1` pattern,
-  `--repin` for deliberate updates). Input-trace CSV (`inputs/`) only when
-  driving past the title.
-- Build `tools/misspack.py` — miss-frag → per-PC evidence pack (disasm
-  window, prologue check, ROM thumb-pointer scan → `[[jump_table]]`
-  proposals, nearest-dispatch distance, ready-to-paste game.toml stub);
-  proposals reviewed manually, never auto-written.
-- Follow-ups: `tools/cycle.py` (cold cycle + dispatch odd-address sanity
-  check), `tools/ringscan.py`; contact-sheet dump for the f6000+ attract
-  loop; extend the strict horizon beyond 2400 once the gate exists.
+### Phase 5 tooling — built 2026-10-06
+- `tools/dualrun.py` — lockstep native↔oracle probes (regions / pixels /
+  cells / PNG dumps; free ports; encodes the park-phase model). Smoke-tested:
+  iwram @f60 shows exactly the two known phase cells (0x03003B30, 0x03007FF8);
+  pixel dump @f620 = 1661 bytes (the animated-band class).
+- `tools/attract_check.py` — the attract regression gate (WarioWare
+  `verify-attract.ps1` pattern): strict headless run, banner asserts, golden
+  SHA-256 pinned in-script (`--repin` adopts deliberate changes; frames=1200
+  pinned at commit time; verify = PASS).
+- `tools/misspack.py` — miss-frag → evidence pack + PROPOSED TOML stubs
+  (disasm window, backward prologue scan, ROM pointer scan with table-run
+  detection → `[[jump_table]]` proposals carrying `entries_mode = "auto"`,
+  nearest dispatch entry). Table path validated against the m4a table
+  (0x08144A0C / 0x081448DC hits inside 0x0836D0xx; the run detector is
+  deliberately over-wide — trim the extent on review). Manual review only;
+  never auto-writes game.toml.
+- Follow-ups: `tools/cycle.py` (cold cycle + dispatch odd-address sanity),
+  `tools/ringscan.py` (FP_SAVE queries); contact-sheet dump for the f6000+
+  attract loop; extend the strict horizon beyond 2400 once the gate is
+  wired into the change loop.
 
 ### Android port findings (research 2026-10-06; not started)
 Researched ahead of a possible Android release (user question: what gates

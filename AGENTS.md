@@ -94,6 +94,17 @@ to a 1200-frame strict run; `--frames N`, `--json` for machine-readable,
 `game.toml` and regenerated in a throwaway temp dir with a cold cache —
 `game.toml` and `generated/` are never touched.
 
+Attract regression gate (run after every `game.toml` change; exit 0 = PASS,
+`--repin` to adopt deliberate visual changes):
+`.venv/bin/python tools/attract_check.py`
+
+Lockstep dual-engine probes (regions / pixels / cells / PNG dumps; free
+ports; encodes the park-phase model from § "Oracle & frame diff"):
+`.venv/bin/python tools/dualrun.py --help`
+
+Miss evidence packs (after a non-strict `GBARECOMP_MISS_FRAG` harvest):
+`.venv/bin/python tools/misspack.py logs/missN.frag [--stubs | --pc 0x...]`
+
 ## Oracle & frame diff (Phase 5)
 
 The validation harness compares our runner against gbarecomp's own mGBA
@@ -153,7 +164,7 @@ commands: `emu_step`/`emu_step_to_vblank` (one runFrame = one PPU frame),
 | `src/` | Host code: `main.cpp` + integration (Phase 3) |
 | `generated/` | Recompiler output — gitignored, never edited |
 | `gbarecomp/`, `recomp-ui/` | Pinned submodules (see below) |
-| `tools/` | `disarm.py` (capstone disassembler), `m4a_detect.py`, `framediff.py` (native↔oracle scan), `coverage_report.py` (three-lens coverage table) |
+| `tools/` | `disarm.py` (capstone disassembler), `m4a_detect.py`, `framediff.py` (native↔oracle delta scan), `dualrun.py` (lockstep probes), `coverage_report.py` (three-lens coverage table), `attract_check.py` (golden attract gate), `misspack.py` (miss evidence packs) |
 | `inputs/` | (future) deterministic keyinput traces — replay format `<frame>,0x<hex>`, active-low |
 | `BRINGUP.md` | Decision log — the project's memory |
 | `game.gba` | Retail ROM, gitignored |
@@ -233,8 +244,11 @@ recomp-net @ c58f125.
 
 ## Validation discipline
 
-- Every `game.toml` change → regenerate → rebuild → rerun attract-mode diff
-  (Phase 5 harness; regression test).
+- Every `game.toml` change → regenerate → rebuild → run
+  `tools/attract_check.py` (golden gate; exit 0 required) and
+  `tools/framediff.py` for state-level deltas. Regression tooling lives in
+  `tools/`; use it instead of hand-rolling probes (`tools/dualrun.py`,
+  `tools/misspack.py`).
 - Debug via gbarecomp's TCP debug surface (`--tcp`), not printf; state claims
   as "per the frame ring at f=N (vblank=M)".
 - FFTA known hard spot: its scripting/VM interpreter cluster — expect a large

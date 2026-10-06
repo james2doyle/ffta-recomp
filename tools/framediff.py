@@ -4,12 +4,13 @@
 Companion to gbarecomp/oracle/diff_cart.py, hardened for the phase offset
 discovered on 2026-10-06:
 
-  * The recomp runner stops at VBlank-START (scanline 159->160) *before* the
-    VBlank IRQ handler runs; mGBA's runFrame stops at the VBlank wrap
-    (scanline 227->0) *after* the handler ran. Same-index region reads are
-    therefore one IRQ-handler apart, which shows up as small standing
-    differences (e.g. the BIOS IntrWait flag 0x03007FF8, a per-frame
-    countdown at 0x03003B30).
+  * Both engines park at VBlank-START (scanline 159->160). The recomp runner
+    executes the VBlank IRQ handler before parking (post-handler); mGBA
+    raises the IRQ and vectors it at the start of the next step
+    (pre-handler). Same-index region reads are therefore one handler apart
+    (native ahead — e.g. the title-animation snow RNG advances 13 chain
+    steps/frame). See BRINGUP § "park-phase semantics" (2026-10-06), which
+    supersedes the earlier "mGBA stops at the wrap" wording.
   * Delta mode cancels the phase offset: it compares per-frame *changes*
     (old->new per byte) instead of absolute bytes. A byte whose change set
     and transformation match on both sides is phase noise; a change that
