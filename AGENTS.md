@@ -39,8 +39,11 @@ bytes in git history, ever (this includes generated/, saves, patches, frames).
 - Linux (Arch). No `pip3`/`arm-none-eabi-*`; use `uv` + `.venv/` (capstone)
   for Python work. `tools/disarm.py <start> <end> [arm|thumb]` disassembles
   (hex GBA addresses); run via `.venv/bin/python`.
-- mGBA is **not installed**. Phase 5 needs it — install via pacman
-  (`mgba-sdl`/`mgba-qt`) or AUR before building the frame-diff harness.
+- mGBA: system `mgba-sdl`/`mgba-qt` 0.10.5 installed (pacman, `extra`) for
+  manual reference use. The Phase 5 harness uses the framework's **own**
+  mGBA oracle instead — libmgba 0.10.5 built from source into
+  `gbarecomp/third_party/mgba` and wrapped as `gbarecomp_oracle` (TCP) —
+  see § "Oracle & frame diff" below.
 - BIOS: `[bios] hle = false` requires a real BIOS dump at
   `gbarecomp/bios/gba_bios.bin` (user-supplied, never committed; SHA-1
   `300c20df6731a33952ded8c436f7f186d25d3492`). Do not download a BIOS.
@@ -84,16 +87,63 @@ Coverage loop (after every run): read the exit banner
 merge** real ones into `game.toml`, regenerate, rebuild, rerun — until
 `FULLY_STATIC`. Never auto-write `game.toml`.
 
+## Oracle & frame diff (Phase 5)
+
+The validation harness compares our runner against gbarecomp's own mGBA
+oracle (the framework's mGBA 0.10.5 checkout — distinct from the system
+mGBA install used for manual eyeballing).
+
+Build the oracle (one-time; needs network for the mGBA clone; re-run only
+after framework/submodule changes):
+
+```sh
+cd gbarecomp
+bash oracle/setup-mgba.sh           # clones mGBA 0.10.5 -> third_party/mgba,
+                                    # builds libmgba.a (~25 s)
+cmake -B build -S . -DGBARECOMP_BUILD_ORACLE=ON
+cmake --build build --target gbarecomp_oracle --parallel 8
+```
+
+Binary: `gbarecomp/build/oracle/gbarecomp_oracle` — TCP server, default
+port 19843; args `--bios <real bios> --rom <rom> --port N`; run with
+cwd=`gbarecomp/` (default BIOS path is cwd-relative). Key JSON-line
+commands: `emu_step`/`emu_step_to_vblank` (one runFrame = one PPU frame),
+`emu_vblank_count`, `emu_screenshot` (240x160 RGB888 hex),
+`read_emu_{iwram,ewram,vram,pal,oam,rom,io}`, `emu_set_keys`.
+
+**Comparison protocol** (learned the hard way — see BRINGUP § Phase 5):
+- Our runner's `step`/`run_frames` stops at **VBlank-start** (pre-IRQ);
+  mGBA `runFrame` stops at the **VBlank wrap** (post-IRQ). Same-index
+  reads are one IRQ handler apart → compare **per-frame deltas**
+  (old→new per byte), not absolute bytes. Standing ± offsets are expected
+  on phase-sensitive cells (BIOS phase: 0x03003B30 countdown, 0x03007FF8
+  IntrWait flag; stack regions ~0x03007D24-0x03007F9F — the BIOS→cart
+  handoff cluster there is currently under root-cause).
+- Framework-ready tools: `gbarecomp/oracle/diff_cart.py` (absolute
+  PAL/OAM/VRAM/IWRAM byte compare; `--native-exe ../build/FFTARecomp
+  --rom ../game.gba --bios bios/gba_bios.bin`), `diff_frame.py`,
+  `gba_tcp.py` (manual driver). Our wrapper: `python3 tools/framediff.py
+  --lo 4 --hi 300` (spawns both engines, delta mode, JSON report to
+  `/tmp/ffta_framediff/`, exit 1 on divergence).
+- Sync on hardware events (VBlank counts), never raw frame indexes
+  (gbarecomp/CLAUDE.md § SYNC RULES); debug region **writes**, not screen
+  pixels, until memory matches.
+- Frame dumps/saves are ROM-derived: write to `/tmp/` or `logs/`
+  (gitignored) only — never commit them. Recomp-side capture envs:
+  `GBARECOMP_FRAMEDUMP_DIR/_START/_COUNT` (windowed path; one PNG per
+  guest frame), `--dump-png` (single frame, works `--no-window`), TCP
+  `screenshot`.
+
 ## Repo layout
 
 | Path | What |
 |---|---|
-| `game.toml` | Per-game config (identity-pinned; Phase 2, not yet created) |
+| `game.toml` | Per-game config — identity-pinned; Phase 2 + Phase 4 audit entries |
 | `src/` | Host code: `main.cpp` + integration (Phase 3) |
 | `generated/` | Recompiler output — gitignored, never edited |
 | `gbarecomp/`, `recomp-ui/` | Pinned submodules (see below) |
-| `tools/` | `disarm.py` (capstone disassembler), `m4a_detect.py` |
-| `inputs/` | Deterministic keyinput traces (`frame,keyinput` lines) |
+| `tools/` | `disarm.py` (capstone disassembler), `m4a_detect.py`, `framediff.py` (native↔oracle scan) |
+| `inputs/` | (future) deterministic keyinput traces — replay format `<frame>,0x<hex>`, active-low |
 | `BRINGUP.md` | Decision log — the project's memory |
 | `game.gba` | Retail ROM, gitignored |
 
@@ -124,9 +174,12 @@ recomp-net @ c58f125.
   (`gbarecomp/build/oracle/gbarecomp_oracle`, via
   `gbarecomp/oracle/setup-mgba.sh` + `-DGBARECOMP_BUILD_ORACLE=ON`);
   `tools/framediff.py` delta scans (phase-offset-aware) running against it —
-  see BRINGUP.md § "Phase 5 start". Next: scans through logo/attract phases +
-  pixel compares, then wire the attract diff as the game.toml regression
-  test. Horizon: strict runs still capped ≈480 f (non-strict 600 f aborts via
+  see BRINGUP.md § "Phase 5 start". Status: BIOS phase clean to ~vblank 280
+  (only known phase artifacts); candidate divergence cluster at the BIOS→cart
+  handoff (~281+) is the active root-cause target. Next: root-cause the
+  handoff cluster, extend scans through logo/attract phases + pixel compares,
+  then wire the attract diff as the game.toml regression test. Horizon:
+  strict runs still capped ≈480 f (non-strict 600 f aborts via
   heal-bridge stack growth). New misses re-enter the audit loop with the
   cold-cache protocol below.
 
