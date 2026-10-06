@@ -741,6 +741,43 @@ routine.
   `[[extra_func]]` name field) — most sites are interior patch points,
   filter to real prologues first.
 
+### charlie-troy/ffta-decomp study (2026-10-06) — revision-exact cross-reference
+Reviewed charlie-troy/ffta-decomp (225 commits; active the same day). Partial
+matching decomp + battle-AI RE. **Targets exactly our ROM**: their
+`tools/verify_rom.py` / `data/functions.json` pin sha1
+`4ac05441f4de70a4ec3dd932116346c61b8783d9` (USA/AFXE) = ours. **NO license**
+— reference facts with attribution only; do not ingest sources/logs (also
+ROM-derived).
+- State: 173 functions matched in C (9,888 B total, all Thumb; 111 of them in
+  0x080C0000-0x080CFFFF = battle/AI region); full 16 MB rebuilds byte-
+  identical via incbin (CI gates per-object SHA-256); discovery claims 3,594
+  boundaries (manifest not committed). Symbol registry: 96 bindings, only
+  ~16 descriptive (rest `sub_*`).
+- **Spot-checked against our ROM (tools/disarm.py):** 0x080C7EA4 `UnitStat` =
+  `cmp r0,#0x44; lsls #2; ldr table; mov pc` — 69-entry stat dispatcher,
+  consistent with the 0x080C7EC0 table; 0x08002804 = the Phase 4 LCG exactly;
+  0x08123670 (their "battle event-script VM spawn command") = real function
+  calling 0x08096E18/0x08096D7C (near our 0x08096CB8/0x08096E78 seeds). No
+  contradictions found anywhere.
+- Useful anchors: `UnitStat` 0x080C7EA4, `AbilityProp` 0x080CCD50,
+  `AbilityMpCost` 0x0812ED98, `gRngState` 0x030034B0, `gSongTable` 0x0814BB48
+  (640×8 MP2K entries), `gAbilityTable` 0x0855187C; turn-order chain
+  sub_0809E1E0 → sub_0809E05C → sub_0809DF7C; AI evaluator sub_080C32C0
+  (5,352 B, matched in C).
+- Docs to mine later (cite/paraphrase): `docs/ai-findings.md` (75 KB),
+  `turn-order.md`, `audio-driver.md` (m4a island 0x08141500-0x081458AC,
+  94 fns), `text.md` (8 string tables), `map-data.md` (confirms our
+  162×0x58 @0x08569104), `unit-struct.md`. Event VM: scattered refs only
+  (spawn cmd 0x08123670) — no interpreter map.
+- Import notes: gbarecomp's symbol pipeline (SYMBOL_OVERLAY.md) can consume
+  their build (agbcc in /tmp; ~207 seeds, mostly `sub_*`, + ~16 globals) —
+  modest yield; carry on as targeted cross-reference. Optional build route:
+  per-function SHA gates + baseline-vs-overlay validation (frames /
+  FULLY_STATIC / pixels must agree).
+- Next targeted checks: their 0x08123670 vs our VM sites
+  0x08122680/0x08122AAA/0x0812386C; 0x08096E18 and 0x08096E46-5E around our
+  seed 0x08096E78; full read of the AI docs when the battle path opens.
+
 ### Android port findings (research 2026-10-06; not started)
 Researched ahead of a possible Android release (user question: what gates
 Android playability — answer: not the pointer-pool lens; only the executed

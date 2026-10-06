@@ -273,4 +273,6 @@ recomp-net @ c58f125.
   LeonarthCG/FFTA_Engine_Hacks (address→description index; VM-cluster
   correction — BRINGUP § "FFTA_Engine_Hacks study"), FFHacktics forum;
   spiiin/FFTAUtils (map-data formats + verified data regions — see BRINGUP
-  § "Map-data regions").
+  § "Map-data regions"); charlie-troy/ffta-decomp (revision-exact partial
+  decomp; battle/AI + audio/text docs — BRINGUP § "charlie-troy/ffta-decomp
+  study").
