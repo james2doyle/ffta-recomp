@@ -107,15 +107,19 @@ recomp-net @ c58f125.
 - Phase 0 (ROM recon): **COMPLETE** — see `BRINGUP.md`.
 - Phase 1 (framework setup): **COMPLETE** — submodules pinned, `gba_recompile`
   + `gba_scan` built, ROM validated by `gba_scan` (ok=1).
-- Phase 2 (game.toml): **NEXT** — create from the verified TOML schema using
-  Phase 0 facts: `id = "AFXE"`, `load_address = 0x08000000`,
-  `size = 0x01000000`, `entry_pc = 0x080000C0`,
-  `aot_scan_start = 0x080000C0`, `aot_scan_end = 0x08010000`,
-  `speculative_literal_harvest = false`, `static_resume_all = true`,
-  `codegen_shards = 32`, identity SHA-1/MD5, `[save]` from gba_scan's
-  Flash 512 Kbit detection. `[[code_copy]]` entries for FFTA's IWRAM
-  dispatcher (0x080000FC-style) will need frame-diff evidence first — do not
-  guess them.
+- Phase 2 (game.toml): **COMPLETE** — identity-pinned, schema verified against
+  parser source, validated by full discovery run (1072 functions, 0 undefined,
+  0 collisions) into a temp dir. `entry_pc = 0x08000000` (NOT 0x080000C0 —
+  BIOS hands off at 0x08000000; see BRINGUP.md Phase 2). Save: flash512/65536
+  (signature `FLASH512_V130` @ 0x0836CE28). Two `[[extra_func]]` seeds
+  (rom_irq_dispatcher 0x080000FC arm, main 0x08000254 thumb).
+- Phase 3 (first recompile + build + run): **NEXT** — regenerate into
+  `generated/`, CMake skeleton (`src/main.cpp`, CMakeLists.txt modeled on the
+  DBZ reference), build, run, capture coverage report. Needs a user-supplied
+  BIOS dump at `gbarecomp/bios/gba_bios.bin` for LLE runs.
+- Phase 4 audit lead: 7 auto-detected jump tables (~208 targets) clustered at
+  0x08004058/0x080044C8/0x080C7EC0/0x080C85A0/0x080C9EF4/0x080CA33C/0x080CA7CC
+  — likely FFTA's scripting/VM interpreter cluster; audit carefully.
 
 ## Validation discipline
 

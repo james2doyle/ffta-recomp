@@ -1,0 +1,91 @@
+# Final Fantasy Tactics Advance (USA, AFXE) — per-binary recompile config.
+#
+# Field semantics verified against gbarecomp @ ecc9c55:
+#   - tools/gba_recompile/config.cpp (recompiler-side: [program], [identity],
+#     [[extra_func]], ...) parses this file via --config.
+#   - src/runtime/runtime.cpp apply_toml_file (runtime-side: [game], [bios],
+#     [rom], [save], [video], [audio]) reads the same file at launch.
+# Every address below is backed by disassembly evidence in BRINGUP.md
+# § "2026-10-06 — Phase 0".
+
+[game]
+name = "Final Fantasy Tactics Advance"
+short_name = "final_fantasy_tactics_advance"
+default_region = "USA"
+
+[program]
+name = "Final Fantasy Tactics Advance (USA)"
+id = "AFXE"
+load_address = 0x08000000
+size = 0x01000000                # 16,777,216 bytes — matches file exactly
+# The real BIOS hands off to the cart at 0x08000000 (runtime.cpp:2005
+# bios_hle_boot_skip(0x08000000); BIOS-mapped cart entry). Word at
+# 0x08000000 is `ea00002e  b 0x080000C0` (Phase 0 disassembly; confirmed by
+# gba_scan entry_target=0x080000c0). Seeding 0x08000000 recompiles the branch
+# itself and the walk reaches crt0 at 0x080000C0.
+entry_pc = 0x08000000
+# Evidence-driven strict-static discovery (same policy as the DBZ reference
+# repo): no speculative literal harvesting; runtime-observed roots get seeded
+# through the Phase 4 audit loop instead.
+speculative_literal_harvest = false
+aot_scan_start = 0x080000C0     # crt0 start, past the header/logo bytes
+aot_scan_end = 0x08010000       # initial ~64KB sweep; rest via runtime misses
+static_resume_all = true        # IRQ/SWI may resume at any instruction boundary
+codegen_shards = 32
+
+[identity]
+sha1 = "4ac05441f4de70a4ec3dd932116346c61b8783d9"
+md5 = "cd99cdde3d45554c1b36fbeb8863b7bd"
+
+[bios]
+path = "gbarecomp/bios/gba_bios.bin"
+sha1 = "300c20df6731a33952ded8c436f7f186d25d3492"
+hle = false                     # LLE: recompiled real BIOS required (user dump)
+
+[rom]
+path = "game.gba"
+sha1 = "4ac05441f4de70a4ec3dd932116346c61b8783d9"
+
+# Save type resolved empirically: ASCII signature "FLASH512_V130" at ROM
+# 0x0836CE28 (verified by direct byte inspection 2026-10-06; gba_scan
+# agrees: save_type=Flash 64KB (512 Kbit), signature FLASH512_V).
+# No FLASH1M/SRAM/EEPROM signatures exist anywhere in the ROM.
+[save]
+type = "flash512"
+size = 65536
+path = "saves/ffta_us.sav"
+
+[video]
+screen = "raw"                  # exact BGR555 passthrough during bring-up
+view_width = 240                # faithful 240x160
+resize_view = false
+
+[audio]
+shadow = false                  # no MP2K shadow mixer; recompiled canon only
+
+# Informational only (runtime does not parse [runtime] keys; real values are
+# CMake compile definitions — see Phase 3 CMakeLists, DBZ reference pattern).
+[runtime]
+debug_port = 19888
+window_title = "FFTARecomp"
+
+# ── Evidence-backed function seeds (Phase 0 disassembly) ──────────────
+# ROM IRQ dispatcher: crt0 computes 0x080000FC (add r0, pc, #0x18 at
+# 0x080000DC) and stores it to the BIOS IRQ-handler pointer 0x03007FFC
+# (str r0, [r1] at 0x080000E0, r1 = literal 0x03007FFC at 0x0800023C).
+# The BIOS IRQ dispatcher jumps through that pointer — no static branch
+# reaches this function, so it must be seeded.
+[[extra_func]]
+addr = 0x080000FC
+mode = "arm"
+name = "rom_irq_dispatcher"
+note = "Installed to 0x03007FFC by crt0 (str at 0x080000E0); ARM entry, reads IF at 0x04000200 via mov/add at 0x080000FC-0x08000110"
+
+# Thumb main: crt0 loads literal 0x08000255 (LSB=1, at 0x08000240) into r1
+# and tail-calls it (mov lr, pc at 0x080000E8; bx r1 at 0x080000EC).
+# Entry 0x08000254 verified as Thumb code (push {r7,lr}; mov r7, sp).
+[[extra_func]]
+addr = 0x08000254
+mode = "thumb"
+name = "main"
+note = "Thumb entry via bx r1 at 0x080000EC from literal 0x08000255 @ 0x08000240; prologue push {r7,lr} verified"

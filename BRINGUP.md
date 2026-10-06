@@ -174,5 +174,82 @@ next milestone. Framework's own `gbarecomp/CLAUDE.md` left untouched
 
 ### Phase 1 result
 Submodules pinned and built, ROM validated by the framework's own tool,
-docs read completely, AGENTS.md written. No blockers. Next: Phase 2
-(game.toml) — but see user instruction: **stop after Phase 1 completes**.
+docs read completely, AGENTS.md written. No blockers.
+
+---
+
+## 2026-10-06 — Phase 2: game.toml (COMPLETE)
+
+### Field semantics verified against parser source (not just docs)
+- `tools/gba_recompile/config.cpp:747` — `[program].entry_pc` required, hex.
+- `tools/gba_recompile/main.cpp:1097-1098` — `entry_pc` becomes the discovery
+  entry when `--config` is present.
+- `tools/gba_recompile/main.cpp:1250` — cart mode seeds entry as
+  **`CpuMode::Arm`** unconditionally. Correct for FFTA: word at 0x08000000 is
+  ARM `ea00002e b 0x080000C0`.
+- `src/runtime/runtime.cpp:2005` + `src/runtime/bios_hle.cpp:518-540` — the
+  real BIOS hands off to the cart at **0x08000000** (`R15 = cart_entry`);
+  `bios_hle_boot_skip` is only the intro-skip presentation path, same handoff
+  address.
+- **Decision: `entry_pc = 0x08000000`** — the bootstrap prompt's 0x080000C0
+  guess would seed crt0 directly and leave the reset-branch word itself
+  unrecompiled. Reference repos (DBZ) also use 0x08000000. Framework evidence
+  supersedes the prompt (ground rule 7).
+- `src/runtime/save_config.cpp:32-47` — `[save].type` tokens:
+  `sram|eeprom|flash512|flash1m`; Flash512 valid size = 65536.
+- `src/runtime/runtime.cpp:688-779` (`apply_toml_file`) — runtime-side keys
+  verified: `[game].short_name/default_region`, `[bios].path/sha1/hle`,
+  `[rom].path/sha1`, `[save].path/type/size`, `[video].screen/view_width/
+  resize_view`, `[audio].shadow`. `[runtime]` table is informational only
+  (parsed by CMake compile definitions in Phase 3, not by the runtime).
+
+### Save type — first-hand byte evidence
+- ASCII string `FLASH512_V130\0` at ROM file offset 0x36CE28 (xxd + Python,
+  2026-10-06). No `FLASH1M_V`/`SRAM_V`/`EEPROM_V` strings anywhere in the ROM.
+- `gba_scan` independently: `save_type=Flash 64KB (512 Kbit)`,
+  `save_signature=FLASH512_V`, `save_signature_offset=0x0036ce28`.
+- → `[save] type = "flash512"`, `size = 65536`.
+
+### game.toml created — full validation run
+`./gbarecomp/build/gba_recompile --rom game.gba --config game.toml
+--out /tmp/ffta_p2_validate --max-functions 65536` (temp dir, NOT
+generated/ — Phase 3 will regenerate into generated/):
+```
+identity sha1: 4ac05441... (verified)
+extra_func entries: 2
+==> discovered 1072 functions (arm=9 thumb=1063 indirect=457 undefined=0
+    branch_targets=8736)
+discovered_by_walk: 1069   redundant_manual: 1   manual_seeds_only: 2
+auto_jump_tables: 7 (208 targets) auto-detected
+midfn_aliases: 6381 entries -> 1018 hosts
+TOTAL emitted: 1072
+```
+- Identity verified; config parsed by both the recompiler (toml++) and a
+  runtime-parse mirror check (all keys/values valid per save_config rules).
+- 0 undefined functions, 0 control-flow-into-data errors, 0 finder rejections.
+- 7 auto-detected jump tables (208 targets) — clustered at 0x08004058/
+  0x080044C8/0x080C7EC0/0x080C85A0/0x080C9EF4/0x080CA33C/0x080CA7CC —
+  audit candidates for Phase 4 (likely the scripting/VM cluster; expect
+  FFTA's in-game interpreter here).
+
+### Seed A/B differential (evidence for keeping both seeds)
+- No seeds: 1066 functions (arm=3), 1 manual-only (entry).
+- IRQ-dispatcher seed only: 1072 (arm=9), 2 manual-only — walk from the
+  dispatcher reaches main's call tree.
+- main seed only: 1072 (arm=9), 2 manual-only — walk from main reaches the
+  dispatcher region.
+- Both: 1072; one seed redundant with walk. Discovery converges to the same
+  1072-function corpus from either seed. Both kept: each is an indirect
+  transfer target the walk cannot see (bx through 0x03007FFC install, bx r1
+  literal), so the seeds are the correctness anchors; the names carry
+  documentation value.
+
+### Phase 2 result
+`game.toml` created, identity-pinned (SHA-1 + MD5), schema-exact (verified
+against parser source), evidence-backed ([program] from Phase 0 disassembly,
+[save] from FLASH512_V130 bytes, [[extra_func]] ×2 with cited instructions).
+BIOS requirement flagged to user: `hle = false` needs a user-supplied dump
+at `gbarecomp/bios/gba_bios.bin` (SHA-1 300c20df...) — never downloaded,
+never committed.
+
+**STOP — Phase 3 not started, per user instruction.**
