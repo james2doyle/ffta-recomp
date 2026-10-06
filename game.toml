@@ -835,3 +835,1031 @@ note = "strict frontier island after tail-blob batch; source 0x08A39720 via code
 start = 0x08569104
 end = 0x08698218
 note = "map data span: 162x0x58 record table + compressed map blobs (FFTAUtils; corroborated by charlie-troy/ffta-decomp map-data.md)"
+
+# ─── Playtest batch a: first-battle session (2026-10-06, 901 miss PCs) ───
+# From the user's interactive session (logs/playtest_misses.frag, 29,070 frames,
+# two battle savestates). Classification: logs/playtest_start_proposal.txt
+# (tools/misspack prologue scan). 181 starts explain ~832 interior misses.
+
+[[extra_func]]
+addr = 0x08005B28
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08005B40
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08005BDC
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08008DFC
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 2 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08008E78
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x080096B0
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 2 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0800A154
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0800A1BC
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0800A1E4
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 2 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0800A210
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 0 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0800A2F0
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0800A36C
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0800A420
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08016210
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08017490
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 0 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08017B1C
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08017E80
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 2 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08017F04
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 4 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0801BB0C
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08021004
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 2 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08021064
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 6 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x080210E4
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 16 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08021290
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 8 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08021378
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 3 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08021484
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 7 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08021C08
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08021E3C
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x080220E8
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08022164
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 0 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08022194
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 2 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x080221BC
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 2 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x080221E4
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0802321C
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 4 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08025758
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 4 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08025B54
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 11 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08025D14
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 2 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08025DC8
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 15 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08027D10
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 5 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08027DA0
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 15 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0802800C
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 5 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x080282A4
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 2 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x080282D4
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 4 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08028350
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 5 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0802839C
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 8 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08028434
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 3 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08028584
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 11 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08028708
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 12 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x080287C4
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x080287F0
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 2 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08028824
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 2 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08028970
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 17 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08028B20
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 2 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08028B94
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 0 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08028BA8
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 0 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08028CA4
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 2 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08028D88
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 3 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08028DE0
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 33 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08028FF4
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 2 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x080293DC
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 5 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0802BA40
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 3 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0802BAF8
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 4 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0802BB70
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 11 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0802BC7C
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 3 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0802BD90
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 0 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0802C034
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 11 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0802C168
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 15 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0802C270
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 4 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0802C398
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 9 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0802C540
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 7 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0802C5C8
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 4 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0802C830
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 8 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0802C8C4
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 17 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0802CABC
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 18 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0802CBD4
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 15 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0802D014
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 2 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0802D05C
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 2 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0802D0B0
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 24 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0802D520
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 4 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0802D550
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 28 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x080712D0
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0807411C
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 0 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0807F7B4
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 6 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08087F0C
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08087FB8
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 3 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x080888B4
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 5 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0808A1EC
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0808AAF0
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 3 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0808AC34
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 2 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0808B288
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 7 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0808F1F4
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 7 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0808F804
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 3 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08097814
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 17 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08097A04
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 13 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08097F04
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 5 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08098BB0
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 6 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0809AB3C
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 2 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0809AB5C
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 2 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0809AB7C
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 3 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0809ABB0
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 2 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0809ABE8
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0809AC00
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0809AC88
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 2 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0809ACB4
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0809ACE4
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0809AD1C
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 2 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0809AD94
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 2 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0809ADDC
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 0 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0809C9E8
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 8 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0809DA0C
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 39 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0809DCC4
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 8 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0809F938
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 2 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x080A8E0C
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x080A95B0
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x080BF7C4
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 0 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x080C7E38
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x080D3208
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 3 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x080D791C
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 3 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x080D7A70
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08121B64
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08121BB8
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08121CB4
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08121D40
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 2 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x081223C8
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 2 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08122404
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 0 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08122454
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08122484
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 2 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x081224B8
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 0 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08122598
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 2 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x081227F8
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x081228D4
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 4 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08122B14
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08122B8C
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08122BA4
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08122BC8
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 2 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08122BFC
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08122DAC
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08122DE8
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 0 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08122E50
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 2 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08123010
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0812302C
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08123064
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08123080
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x081230DC
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 0 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0812314C
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x081232C8
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08123398
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 0 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08123408
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 2 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08123474
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x081234FC
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 0 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08123580
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08123694
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08123714
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08123770
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 2 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08123ACC
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08123D28
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 0 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08124480
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08124974
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 0 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08124E74
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x081255C8
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 3 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08125A5C
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 9 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08125FA8
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 0 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0812638C
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x081264B8
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 3 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08126AA8
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08126BFC
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 6 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08126D34
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 7 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08126DFC
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08126E34
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 0 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08126EA4
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08126FCC
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 0 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08127124
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 3 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08127228
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 7 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08127458
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 0 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08127990
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 5 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08127A1C
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 3 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08127B40
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 0 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08127B80
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 1 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08127C54
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 0 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08127D0C
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 2 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x0812A084
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 0 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x08146864
+mode = "thumb"
+note = "playtest batch a: start from misspack prologue scan; covers 11 interior miss pc(s); source logs/playtest_pack.md"
+
+[[extra_func]]
+addr = 0x03006B80
+mode = "thumb"
+note = "playtest batch a: IWRAM island; decode via code_copy iwram_ram_helpers_tail (0x03006170<-0x08A38D24)"
+
+[[extra_func]]
+addr = 0x03006BBC
+mode = "thumb"
+note = "playtest batch a: IWRAM island; decode via code_copy iwram_ram_helpers_tail (0x03006170<-0x08A38D24)"
+
+
+# ─── Playtest batch b: strict-replay resolve loop (2026-10-06) ───
+# 15-iteration loop against the user's recorded session (logs/playthrough.csv,
+# 29,100 frames): each iteration strict-replayed to the next miss and seeded
+# it (candidate start when valid, else the miss PC itself). Cleared the
+# ENTIRE session: strict replay passes 0..29,100 with 0 dispatch misses.
+
+[[extra_func]]
+addr = 0x08022148
+mode = "thumb"
+note = "auto-batch b (kept)"
+
+[[extra_func]]
+addr = 0x08122F8C
+mode = "thumb"
+note = "auto-batch b (kept)"
+
+[[extra_func]]
+addr = 0x080231E8
+mode = "thumb"
+note = "auto-batch b (kept)"
+
+[[extra_func]]
+addr = 0x08022128
+mode = "thumb"
+note = "auto-batch b (kept)"
+
+[[extra_func]]
+addr = 0x08122E1C
+mode = "thumb"
+note = "auto-batch b (kept)"
+
+[[extra_func]]
+addr = 0x08122E34
+mode = "thumb"
+note = "auto-batch b: direct seed (start 0x8122e1c rejected for 0x8122e34)"
+
+[[extra_func]]
+addr = 0x08122B50
+mode = "thumb"
+note = "auto-batch b: covers miss 0x8122b50; push @0x08122B50"
+
+[[extra_func]]
+addr = 0x08122E7C
+mode = "thumb"
+note = "auto-batch b: direct seed (start 0x8122e50 rejected for 0x8122e7c)"
+
+[[extra_func]]
+addr = 0x08123044
+mode = "thumb"
+note = "auto-batch b: covers miss 0x8123044; push @0x08123044"
+
+[[extra_func]]
+addr = 0x08123320
+mode = "thumb"
+note = "auto-batch b: covers miss 0x8123320; push @0x08123320"
+
+[[extra_func]]
+addr = 0x08018D10
+mode = "thumb"
+note = "auto-batch b: covers miss 0x8018d10; push @0x08018D10"
+
+[[extra_func]]
+addr = 0x0809AC20
+mode = "thumb"
+note = "auto-batch b: direct seed (start 0x809ac00 rejected for 0x809ac20)"
+
+[[extra_func]]
+addr = 0x080C7E68
+mode = "thumb"
+note = "auto-batch b: direct seed (start 0x80c7e38 rejected for 0x80c7e68)"
+
+[[extra_func]]
+addr = 0x0809779C
+mode = "thumb"
+note = "auto-batch b: covers miss 0x809779c; push @0x0809779C"
+
+[[extra_func]]
+addr = 0x0800A1AC
+mode = "thumb"
+note = "auto-batch b: direct seed (start 0x800a154 rejected for 0x800a1ac)"
+
+[[extra_func]]
+addr = 0x0807F168
+mode = "thumb"
+note = "auto-batch b: covers miss 0x807f168; push @0x0807F168"
+
+[[extra_func]]
+addr = 0x08071374
+mode = "thumb"
+note = "auto-batch b: direct seed (start 0x80712d0 rejected for 0x8071374)"
+
+[[extra_func]]
+addr = 0x080216F8
+mode = "thumb"
+note = "auto-batch b: covers miss 0x80216f8; push @0x080216F8"
+
+[[extra_func]]
+addr = 0x080096E0
+mode = "thumb"
+note = "auto-batch b: direct seed (start 0x80096b0 rejected for 0x80096e0)"
+
+[[extra_func]]
+addr = 0x08009728
+mode = "thumb"
+note = "auto-batch b: direct seed (start 0x80096b0 rejected for 0x8009728)"
+

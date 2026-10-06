@@ -34,6 +34,7 @@ bios*.bin
 *.sav
 *.srm
 *.state
+*.state*
 
 # VisualBoyAdvance savestate
 *.sgm

@@ -857,3 +857,28 @@ wiped), engine checkout at gbarecomp/platform/android/.
 - **Sequencing**: independent of Phase 5; an early port is a second
   harvesting surface (adb-forwarded TCP debug), but playable depth still
   comes from the Phase 5 audit loop.
+
+### Playtest session 1 — first-battle path now fully static (2026-10-06)
+The user played the desktop build interactively (letter-only keymap; see the
+IBus note above) through the intro, menus and into the first battle (two
+savestates kept at the repo root: `game.state1`/`game.state2`, gitignored).
+Session totals: 29,070 recorded input frames (`logs/playthrough.csv`), **901
+distinct self-heal miss PCs** (`logs/playtest_misses.frag`; 484 in
+0x0802xxxx, 156 in 0x0809xxxx, 124 in 0x0812xxxx).
+- **Batch a**: 181 prologue-scan starts + 2 IWRAM islands (tools/misspack
+  evidence in `logs/playtest_pack.md` / `logs/playtest_start_proposal.txt`).
+- **Batch b**: 15-iteration strict-replay resolve loop added 20 more seeds
+  (candidate start when valid; direct seed of the miss PC itself for
+  switch-case interiors whose starts were ineffective).
+- **Result: strict replay of the entire session (29,100 frames) =
+  FULLY_STATIC, 0 dispatch misses** (`logs/playtest_strict_final.log`).
+  Attract gate unchanged (same pinned hash) throughout.
+- Coverage after merge: corpus 23,450 → **28,491 units**; pointer-pool lens
+  49.4% → **57.8%**; walker's static reach 99.2%.
+- **Pointer-pool calibration**: only 241/901 played PCs (27%) were inside the
+  pointer-pool proxy and 0/901 in the walker's reach — execution found the
+  rest via table math / computed targets. The pool is a different proxy,
+  not a superset of real code.
+- Next: battle-region harvesting from the savestates (`--load-state` +
+  the trace's tail replays into the battle without the intro), then
+  continue the play session to complete the battle.
