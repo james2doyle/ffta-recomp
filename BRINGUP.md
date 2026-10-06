@@ -610,3 +610,46 @@ end-to-end 2026-10-06: reproduces the numbers above in ~4 s (commit ae6966d).
 - Keep `framediff.py`'s index alignment at 0 (validated) and add the known
   phase-byte classification (counters/flag cells) so scans report signal.
 - Optional regression net: WarioWare-style input CSV + golden PNG SHA gate.
+
+### Android port findings (research 2026-10-06; not started)
+Researched ahead of a possible Android release (user question: what gates
+Android playability — answer: not the pointer-pool lens; only the executed
+path matters, and device builds have self-heal disabled, so misses fail
+loudly and feed the Phase 5 audit loop). Sources: mstan's EmeraldRecomp and
+WarioWareTwistedRecomp (shallow clones in /tmp/refrepos/ — re-clone if
+wiped), engine checkout at gbarecomp/platform/android/.
+
+- **The Android app shell lives in the ENGINE, not the game repos.**
+  `gbarecomp/platform/android/` is present in our pin `ecc9c55` (same
+  revision family as Emerald's pin): shared Gradle config
+  (`gbarecomp-app.gradle`), manifests (debug adds INTERNET for loopback
+  TCP via adb forward), Java activities (GbaSetupActivity — SAF file
+  picker + SHA-1 verify → app-private storage; GbaGameActivity), vendored
+  SDLActivity sources, native CMake root; SDL 2.32.10 as a pinned
+  submodule (`platform/android/third_party/SDL` → github.com/mstan/SDL).
+  Each game repo carries only a thin `android/` dir: Gradle wrapper
+  (Gradle 8.11.1 / AGP 8.10.1), `app/build.gradle` with an `ext.gbaGame`
+  block, `game_android.toml`, icon/strings.
+- **Templates**: Emerald `android/` = release-grade (ABI pinning
+  arm64-v8a, APK ROM/BIOS-content guard in tools/make_release.ps1, payload
+  staging); WWT = `android/README.md` + `tools/validate-s22.ps1` device
+  validation gate (asserts no dispatch misses / no crash in logcat).
+- **FFTA work items** (all mechanical, orthogonal to Phase 5):
+  1. `android/` Gradle project + `game_android.toml` (identity-pinned ROM
+     SHA-1 `4ac05441…`, BIOS required, saves in app-private files/).
+  2. CMakeLists `if(ANDROID)` branch: SHARED `main` lib (SDLActivity
+     loads libmain.so), reuse parent SDL2::SDL2, skip desktop post-build.
+  3. `src/main.cpp` mobile hooks: `mobile_prepare_process` / `SDL_main` /
+     `mobile_run_with_stack` (engine APIs `src/runtime/mobile_platform.*`),
+     touch-friendly RunOptions.
+  4. Env: JDK 17 + Android SDK (compile/target 35, minSdk 28, NDK
+     27.1.12297006, CMake 3.22.1); init the SDL submodule inside
+     gbarecomp; engine helper scripts are PowerShell-only (pwsh or call
+     Gradle directly).
+- **Device facts**: game runs on a 256 MiB pthread (never the ~1 MiB SDL
+  main thread); self-heal DISABLED on device; WWT needed
+  `GBARECOMP_FORCE_INTERP=1` + `GBARECOMP_AUDIO_DIRECT=1` +
+  `GBARECOMP_HANG_WATCHDOG=0` (per-game tuning expected).
+- **Sequencing**: independent of Phase 5; an early port is a second
+  harvesting surface (adb-forwarded TCP debug), but playable depth still
+  comes from the Phase 5 audit loop.

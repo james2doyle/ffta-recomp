@@ -189,6 +189,13 @@ recomp-net @ c58f125.
   game.toml regression test. Reference projects (mstan's Emerald/FRLG/RS/
   MinishCap/WWT clones) ship useful patterns: reviewed-seed overlays,
   input-CSV + golden-SHA gates; they have no frame-diff harness (ours leads).
+- Android port (research done 2026-10-06; not started): the app shell already
+  lives in the pinned gbarecomp (`platform/android/`); the port is a thin
+  `android/` Gradle dir + CMake `if(ANDROID)` SHARED `main` branch +
+  `src/main.cpp` mobile hooks + JDK 17/SDK env. Templates: Emerald/WWT
+  `android/` dirs. Independent of Phase 5, but device builds run with
+  self-heal disabled (misses fail loudly). Details: BRINGUP § "Android port
+  findings".
 
 ## Environment gotchas (learned in Phase 3)
 
