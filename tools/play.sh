@@ -13,11 +13,12 @@
 # Controls: arrows = D-pad, X = A, Z = B, Enter = Start, RShift = Select,
 #           C = L, V = R. Close the window (or Ctrl-C the terminal) to quit.
 #
-# Extras:  tools/play.sh --fullscreen     windowed fullscreen
-#          tools/play.sh --window --tcp 19850   live input debugging
-#              (probe: .venv/bin/python tools/keyprobe.py 19850). NOTE:
-#              --tcp alone runs headless by design (auto-window is
-#              skipped when a TCP port is set) — pass --window too.
+# Extras:  tools/play.sh --fullscreen            windowed fullscreen
+#          tools/play.sh --tcp-observe 19850     window + live debug port;
+#              inspect from another terminal: .venv/bin/python tools/keyprobe.py
+#              19850   NOTE: plain --tcp is structurally headless (the TCP
+#              branch returns before window init) — never combine it with a
+#              window.
 #          tools/play.sh --launcher       run the settings UI first
 #          tools/play.sh --view-width 720 wider window
 set -euo pipefail

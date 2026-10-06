@@ -6,7 +6,7 @@ register (0x04000130) once per 100 ms, printing every change. Use it to
 verify that HOST keyboard input reaches the guest:
 
   # terminal 1 — click the game window once (focus!), then:
-  tools/play.sh --tcp 19850
+  tools/play.sh --tcp-observe 19850
 
   # terminal 2:
   .venv/bin/python tools/keyprobe.py 19850
@@ -14,6 +14,8 @@ verify that HOST keyboard input reaches the guest:
 Press X / Z / arrows / Enter. Values print active-low (0x3FF = no keys).
 If the value never changes while you press keys, host input is not reaching
 the guest (window focus / SDL video driver), not a game-phase issue.
+NOTE: plain --tcp runs headless by design; always use --tcp-observe for a
+windowed session.
 """
 from __future__ import annotations
 
