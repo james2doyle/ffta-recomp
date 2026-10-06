@@ -652,6 +652,32 @@ end-to-end 2026-10-06: reproduces the numbers above in ~4 s (commit ae6966d).
   attract loop; extend the strict horizon beyond 2400 once the gate is
   wired into the change loop.
 
+### Map-data regions verified (spiiin/FFTAUtils study, 2026-10-06)
+Studied spiiin/FFTAUtils — map-hacking utilities (C#, VS2012, single 2014
+commit, NO license: reimplement don't copy; Windows-only; their repo
+contains ROM-derived bytes, never import). Findings cross-verified against
+our ROM (SHA-1 matched; their MAP_COUNT=163 is an off-by-one):
+- Map record table: **162 records × 0x58** at ROM **0x08569104** (fields:
+  +0x00 gfx, +0x04 arrangement, +0x08 clipping, +0x0C palette, +0x10
+  height, +0x14.. animation; addresses stored as u32 + 0x08569104).
+  Phantom tail "entries" 0x088EB124 / 0x288E9104 / 0xD4969384 are bogus.
+- **Verified DATA regions** (compressed map blobs — any proposed function
+  start inside is suspect): gfx 0x0856C8B4–0x08694884 (50), arrangement
+  0x0856F528–0x08696EA8 (122), heights 0x085704C8–0x08698218 (113);
+  combined span 0x0856C8B4–0x08698218.
+- Compression tags: 0x10 = LZ77 (u32 LE size; LSB-first flags), 0x11 =
+  LZ77 + 3-byte trueMap redirect (0xFFFFFF = standalone), 0x20 = LZSS,
+  0x22 = LZSS + 4-byte skip; decompressed caps: arrangement ≤ 0x10000,
+  tiles ≤ 0x8000, height 0x400, clipping 0x2000, palette 0x800.
+- Palette pointer tables at 0x0801A4F8 / 0x0801A514 (mask 0x1FFFFFF).
+- Lead (unverified): 29 literal occurrences of 0x08569104 at ROM
+  0x0801A058–0x08020704 (4-aligned, pool-like) — candidate map-loader
+  refs; disassemble with tools/disarm.py when naming map code.
+- No scripting/VM content in the repo (nothing for the 0x080C7EC0
+  cluster). Candidate hygiene: declare a data-range guard for
+  0x0856C8B4–0x08698218 if the walker ever misdetects there (check
+  TOML_SCHEMA for the data-range key before adding).
+
 ### Android port findings (research 2026-10-06; not started)
 Researched ahead of a possible Android release (user question: what gates
 Android playability — answer: not the pointer-pool lens; only the executed

@@ -254,4 +254,6 @@ recomp-net @ c58f125.
 - FFTA known hard spot: its scripting/VM interpreter cluster — expect a large
   function cluster there; audit carefully in Phase 4.
 - Community references for naming: Data Crystal wiki (ROM/RAM maps),
-  LeonarthCG/FFTA_Engine_Hacks (ASM source), FFHacktics forum.
+  LeonarthCG/FFTA_Engine_Hacks (ASM source), FFHacktics forum; spiiin/
+  FFTAUtils (map-data formats + verified data regions — see BRINGUP
+  § "Map-data regions").
