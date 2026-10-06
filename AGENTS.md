@@ -120,10 +120,14 @@ recomp-net @ c58f125.
   mapped from live-dump + ROM byte-match; ROM gaps seeded at verified
   prologues (walks cascade). Artifacts: `logs/{cov,miss,run}_v*`, 
   `logs/strict_v9.log`.
-- Next milestone: extend the strict horizon beyond 480 frames (600 f
-  aborted in non-strict via heal-bridge stack growth — re-check under
-  strict), then Phase 5 (install mGBA; attract-mode frame-diff harness).
-  New misses at longer horizons re-enter the audit loop with the
+- Next milestone: Phase 5 (in progress) — mGBA oracle built
+  (`gbarecomp/build/oracle/gbarecomp_oracle`, via
+  `gbarecomp/oracle/setup-mgba.sh` + `-DGBARECOMP_BUILD_ORACLE=ON`);
+  `tools/framediff.py` delta scans (phase-offset-aware) running against it —
+  see BRINGUP.md § "Phase 5 start". Next: scans through logo/attract phases +
+  pixel compares, then wire the attract diff as the game.toml regression
+  test. Horizon: strict runs still capped ≈480 f (non-strict 600 f aborts via
+  heal-bridge stack growth). New misses re-enter the audit loop with the
   cold-cache protocol below.
 
 ## Environment gotchas (learned in Phase 3)
@@ -138,7 +142,9 @@ recomp-net @ c58f125.
   `GBARECOMP_WRAM_TRACE`+`_LO/_HI` (per-frame write diff),
   `GBARECOMP_INSN_TRACE=1`+`GBARECOMP_FP_SAVE` (per-instruction ring;
   window = last ~8.4 M insns — size `--frames` so the event is in-window).
-  Pinned TCP surface is minimal (no `run_to_pc`/`get_registers`/`rdb_*`).
+  Pinned TCP surface: `step`/`run_frames`/`set_keyinput`/`screenshot`/
+  `registers`/`state_hash` + memory reads exist; `run_to_pc`/`get_registers`/
+  `call_stack`/`rdb_*` do not.
 - `tools/disarm.py` halts silently at the first undecodable halfword —
   use narrow windows anchored on known boundaries.
 

@@ -434,3 +434,83 @@ All 12 handoff misses + all session-discovered misses are either fixed in
 disassembly/dump evidence) or explicitly documented (none outstanding).
 Strict 480 = FULLY_STATIC. Next horizon: extend frames beyond 480 (stack
 budget / heal-bridge unwind), then Phase 5 (mGBA + frame-diff harness).
+
+---
+
+## 2026-10-06 — Phase 5 start: mGBA oracle + framediff harness
+
+### Oracle setup
+- `mgba-sdl`/`mgba-qt` installed by the user (system, 0.10.5, `extra`).
+- Framework oracle built from gbarecomp's own mGBA source tree:
+  `gbarecomp/oracle/setup-mgba.sh` (clones mGBA tag 0.10.5 → builds
+  `third_party/mgba/build/libmgba.a`) → `cmake -B build -S . -DGBARECOMP_BUILD_ORACLE=ON`
+  → `cmake --build build --target gbarecomp_oracle`.
+  Binary: `gbarecomp/build/oracle/gbarecomp_oracle` (TCP, default port 19843;
+  takes `--bios --rom --port`). Submodule tree stays clean (third_party/ and
+  build/ are gitignored).
+- Framework ships ready-made comparators (`gbarecomp/oracle/diff_cart.py`,
+  `diff_frame.py`, `gba_tcp.py`); our durable tool is `tools/framediff.py`
+  (see below). Recomp-side capture: `GBARECOMP_FRAMEDUMP_DIR/_START/_COUNT`
+  (windowed path only; PNG per guest frame `f_%06llu.png`) — verified
+  working headless via `SDL_VIDEODRIVER=dummy GBARECOMP_FORCE_DRAWABLE=240x160
+  GBARECOMP_PRESENT_IN_PLACE=0` + `--window` (smoke: 5 PNGs, strict, exit 0);
+  `--dump-png` = single final frame, works under `--no-window`.
+
+### Comparison protocol — the phase offset (important)
+- The recomp runner's `step`/`run_frames` stop at **VBlank-start** (scanline
+  159→160), *before* the VBlank IRQ handler executes; mGBA's `runFrame`
+  (oracle `emu_step`/`emu_step_to_vblank`) stops at the **VBlank wrap**
+  (scanline 227→0), *after* the handler. Same-index region reads are
+  therefore one IRQ handler apart → small standing byte differences.
+- **Per-frame DELTA comparison cancels this**: compare (old→new per byte)
+  transitions instead of absolute bytes; identical changes = phase noise;
+  side-only changes or different transformations = candidates. Implemented
+  in `tools/framediff.py` (delta mode; standing offsets reported separately).
+- Known phase-sensitive bytes to expect in early BIOS screens: BIOS
+  `pcmDmaCounter` at 0x03003B30 (±1 per service-call phase; wraps every 8
+  frames), IntrWait flag 0x03007FF8 (set mid-wait / cleared post-IRQ), and
+  handler stack residue around 0x03007F88-0x03007F9D.
+
+### First divergence work (vblank 8) — resolved as phase artifacts
+Scan (vblanks 4..64, IWRAM): 41/61 transitions byte-identical after delta
+comparison; all "mismatches" are the known phase cluster + the counter's
+periodic wraps. Verified the counter's value chain by BIOS disassembly +
+fingerprint ring: 0x03003B30 = `pcmDmaCounter` (struct base 0x03003B2C,
+pointer kept at [0x03007FF0]); decremented once per VBlank service at BIOS
+pc 0x211C; on borrow reloaded from struct+0xB (`pcmDmaPeriod`, pc 0x2122) =
+0x630/0xE0 = **7** (computed at pc 0x1730 via ARM division 0x3A8; all inputs
+ROM constants — no hardware reads). Our engine's trace: 0 → 0xFF (borrow) →
+7 → 6 → … — i.e. **same stored values as the oracle**; the observed ±1 is
+the service-call count at the sampling instant. No genuine guest divergence
+found in frames 4-64.
+
+### Extended scan (vblanks 4..300) — handoff cluster found
+`tools/framediff.py --lo 4 --hi 300` → 196/296 transitions clean (report
+archived `logs/report_4_300.json`). Frames 4..~280: only the known phase
+artifacts (counter ±1 + wrap events every ~7 f; IntrWait flag briefly).
+**New cluster from ~vblank 281-287, sparse to 300**, concentrated at the
+BIOS→cart handoff: stack-top 0x03007D24-0x03007E63 and 0x03007E80-0x03007EB6
+(bytes 0x03007E80/E84/E89 flag native-only nearly every frame out to 300) plus
+game-init cells 0x03000884, 0x03000E10, 0x03002BBC, 0x030034B0-B3.
+Hypotheses to test next: (a) handoff happens on a different vblank index on
+the two engines (BIOS exit is a VCOUNT compare) — would shift all cart init
+by one frame; (b) differing IRQ-stack residue right after handoff. Root-cause
+before treating frames 280+ as verified. Plan: watch the cart's first visible
+writes (e.g. IRQ vector/dispatcher setup 0x03000E10/0x03000F10 region,
+0x030034B0-B3) on both sides at 1-frame granularity to pin the handoff
+vblank, then drill 0x03007E80/E84/E89.
+
+### Tooling note corrections
+- Pinned TCP surface (earlier note was wrong): `step`, `run_frames`,
+  `set_keyinput`, `screenshot`, `registers`, `state_hash`, memory reads ARE
+  present; `run_to_pc` / `get_registers` / `call_stack` / `rdb_*` are NOT.
+- `GBARECOMP_INPUT_REPLAY=<file>` exists for deterministic inputs
+  (format `<frame>,0x<hex>`, active-low, 0x03FF = none) — relevant for later
+  milestones (start press etc.).
+
+### Next in Phase 5
+- Extend delta scans through the logo/attract phases (300+ vblanks), then
+  pixel-level compares (TCP `screenshot` vs oracle `emu_screenshot`, both
+  240x160 RGB888), and wire the attract diff as the game.toml regression
+  test. Refine `framediff.py` to classify constant-offset wrap events
+  (known-phase bytes) without hiding real step mismatches.
