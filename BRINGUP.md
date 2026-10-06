@@ -103,5 +103,76 @@ ldr r2,[r3]` (0x080000FC–0x08000110): standard masked-IF read at 0x04000200/02
 
 ### Phase 0 result
 All Phase 0 checks pass; ROM is a genuine AFXE US retail dump, exact 16 MiB.
-No blockers. Next: Phase 1 (framework setup — submodules, tool build,
-CLAUDE.md).
+No blockers.
+
+---
+
+## 2026-10-06 — Phase 1: Framework setup (COMPLETE)
+
+### Submodules
+- `gbarecomp` @ **ecc9c55** (branch `main`, "Merge pull request #28
+  fix/flash512-chip-id"). Note: reference game repos pin 2952aff; we
+  deliberately chose current main (newer, includes flash512 chip-id fix and
+  kirby view-anchoring fix — relevant since gba_scan detects our save type as
+  Flash 512 Kbit). `git describe`: gen3-pokemon-v0.0.1-248-gecc9c55.
+- `recomp-ui` @ **cac2b8f** (master).
+- Nested (from gbarecomp's pins): arm-recomp-core @ 15fc7b7, rbengine @ 2a03e7,
+  recomp-net @ c58f125, android SDL @ 8e28503 (unavailable upstream, not
+  needed on Linux desktop build — cloned successfully but origin lacks the
+  revision; harmless).
+- Pitfall hit: first `git submodule update --init --recursive` left
+  arm-recomp-core's worktree empty (CMakeLists.txt deleted state) → CMake
+  configure failed at `ArmRecompCore.cmake`. Fix: `git submodule update
+  --checkout --recursive`. Resolution: second pass checked out all nested
+  pins correctly.
+
+### Docs read (Phase 1 requirement, before building)
+- `gbarecomp/README.md` — ecosystem overview, build, strict-static coverage.
+- `gbarecomp/docs/TOML_SCHEMA.md` — full schema: [program], [identity],
+  [[extra_func]] (addr/mode/resume/source_addr/name/note), [[resume_range]],
+  [[data_range]], [[code_copy]], [[jump_table]] (formats abs32/abs16/
+  pcrel_thumb/pcrel_arm; entries_mode arm/thumb/auto), [[exclude_func]],
+  [[mod_function_hook]], [[thumb_alu_immediate_override]], overlay rules.
+- `gbarecomp/CLAUDE.md` + `PRINCIPLES.md` + `DEBUG.md` — BIOS is sacred
+  (recompiled, not HLE), honest self-healing, coverage honesty, first-divergence
+  debug loop, ring-buffer-first, no printf debugging, no editing generated/.
+- `gbarecomp/docs/WINDOWS_GAME_SETUP.md` — bring-up path for new games.
+- Reference repo (DragonBallZLegacyOfGokuRecomp) game.toml, CMakeLists.txt,
+  src/main.cpp, .gitmodules — copied conventions for our game.toml/CMakeLists
+  shape (Phase 2/3).
+
+### Framework tools built
+- `cmake -S gbarecomp -B gbarecomp/build -G Ninja -DCMAKE_BUILD_TYPE=Release`
+  → configured (toml++ v3.4.0 fetched+pinned, SDL2 found, ccache detected).
+- `cmake --build gbarecomp/build --target gba_recompile gba_scan --parallel 8`
+  → built clean.
+- Note from configure: "BIOS recompiled output absent — placeholder dispatch
+  only. Run `gba_recompile --bios bios/gba_bios.bin` to populate." → the
+  BIOS recomp step is required before any LLE run (Phase 3), user must supply
+  the dump.
+
+### gba_scan cross-validation of Phase 0
+`./gbarecomp/build/gba_scan game.gba` (independent tool, first use → validated
+against my manual analysis per DEBUG.md Rule 0):
+```
+rom_size=0x1000000, entry_branch_word=0xea00002e, entry_target=0x080000c0
+game_title=FFTA_USVER., game_code=AFXE, maker_code=01
+complement_check=0x89, complement_valid=1, logo_present=1
+save_type=Flash 64KB (512 Kbit), save_signature=FLASH512_V,
+save_signature_offset=0x0036ce28, ok=1
+```
+- Entry point 0x080000C0 and header values match my Phase 0 disassembly
+  exactly. Complement math (0x89) matches my byte-level computation.
+- **Save type: Flash 64KB (512 Kbit), signature FLASH512_V at 0x0036CE28**
+  — resolves the Phase 0 "save type TBD" empirically from the ROM's flash
+  command strings. (Note: my earlier guess "likely flash 1M" was wrong.)
+
+### AGENTS.md created (instead of CLAUDE.md, per user direction 2026-10-06)
+Contains ground rules, commands, submodule pins, environment notes, status,
+next milestone. Framework's own `gbarecomp/CLAUDE.md` left untouched
+(submodule).
+
+### Phase 1 result
+Submodules pinned and built, ROM validated by the framework's own tool,
+docs read completely, AGENTS.md written. No blockers. Next: Phase 2
+(game.toml) — but see user instruction: **stop after Phase 1 completes**.
