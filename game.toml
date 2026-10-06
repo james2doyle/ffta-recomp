@@ -1863,3 +1863,850 @@ addr = 0x08009728
 mode = "thumb"
 note = "auto-batch b: direct seed (start 0x80096b0 rejected for 0x8009728)"
 
+
+# ─── Playtest batch c: session-2 heal cache (crashed run, 2026-10-06) ───
+# 168 units healed live during the user's second session (cache survived the
+# SIGABRT; listing = recomp_cache/.../gcc/linux-x64/abi6-ram3 filenames).
+# These recover the session's miss-list (the .frag never flushed before the
+# crash). Includes 0x080DAE78, the pc the crash's bridge was interpreting.
+
+[[extra_func]]
+addr = 0x08005B6C
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 08005B6C_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x08005B8E
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 08005B8E_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x080107D4
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 080107D4_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x080107FC
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 080107FC_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x080107FE
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 080107FE_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x08010818
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 08010818_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0801081E
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0801081E_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0801087E
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0801087E_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x08011484
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 08011484_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x08011496
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 08011496_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x08011498
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 08011498_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x080114B0
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 080114B0_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x080114CC
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 080114CC_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x080114D6
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 080114D6_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x080114E8
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 080114E8_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x080114F6
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 080114F6_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x080D3CB4
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 080D3CB4_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x080D3CCA
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 080D3CCA_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x080D3CD4
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 080D3CD4_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x080D3D38
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 080D3D38_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x080D3D46
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 080D3D46_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x080D3D74
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 080D3D74_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x080D3D80
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 080D3D80_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x080D3E88
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 080D3E88_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x080D4444
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 080D4444_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x080D449C
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 080D449C_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x080D44BA
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 080D44BA_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x080D450A
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 080D450A_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x080D4516
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 080D4516_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x080D453E
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 080D453E_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x080D4564
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 080D4564_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x080D4774
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 080D4774_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x080D4798
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 080D4798_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x080D9C58
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 080D9C58_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x080D9C70
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 080D9C70_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x080DAE70
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 080DAE70_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x080DAE78
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 080DAE78_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x080E051C
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 080E051C_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x080E0528
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 080E0528_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x080E0532
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 080E0532_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x080E0536
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 080E0536_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x080E0570
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 080E0570_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x080E0584
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 080E0584_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x080E0594
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 080E0594_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x080E059E
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 080E059E_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x080E05A4
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 080E05A4_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x080E05A6
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 080E05A6_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x080E064C
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 080E064C_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x080E0672
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 080E0672_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x080E0684
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 080E0684_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0811ED40
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0811ED40_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0811ED64
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0811ED64_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0811ED6E
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0811ED6E_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0811EE0C
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0811EE0C_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0811EE14
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0811EE14_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0811EE1C
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0811EE1C_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0811EE2C
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0811EE2C_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0811EE32
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0811EE32_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0811EE3C
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0811EE3C_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0811EE48
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0811EE48_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0811EE6C
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0811EE6C_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0811EE76
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0811EE76_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0811EF1C
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0811EF1C_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0811EF24
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0811EF24_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0811EF2C
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0811EF2C_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0811EF3C
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0811EF3C_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0811EF42
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0811EF42_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0811EF4C
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0811EF4C_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0811EF58
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0811EF58_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0811EF7A
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0811EF7A_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0811EF90
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0811EF90_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0811EF9A
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0811EF9A_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0811F0B0
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0811F0B0_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0811F0D4
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0811F0D4_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0811F0E8
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0811F0E8_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0811F0F4
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0811F0F4_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0811F100
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0811F100_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0811F10A
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0811F10A_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0811F114
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0811F114_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0811F136
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0811F136_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0811F14C
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0811F14C_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0811F168
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0811F168_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0811F19E
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0811F19E_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0811F1AA
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0811F1AA_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0811F1B6
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0811F1B6_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0811F1CE
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0811F1CE_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0811F270
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0811F270_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0811F28C
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0811F28C_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0811F5E0
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0811F5E0_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0811F602
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0811F602_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x08120724
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 08120724_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x08120756
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 08120756_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0812075E
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0812075E_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x081207E4
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 081207E4_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x08120818
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 08120818_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x08120824
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 08120824_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x08120834
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 08120834_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x08120836
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 08120836_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x08120848
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 08120848_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0812084E
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0812084E_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x08120860
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 08120860_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0812086C
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0812086C_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x081208BC
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 081208BC_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x081208BE
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 081208BE_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x08122770
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 08122770_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x081227CE
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 081227CE_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x081227E0
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 081227E0_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x081227EA
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 081227EA_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x08122D64
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 08122D64_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x08122E40
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 08122E40_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x08122F58
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 08122F58_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x08122F7E
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 08122F7E_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x08122FCC
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 08122FCC_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x08122FD8
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 08122FD8_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x08122FDA
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 08122FDA_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x08122FE0
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 08122FE0_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x08122FE8
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 08122FE8_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x08122FF4
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 08122FF4_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x08122FFC
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 08122FFC_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x08123008
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 08123008_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x081230A8
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 081230A8_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x081230B8
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 081230B8_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0812310C
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0812310C_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x08123116
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 08123116_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x081231B0
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 081231B0_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x081231BA
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 081231BA_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x081231CA
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 081231CA_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x081234B4
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 081234B4_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0812352C
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0812352C_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x081235E4
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 081235E4_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x081235F2
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 081235F2_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x081235F6
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 081235F6_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x081235FA
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 081235FA_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x08123948
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 08123948_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0812397C
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0812397C_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x08123994
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 08123994_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x081242A0
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 081242A0_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x081242DE
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 081242DE_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x081242E4
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 081242E4_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x081242EA
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 081242EA_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x08124648
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 08124648_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0812464E
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0812464E_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x08124656
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 08124656_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x08124682
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 08124682_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x08125624
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 08125624_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x08125658
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 08125658_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0812566C
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0812566C_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x08125760
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 08125760_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0812579C
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0812579C_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x081257AE
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 081257AE_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x081257B4
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 081257B4_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x081257BC
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 081257BC_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x081257C2
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 081257C2_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x081265B8
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 081265B8_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x081265C8
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 081265C8_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0812682C
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0812682C_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x08126848
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 08126848_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0812685C
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0812685C_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0812686E
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0812686E_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x0812687E
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 0812687E_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x08126884
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 08126884_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x08126896
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 08126896_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x081268A6
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 081268A6_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x081268B6
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 081268B6_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x08126902
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 08126902_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x08126906
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 08126906_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x08126B08
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 08126B08_t.c); pre-crash session evidence"
+
+[[extra_func]]
+addr = 0x08126B32
+mode = "thumb"
+note = "session-2 heal-cache unit; entry from completed live heal (cache file 08126B32_t.c); pre-crash session evidence"
+
