@@ -66,7 +66,8 @@ For each miss:
 Watch for: (a) data-as-code — jump tables inside functions; if a "function" contains a table of addresses into itself, mark the table as data; (b) ARM/Thumb confusion — check the LSB of branch targets and every `bx`/`blx`.
 
 **Phase 5 — Validation harness (build early, use forever):**
-1. Install mGBA; run `game.gba`; record attract-mode reference frames (video or frame dump).
+`gbarecomp` ships its own mGBA oracle (`libmgba` 0.10.5 built from source, TCP-driven, with ready-made diff tools under `gbarecomp/oracle/`)
+1. setup `gbarecomp` own mGBA oracle; run `game.gba`; record attract-mode reference frames (video or frame dump).
 2. Write a frame-diff script: run the recomp binary with a fixed input script for N frames, capture frames, diff against mGBA's. Deterministic inputs only — no manual play.
 3. Milestones, in order, never skipping ahead until the current one is frame-stable: boots without crash → logo → attract demo matches → title screen → new game → first map → first battle.
 4. Every `game.toml` change → regenerate → rerun the attract diff. It is the regression test.
