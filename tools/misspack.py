@@ -110,10 +110,17 @@ def decode_one(rom: bytes, off: int, mode: str):
 
 
 def prologue_scan(rom: bytes, pc: int, mode: str, limit: int = 0x200):
-    """Backward scan for plausible function prologues (GBA addresses out)."""
+    """Backward scan for plausible function prologues (GBA addresses out).
+
+    Also checks `pc` itself — misses are often function starts.
+    """
     hits = []
     if mode == "thumb":
         base = pc & ~1
+        bfo = base - ROM_BASE
+        if 0 <= bfo and bfo + 2 <= len(rom) and \
+                (struct.unpack_from("<H", rom, bfo)[0] & 0xFF00) == 0xB500:
+            hits.append(base)
         for off in range(base - 2, max(base - limit, ROM_BASE), -2):
             fo = off - ROM_BASE
             if fo < 0 or fo + 2 > len(rom):

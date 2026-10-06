@@ -684,6 +684,63 @@ our ROM (SHA-1 matched; their MAP_COUNT=163 is an off-by-one):
   0x0856C8B4–0x08698218 if the walker ever misdetects there (check
   TOML_SCHEMA for the data-range key before adding).
 
+### New-game path unlocked + first audit batches (2026-10-06)
+- Input trace `inputs/title_to_newgame.csv` (Start @4201, A @4267, A @4333;
+  active-low, sticky) authored from TCP sessions and **verified via headless
+  replay** (`GBARECOMP_INPUT_REPLAY=... --frames 4638 --dump-png` shows the
+  intro house scene). GOTCHA: replay events are applied by the headless
+  `--frames` loop only — TCP `run_frames`/`step` does NOT apply them
+  (probe: KEYINPUT 0x04000130 stayed 0x3FF through a replay session's
+  frames 4196-4320).
+- Attract gate unaffected throughout (same pinned SHA).
+- Non-strict harvest (6000 f, replay): **120 dispatch misses in ONE pass**
+  (logs/ng_harvest.frag). Classification via `tools/misspack` + a start
+  proposal pass (logs/ng_start_proposal.txt): ~110 were interior resume
+  points of 50 unseeded function starts; 10 needed wide scans; 2 had
+  callback pointers. Batch a: 50 seeds; batch b: 7 resolve-loop seeds;
+  singles 0x0813DB34 (ptr 0x813C024), 0x08136084. **Corpus 2,797 → 23,395;
+  auto_jump_tables 8 (213 tgt) → 142 (3,466 tgt)** — the new-game path
+  opened the engine/menu regions (200k branch targets).
+- Framework note: 5 auto-detected JT sites warn "control-flow entry"
+  (mis-modeled switches; bytes kept as data; residual branches self-heal).
+- **IWRAM tail blob**: frontier pc 0x03006B44 → miss-time dump match gives
+  one contiguous copy: IWRAM 0x03005E78..0x03006D68 ← ROM 0x08A38A2C..
+  0x08A3991C. New entry `iwram_ram_helpers_tail` (0x03006170 ← 0x08A38D24,
+  0xBF8 B, byte-identical span). LESSON (schema): `[[code_copy]]` only maps
+  decoding — runtime entry PCs inside the span ALSO need `[[extra_func]]`
+  (added 0x03006B44; a source-side prologue scan then seeded 11 tail-blob
+  starts; island 0x03006B6C seeded separately — the walk from 0x03006B54
+  ends at 0x03006B68).
+- **Current strict frontier: 0x08022148** (thumb; strict 6000 + replay,
+  logs/ng_strict6000_i.log). Continue the resolve loop from there.
+- Tool fix: `misspack.prologue_scan` now checks `pc` itself (misses are
+  often function starts).
+
+### FFTA_Engine_Hacks study (2026-10-06) — VM cluster CORRECTION
+Studied LeonarthCG/FFTA_Engine_Hacks (Event Assembler hack package, no
+license → reference/quote only; clone /tmp/FFTA_Engine_Hacks; derived
+address indexes /tmp/ffta_repo_{org_sites,literal_refs}.tsv — re-clone if
+wiped). It is effectively an **address→description index**: 576
+`ORG $addr` patch sites, each with an inline comment about the vanilla
+routine.
+- **CORRECTION (ROM-verified during the study): the 0x080C7EC0 / 0x080C85A0
+  / 0x080C9EF4 / 0x080CA33C / 0x080CA7CC auto-tables are NOT a scripting
+  VM** — they are unit/job/ability/stat switch tables in the
+  0x080C7xxx-0x080CAxxx data-accessor cluster (0x080C7EA4 = unit-stat
+  getter, table index 0 = name; 0x080C8570/857C = job-stat routines).
+  The **event interpreter is at 0x08122xxx-0x08123xxx** (opcode 0x13 @
+  0x08122680, opcode 0x70 @0x08122AAA, healing opcode @0x0812386C; event
+  scripts + pointer table at 0x089A5E4C+; two raw-format sample scripts in
+  the repo). The text engine (0x40-prefixed control codes) and the battle-
+  animation format are separate VMs.
+- Useful naming/RAM facts: party unit array 0x02000080 stride 0x108; battle
+  unit control 0x08092xxx-0x08096xxx; engine helpers 0x08005xxx (0x08005B28
+  = string/list helper); 0x0814xxxx = m4a + BIOS veneers (0x0814186C =
+  CpuSet veneer).
+- Future option: import names as a symbols overlay (docs/SYMBOL_OVERLAY.md;
+  `[[extra_func]]` name field) — most sites are interior patch points,
+  filter to real prologues first.
+
 ### Android port findings (research 2026-10-06; not started)
 Researched ahead of a possible Android release (user question: what gates
 Android playability — answer: not the pointer-pool lens; only the executed

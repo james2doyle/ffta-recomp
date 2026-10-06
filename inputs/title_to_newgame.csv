@@ -1,0 +1,14 @@
+# gbarecomp-keyinput-v1
+# frame,keyinput_active_low
+# FFTA (USA) title -> NEW GAME (authored 2026-10-06 from TCP-driven sessions;
+# verified by replay against the manual run, same-frame screenshots byte-equal).
+# Start (held 6 frames) opens the title menu; A (tap) enters the menu and
+# highlights NEW GAME; a second A confirms and starts the intro scene.
+# Keys are sticky; 0x03FF = none. A=0x03FE, Start=0x03F7.
+0,0x03FF
+4201,0x03F7
+4207,0x03FF
+4267,0x03FE
+4273,0x03FF
+4333,0x03FE
+4339,0x03FF

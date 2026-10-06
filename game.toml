@@ -422,3 +422,407 @@ note = "prologue f0b5 push {r4-r7,lr}+hi-save+sub sp,#0x18 @0x08144E08 after tin
 addr = 0x08145B4C
 mode = "thumb"
 note = "prologue f0b5 push {r4-r7,lr} @0x08145B4C after prev epilogue `pop {r4}; pop {r0}; bx r0` @0x08145B46..4A; called via pool word 0x08145B4D @0x08145504 (m4a code pool); harvest hits x33"
+
+# ─── Phase 5 batch: new-game input path (2026-10-06) ───
+# Reviewed from logs/ng_start_proposal.txt + logs/ng_pack.md (tools/misspack
+# prologue scan: push prologues decoded from ROM). Provenance: strict
+# 6000-frame run with inputs/title_to_newgame.csv (first abort) + non-strict
+# 6000-frame harvest (logs/ng_harvest.frag, 120 misses). Interior miss pcs
+# listed per entry are covered once the emitting body exists (static_resume_all).
+
+[[extra_func]]
+addr = 0x080018A0
+mode = "thumb"
+note = "start from misspack prologue scan (push @ 0x080018A0); covers 1 interior miss pc(s) e.g. 0x8001926; ng_harvest.frag batch 2026-10-06"
+
+[[extra_func]]
+addr = 0x08005A24
+mode = "thumb"
+note = "start from misspack prologue scan (push @ 0x08005A24); covers 6 interior miss pc(s) e.g. 0x8005a4e; ng_harvest.frag batch 2026-10-06"
+
+[[extra_func]]
+addr = 0x0800A640
+mode = "thumb"
+note = "start from misspack prologue scan (push @ 0x0800A640); covers 3 interior miss pc(s) e.g. 0x800a646; ng_harvest.frag batch 2026-10-06"
+
+[[extra_func]]
+addr = 0x0800B568
+mode = "thumb"
+note = "start from misspack prologue scan (push @ 0x0800B568); covers 2 interior miss pc(s) e.g. 0x800b576; ng_harvest.frag batch 2026-10-06"
+
+[[extra_func]]
+addr = 0x0800C4B4
+mode = "thumb"
+note = "start from misspack prologue scan (push @ 0x0800C4B4); covers 2 interior miss pc(s) e.g. 0x800c4c0; ng_harvest.frag batch 2026-10-06"
+
+[[extra_func]]
+addr = 0x08011EA4
+mode = "thumb"
+note = "start from misspack prologue scan (push @ 0x08011EA4); covers 1 interior miss pc(s); ng_harvest.frag batch 2026-10-06"
+
+[[extra_func]]
+addr = 0x08016A98
+mode = "thumb"
+note = "start from misspack prologue scan (push @ 0x08016A98); covers 1 interior miss pc(s) e.g. 0x8016ad2; ng_harvest.frag batch 2026-10-06"
+
+[[extra_func]]
+addr = 0x0801A518
+mode = "thumb"
+note = "start from misspack prologue scan (push @ 0x0801A518); covers 5 interior miss pc(s) e.g. 0x801a546; ng_harvest.frag batch 2026-10-06"
+
+[[extra_func]]
+addr = 0x0801AC78
+mode = "thumb"
+note = "start from misspack prologue scan (push @ 0x0801AC78); covers 2 interior miss pc(s) e.g. 0x801ac96; ng_harvest.frag batch 2026-10-06"
+
+[[extra_func]]
+addr = 0x0801B848
+mode = "thumb"
+note = "start from misspack prologue scan (push @ 0x0801B848); covers 1 interior miss pc(s) e.g. 0x801b888; ng_harvest.frag batch 2026-10-06"
+
+[[extra_func]]
+addr = 0x0801BC94
+mode = "thumb"
+note = "start from misspack prologue scan (push @ 0x0801BC94); covers 2 interior miss pc(s) e.g. 0x801bcf2; ng_harvest.frag batch 2026-10-06"
+
+[[extra_func]]
+addr = 0x0801DE88
+mode = "thumb"
+note = "start from misspack prologue scan (push @ 0x0801DE88); covers 1 interior miss pc(s); ng_harvest.frag batch 2026-10-06"
+
+[[extra_func]]
+addr = 0x0801E2A4
+mode = "thumb"
+note = "start from misspack prologue scan (push @ 0x0801E2A4); covers 1 interior miss pc(s); ng_harvest.frag batch 2026-10-06"
+
+[[extra_func]]
+addr = 0x0801E68C
+mode = "thumb"
+note = "start from misspack prologue scan (push @ 0x0801E68C); covers 1 interior miss pc(s); ng_harvest.frag batch 2026-10-06"
+
+[[extra_func]]
+addr = 0x08020A68
+mode = "thumb"
+note = "start from misspack prologue scan (push @ 0x08020A68); covers 2 interior miss pc(s) e.g. 0x8020a82; ng_harvest.frag batch 2026-10-06"
+
+[[extra_func]]
+addr = 0x08020BA0
+mode = "thumb"
+note = "start from misspack prologue scan (push @ 0x08020BA0); covers 3 interior miss pc(s) e.g. 0x8020bbe; ng_harvest.frag batch 2026-10-06"
+
+[[extra_func]]
+addr = 0x08022840
+mode = "thumb"
+note = "start from misspack prologue scan (push @ 0x08022840); covers 1 interior miss pc(s); ng_harvest.frag batch 2026-10-06"
+
+[[extra_func]]
+addr = 0x08022C2C
+mode = "thumb"
+note = "start from misspack prologue scan (push @ 0x08022C2C); covers 2 interior miss pc(s) e.g. 0x8022c3a; ng_harvest.frag batch 2026-10-06"
+
+[[extra_func]]
+addr = 0x08022C64
+mode = "thumb"
+note = "start from misspack prologue scan (push @ 0x08022C64); covers 4 interior miss pc(s) e.g. 0x8022c7a; ng_harvest.frag batch 2026-10-06"
+
+[[extra_func]]
+addr = 0x080231F4
+mode = "thumb"
+note = "start from misspack prologue scan (push @ 0x080231F4); covers 5 interior miss pc(s) e.g. 0x8023200; ng_harvest.frag batch 2026-10-06"
+
+[[extra_func]]
+addr = 0x0802326C
+mode = "thumb"
+note = "start from misspack prologue scan (push @ 0x0802326C); covers 3 interior miss pc(s) e.g. 0x80232a6; ng_harvest.frag batch 2026-10-06"
+
+[[extra_func]]
+addr = 0x08023FD0
+mode = "thumb"
+note = "start from misspack prologue scan (push @ 0x08023FD0); covers 1 interior miss pc(s) e.g. 0x8023fec; ng_harvest.frag batch 2026-10-06"
+
+[[extra_func]]
+addr = 0x080241B4
+mode = "thumb"
+note = "start from misspack prologue scan (push @ 0x080241B4); covers 1 interior miss pc(s) e.g. 0x80241e4; ng_harvest.frag batch 2026-10-06"
+
+[[extra_func]]
+addr = 0x08024860
+mode = "thumb"
+note = "start from misspack prologue scan (push @ 0x08024860); covers 1 interior miss pc(s) e.g. 0x8024a14; ng_harvest.frag batch 2026-10-06"
+
+[[extra_func]]
+addr = 0x0802B6F0
+mode = "thumb"
+note = "start from misspack prologue scan (push @ 0x0802B6F0); covers 1 interior miss pc(s) e.g. 0x802b704; ng_harvest.frag batch 2026-10-06"
+
+[[extra_func]]
+addr = 0x0808F638
+mode = "thumb"
+note = "start from misspack prologue scan (push @ 0x0808F638); covers 1 interior miss pc(s); ng_harvest.frag batch 2026-10-06"
+
+[[extra_func]]
+addr = 0x08092784
+mode = "thumb"
+note = "start from misspack prologue scan (push @ 0x08092784); covers 4 interior miss pc(s) e.g. 0x80927a4; ng_harvest.frag batch 2026-10-06"
+
+[[extra_func]]
+addr = 0x08096CB8
+mode = "thumb"
+note = "start from misspack prologue scan (push @ 0x08096CB8); covers 1 interior miss pc(s) e.g. 0x8096d7c; ng_harvest.frag batch 2026-10-06"
+
+[[extra_func]]
+addr = 0x08096E78
+mode = "thumb"
+note = "start from misspack prologue scan (push @ 0x08096E78); covers 6 interior miss pc(s) e.g. 0x8096e90; ng_harvest.frag batch 2026-10-06"
+
+[[extra_func]]
+addr = 0x0809A3F4
+mode = "thumb"
+note = "start from misspack prologue scan (push @ 0x0809A3F4); covers 1 interior miss pc(s); ng_harvest.frag batch 2026-10-06"
+
+[[extra_func]]
+addr = 0x0809A48C
+mode = "thumb"
+note = "start from misspack prologue scan (push @ 0x0809A48C); covers 3 interior miss pc(s) e.g. 0x809a4a8; ng_harvest.frag batch 2026-10-06"
+
+[[extra_func]]
+addr = 0x0809D2F8
+mode = "thumb"
+note = "start from misspack prologue scan (push @ 0x0809D2F8); covers 2 interior miss pc(s) e.g. 0x809d394; ng_harvest.frag batch 2026-10-06"
+
+[[extra_func]]
+addr = 0x080A901C
+mode = "thumb"
+note = "start from misspack prologue scan (push @ 0x080A901C); covers 1 interior miss pc(s); ng_harvest.frag batch 2026-10-06"
+
+[[extra_func]]
+addr = 0x080A9420
+mode = "thumb"
+note = "start from misspack prologue scan (push @ 0x080A9420); covers 2 interior miss pc(s) e.g. 0x80a9436; ng_harvest.frag batch 2026-10-06"
+
+[[extra_func]]
+addr = 0x080A94D4
+mode = "thumb"
+note = "start from misspack prologue scan (push @ 0x080A94D4); covers 2 interior miss pc(s) e.g. 0x80a94ea; ng_harvest.frag batch 2026-10-06"
+
+[[extra_func]]
+addr = 0x080BCDF8
+mode = "thumb"
+note = "start from misspack prologue scan (push @ 0x080BCDF8); covers 2 interior miss pc(s) e.g. 0x80bce18; ng_harvest.frag batch 2026-10-06"
+
+[[extra_func]]
+addr = 0x080BD06C
+mode = "thumb"
+note = "start from misspack prologue scan (push @ 0x080BD06C); covers 3 interior miss pc(s) e.g. 0x80bd094; ng_harvest.frag batch 2026-10-06"
+
+[[extra_func]]
+addr = 0x080D36B0
+mode = "thumb"
+note = "start from misspack prologue scan (push @ 0x080D36B0); covers 4 interior miss pc(s) e.g. 0x80d36d4; ng_harvest.frag batch 2026-10-06"
+
+[[extra_func]]
+addr = 0x08121908
+mode = "thumb"
+note = "start from misspack prologue scan (push @ 0x08121908); covers 5 interior miss pc(s) e.g. 0x812195e; ng_harvest.frag batch 2026-10-06"
+
+[[extra_func]]
+addr = 0x08121C38
+mode = "thumb"
+note = "start from misspack prologue scan (push @ 0x08121C38); covers 3 interior miss pc(s) e.g. 0x8121c4c; ng_harvest.frag batch 2026-10-06"
+
+[[extra_func]]
+addr = 0x08121E48
+mode = "thumb"
+note = "start from misspack prologue scan (push @ 0x08121E48); covers 1 interior miss pc(s); ng_harvest.frag batch 2026-10-06"
+
+[[extra_func]]
+addr = 0x08121FB8
+mode = "thumb"
+note = "start from misspack prologue scan (push @ 0x08121FB8); covers 4 interior miss pc(s) e.g. 0x8121fcc; ng_harvest.frag batch 2026-10-06"
+
+[[extra_func]]
+addr = 0x08135890
+mode = "thumb"
+note = "start from misspack prologue scan (push @ 0x08135890); covers 1 interior miss pc(s) e.g. 0x8135978; ng_harvest.frag batch 2026-10-06"
+
+[[extra_func]]
+addr = 0x08136868
+mode = "thumb"
+note = "start from misspack prologue scan (push @ 0x08136868); covers 2 interior miss pc(s) e.g. 0x81368d2; ng_harvest.frag batch 2026-10-06"
+
+[[extra_func]]
+addr = 0x08136A10
+mode = "thumb"
+note = "start from misspack prologue scan (push @ 0x08136A10); covers 2 interior miss pc(s) e.g. 0x8136a84; ng_harvest.frag batch 2026-10-06"
+
+[[extra_func]]
+addr = 0x08137040
+mode = "thumb"
+note = "start from misspack prologue scan (push @ 0x08137040); covers 2 interior miss pc(s) e.g. 0x81370ea; ng_harvest.frag batch 2026-10-06"
+
+[[extra_func]]
+addr = 0x081379C8
+mode = "thumb"
+note = "start from misspack prologue scan (push @ 0x081379C8); covers 1 interior miss pc(s) e.g. 0x81379de; ng_harvest.frag batch 2026-10-06"
+
+[[extra_func]]
+addr = 0x08140310
+mode = "thumb"
+note = "start from misspack prologue scan (push @ 0x08140310); covers 1 interior miss pc(s) e.g. 0x81403da; ng_harvest.frag batch 2026-10-06"
+
+[[extra_func]]
+addr = 0x08141838
+mode = "thumb"
+note = "start from misspack prologue scan (push @ 0x08141838); covers 2 interior miss pc(s) e.g. 0x8141894; ng_harvest.frag batch 2026-10-06"
+
+[[extra_func]]
+addr = 0x08148788
+mode = "thumb"
+note = "start from misspack prologue scan (push @ 0x08148788); covers 1 interior miss pc(s) e.g. 0x8148830; ng_harvest.frag batch 2026-10-06"
+
+
+# Lone thunk (strict 6000 + title_to_newgame replay first-miss batch):
+# misspack: push {lr} at pc; ptr 0x0813DB35 @0x813C024; nearest host
+# gf_tfunc_0813DB2C (+4) did not cover it. Registered via the 0x813C024
+# pointer, not by walk.
+[[extra_func]]
+addr = 0x0813DB34
+mode = "thumb"
+note = "strict-newgame first-miss; push {lr} thunk; ptr 0x0813DB35 @0x813C024 (misspack 2026-10-06)"
+
+# Next strict-first-miss (batch c): function start itself (push {r4,r5,r6,r7,lr}
+# at pc; misspack wide-scan). Seed directly.
+[[extra_func]]
+addr = 0x08136084
+mode = "thumb"
+note = "strict-newgame first-miss c; self-prologue function start (misspack wide scan 2026-10-06)"
+
+# ─── Phase 5 batch b: resolve-loop seeds (2026-10-06, reviewed) ───
+# From the scripted strict-miss resolve loop (overlay /tmp/ng_seeds.toml):
+# each entry seeded a strict-first-miss pc that was its own function start
+# (push prologue, misspack wide scan). Strict 6000 + title_to_newgame.csv
+# batch, entries 1..7 of the run before the first RAM miss (0x03006B44).
+
+[[extra_func]]
+addr = 0x08023F00
+mode = "thumb"
+note = "auto-batch 2026-10-06: covers miss 0x8023f00; prologue push @0x08023F00 (misspack wide scan)"
+
+[[extra_func]]
+addr = 0x080231D8
+mode = "thumb"
+note = "auto-batch 2026-10-06: covers miss 0x80231d8; prologue push @0x080231D8 (misspack wide scan)"
+
+[[extra_func]]
+addr = 0x08122E90
+mode = "thumb"
+note = "auto-batch 2026-10-06: covers miss 0x8122e90; prologue push @0x08122E90 (misspack wide scan)"
+
+[[extra_func]]
+addr = 0x08123898
+mode = "thumb"
+note = "auto-batch 2026-10-06: covers miss 0x8123898; prologue push @0x08123898 (misspack wide scan)"
+
+[[extra_func]]
+addr = 0x08122D20
+mode = "thumb"
+note = "auto-batch 2026-10-06: covers miss 0x8122d20; prologue push @0x08122D20 (misspack wide scan)"
+
+[[extra_func]]
+addr = 0x081235C0
+mode = "thumb"
+note = "auto-batch 2026-10-06: covers miss 0x81235c0; prologue push @0x081235C0 (misspack wide scan)"
+
+[[extra_func]]
+addr = 0x081237D0
+mode = "thumb"
+note = "auto-batch 2026-10-06: covers miss 0x81237d0; prologue push @0x081237D0 (misspack wide scan)"
+
+
+# IWRAM code copy #6 (strict 6000 + replay frontier 0x03006B44): byte-identical
+# span in the miss-time IWRAM dump vs ROM; starts exactly where
+# iwram_ram_helpers ends (IWRAM 0x03006170 == 0x03005E78+0x2F8; ROM
+# 0x08A38D24 == 0x08A38A2C+0x2F8) — one contiguous copy blob; this covers the tail.
+[[code_copy]]
+runtime_start = 0x03006170
+source_start = 0x08A38D24
+size = 0x00000BF8
+name = "iwram_ram_helpers_tail"
+note = "byte-identical span (0xBF8 B) in miss-time IWRAM dump at the 0x03006B44 miss (dump match extended fwd+bwd); contiguous continuation of iwram_ram_helpers"
+
+# Runtime entry into the copied tail blob (schema: [[code_copy]] alone only maps
+# decoding; runtime pcs need [[extra_func]]). Source read via the mapping:
+# 0x08A38D24 + (0x03006B44 - 0x03006170) = 0x08A396F8 (thumb).
+[[extra_func]]
+addr = 0x03006B44
+mode = "thumb"
+note = "strict 6000 + title_to_newgame replay frontier; decoded via code_copy iwram_ram_helpers_tail (source 0x08A396F8)"
+
+# ─── IWRAM tail-blob function starts (batch c, 2026-10-06) ───
+# Source prologue scan of the copied span (ROM 0x08A38D24..0x08A3991C <->
+# IWRAM 0x03006170..0x03006D68; push {..,lr} at each source address,
+# decode-verified 32 B). Runtime address = 0x03006170 + (src-0x08A38D24).
+
+[[extra_func]]
+addr = 0x03006170
+mode = "thumb"
+note = "iwram tail blob function start (source 0x08A38D24, thumb push prologue; batch c 2026-10-06)"
+
+[[extra_func]]
+addr = 0x030062EC
+mode = "thumb"
+note = "iwram tail blob function start (source 0x08A38EA0, thumb push prologue; batch c 2026-10-06)"
+
+[[extra_func]]
+addr = 0x03006414
+mode = "thumb"
+note = "iwram tail blob function start (source 0x08A38FC8, thumb push prologue; batch c 2026-10-06)"
+
+[[extra_func]]
+addr = 0x03006540
+mode = "thumb"
+note = "iwram tail blob function start (source 0x08A390F4, thumb push prologue; batch c 2026-10-06)"
+
+[[extra_func]]
+addr = 0x030065A8
+mode = "thumb"
+note = "iwram tail blob function start (source 0x08A3915C, thumb push prologue; batch c 2026-10-06)"
+
+[[extra_func]]
+addr = 0x030068A4
+mode = "thumb"
+note = "iwram tail blob function start (source 0x08A39458, thumb push prologue; batch c 2026-10-06)"
+
+[[extra_func]]
+addr = 0x03006B54
+mode = "thumb"
+note = "iwram tail blob function start (source 0x08A39708, thumb push prologue; batch c 2026-10-06)"
+
+[[extra_func]]
+addr = 0x03006BC0
+mode = "thumb"
+note = "iwram tail blob function start (source 0x08A39774, thumb push prologue; batch c 2026-10-06)"
+
+[[extra_func]]
+addr = 0x03006C24
+mode = "thumb"
+note = "iwram tail blob function start (source 0x08A397D8, thumb push prologue; batch c 2026-10-06)"
+
+[[extra_func]]
+addr = 0x03006CD0
+mode = "thumb"
+note = "iwram tail blob function start (source 0x08A39884, thumb push prologue; batch c 2026-10-06)"
+
+[[extra_func]]
+addr = 0x03006D04
+mode = "thumb"
+note = "iwram tail blob function start (source 0x08A398B8, thumb push prologue; batch c 2026-10-06)"
+
+
+# Runtime island pc (strict 6000 + replay frontier after the tail-blob batch):
+# walk from 0x03006B54 ends at 0x03006B68; this pc is entered indirectly.
+# Decode via code_copy iwram_ram_helpers_tail: source = 0x08A38D24 + (0x03006B6C-0x03006170) = 0x08A39720.
+[[extra_func]]
+addr = 0x03006B6C
+mode = "thumb"
+note = "strict frontier island after tail-blob batch; source 0x08A39720 via code_copy mapping"

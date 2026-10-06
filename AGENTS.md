@@ -174,7 +174,7 @@ commands: `emu_step`/`emu_step_to_vblank` (one runFrame = one PPU frame),
 | `generated/` | Recompiler output — gitignored, never edited |
 | `gbarecomp/`, `recomp-ui/` | Pinned submodules (see below) |
 | `tools/` | `disarm.py` (capstone disassembler), `m4a_detect.py`, `framediff.py` (native↔oracle delta scan), `dualrun.py` (lockstep probes), `coverage_report.py` (three-lens coverage table), `attract_check.py` (golden attract gate), `misspack.py` (miss evidence packs), `cycle.py` (standard change cycle), `ringscan.py` (instruction-ring queries) |
-| `inputs/` | (future) deterministic keyinput traces — replay format `<frame>,0x<hex>`, active-low |
+| `inputs/` | Deterministic keyinput traces — `title_to_newgame.csv` (Start/A taps through the title menu; verified via headless `GBARECOMP_INPUT_REPLAY`). Format `<frame>,0x<hex>` active-low, sticky |
 | `BRINGUP.md` | Decision log — the project's memory |
 | `game.gba` | Retail ROM, gitignored |
 
@@ -201,15 +201,13 @@ recomp-net @ c58f125.
   mapped from live-dump + ROM byte-match; ROM gaps seeded at verified
   prologues (walks cascade). Artifacts: `logs/{cov,miss,run}_v*`, 
   `logs/strict_v9.log`.
-- Next milestone: Phase 5 (in progress) — oracle harness done; **strict
-  2400-frame run FULLY_STATIC** (corpus 2797). The earlier "divergences"
-  were: BIOS/handoff sampling-phase artifacts, one **self-inflicted odd-pc
-  dispatch ladder** (`entries_mode = "thumb"` must be `"auto"` for raw
-  thumb pointers), and the title-animation RNG "divergence" — all explained
-  by the park-phase offset (§ Oracle & frame diff; BRINGUP § "park-phase
-  semantics"). Next: build the Phase 5 tooling — `tools/dualrun.py`,
-  `tools/attract_check.py` (golden gate = the game.toml regression test),
-  `tools/misspack.py` (BRINGUP § "Next in Phase 5"). Reference projects (mstan's Emerald/FRLG/RS/
+- Next milestone: Phase 5 (in progress) — oracle harness + tooling done
+  (dualrun / attract_check / misspack / cycle / ringscan / coverage_report);
+  **strict 2400 without input FULLY_STATIC** and the attract gate is pinned.
+  Input trace `inputs/title_to_newgame.csv` reaches the intro scene; strict
+  6000 + replay now marches through the new-game content: corpus 2,797 →
+  23,395 (142 auto jump tables), **current frontier pc 0x08022148** —
+  continue the resolve loop (BRINGUP § "New-game path unlocked"). Reference projects (mstan's Emerald/FRLG/RS/
   MinishCap/WWT clones) ship useful patterns: reviewed-seed overlays,
   input-CSV + golden-SHA gates; they have no frame-diff harness (ours leads).
 - Android port (research done 2026-10-06; not started): the app shell already
@@ -237,6 +235,12 @@ recomp-net @ c58f125.
   `call_stack`/`rdb_*` do not.
 - `tools/disarm.py` halts silently at the first undecodable halfword —
   use narrow windows anchored on known boundaries.
+- `GBARECOMP_INPUT_REPLAY` is applied by the headless `--frames` loop only —
+  TCP `run_frames`/`step` does NOT apply replay events (check KEYINPUT at
+  0x04000130 if in doubt). Run replay gates headless.
+- `[[code_copy]]` maps decoding only; runtime entry PCs inside a copied span
+  still need `[[extra_func]]` entries (seed via tools/misspack + a
+  source-side prologue scan of the copied span).
 
 - BIOS recompile must run with cwd = `gbarecomp/` (or output lands in the
   wrong `src/runtime/generated_bios/`); after generating, **re-run CMake
@@ -260,9 +264,13 @@ recomp-net @ c58f125.
   `tools/misspack.py`).
 - Debug via gbarecomp's TCP debug surface (`--tcp`), not printf; state claims
   as "per the frame ring at f=N (vblank=M)".
-- FFTA known hard spot: its scripting/VM interpreter cluster — expect a large
-  function cluster there; audit carefully in Phase 4.
+- FFTA known hard spot (CORRECTED 2026-10-06): the 0x080C7EC0/0x080C85A0/
+  0x080C9EF4/0x080CA33C/0x080CA7CC cluster is unit/job/ability/stat
+  **data accessors** (ROM-verified), not the VM; the **event interpreter is
+  0x08122xxx-0x08123xxx** (scripts at 0x089A5E4C+). Read BRINGUP
+  § "FFTA_Engine_Hacks study" before auditing there.
 - Community references for naming: Data Crystal wiki (ROM/RAM maps),
-  LeonarthCG/FFTA_Engine_Hacks (ASM source), FFHacktics forum; spiiin/
-  FFTAUtils (map-data formats + verified data regions — see BRINGUP
+  LeonarthCG/FFTA_Engine_Hacks (address→description index; VM-cluster
+  correction — BRINGUP § "FFTA_Engine_Hacks study"), FFHacktics forum;
+  spiiin/FFTAUtils (map-data formats + verified data regions — see BRINGUP
   § "Map-data regions").
