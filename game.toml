@@ -386,3 +386,39 @@ addr = 0x030034E8
 mode = "arm"
 source_addr = 0x081445A0
 note = "ARM entry of the same relocated blob (derived from thumb head adr r1,#4; bx r1 @blob+0x6 -> 0x081445A0 = runtime 0x030034E8; first word 0xE3540002 cmp r4,#2; blob byte-identical to ROM source)"
+
+# Audit entry #16 — bulk fix from the non-strict 1200-frame miss harvest
+# (32 distinct miss PCs, all in the m4a region; collected in ONE pass via
+# self-heal, then resolved together instead of per-miss strict cycles).
+# The bank of naked m4a command handlers (`mov ip,lr ... bx ip`, one per
+# command) is dispatched through a thumb-pointer table found by scanning for
+# each missed handler start's thumb word: all distinct targets + repeats sit
+# consecutively at 0x0836D098..0x0836D128 (36 entries, stride 4, every entry
+# odd/thumb): 0x0836D098:0x081448FD, 0x0836D09C:0x0814496D, 0x0836D0C4:
+# 0x08144A0D, 0x0836D0E4:0x08145085, 0x0836D120:0x081448DD, ...; the
+# unknown-command default 0x081448FD repeats 12x. Declaring the table seeds
+# the whole bank, including handlers not yet executed (0x08144AA0/AC4/AD8,
+# 0x08145008/070, 0x08145608, 0x08144D94, 0x081459D0, 0x08145A98). Bare
+# interiors (0x08144984, the 0x08144A12..0x44A92 bl-return PCs, 0x08144E4C/
+# 4F4E/5C/76/9C/FE0/45084) are covered by static_resume_all once their
+# bodies are emitted. Same table region as audit #8's note (0x081448C5).
+[[jump_table]]
+addr = 0x0836D098
+stride = 4
+count = 36
+format = "abs32"
+entries_mode = "auto"
+name = "m4a_command_handler_table"
+note = "m4a command dispatch: 36 raw thumb pointers (bit0 set) over 0x0836D098..0x0836D128; entries_mode MUST stay 'auto' — with 'thumb' the un-masked bit0 fed literal odd addresses (e.g. 0x08145609) to the finder, creating odd-pc hosts whose dispatch ladder re-ran function prologues in a tight loop (SP descending below EWRAM from f275; E10 clobbered to 0x081455C7). 'auto' decodes bit0 -> THUMB and clears it (TOML_SCHEMA.md: entries_mode semantics). 36 seeds: e.g. D09C->0x0814496C, D0C4->0x08144A0C, D110->0x08145608, D120->0x081448DC; default slot 0x081448FD x12; harvested from the non-strict 1200-frame miss list (32 PCs)"
+
+# Audit entry #17 — two handler outliers from the same harvest, registered
+# outside the 0x0836D098 table (their thumb words live in the m4a player's
+# code-side pools at 0x08145xxx).
+[[extra_func]]
+addr = 0x08144E08
+mode = "thumb"
+note = "prologue f0b5 push {r4-r7,lr}+hi-save+sub sp,#0x18 @0x08144E08 after tiny stub 0x08144E04 (`strb r0,[r4,#3]; bx lr`); called via pool word 0x08144E09 @0x081455F8 (m4a code pool; sibling word 0x081465E5); harvest hits x167..x205 on interiors (bl-return resumes: 0x08144F4E/5C/76/9C/FE0 etc.)"
+[[extra_func]]
+addr = 0x08145B4C
+mode = "thumb"
+note = "prologue f0b5 push {r4-r7,lr} @0x08145B4C after prev epilogue `pop {r4}; pop {r0}; bx r0` @0x08145B46..4A; called via pool word 0x08145B4D @0x08145504 (m4a code pool); harvest hits x33"

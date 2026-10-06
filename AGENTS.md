@@ -170,18 +170,18 @@ recomp-net @ c58f125.
   mapped from live-dump + ROM byte-match; ROM gaps seeded at verified
   prologues (walks cascade). Artifacts: `logs/{cov,miss,run}_v*`, 
   `logs/strict_v9.log`.
-- Next milestone: Phase 5 (in progress) — oracle harness done
-  (`gbarecomp/build/oracle/gbarecomp_oracle`; `tools/framediff.py`
-  phase-aware delta scans, native side forced strict). The v281+ BIOS→cart
-  "divergence" is **resolved as sampling-phase artifacts** (BRINGUP § "Phase 5
-  start" — cells identified: m4a LCG RNG, VBlank queues, DISPCNT mirror,
-  IRQ-stack arena; RNG verified on one deterministic chain). Active work:
-  strict-600 horizon audit loop — entries #10-#15 added (incl. code_copy
-  `iwram_m4a_blob` 0x030034DC←0x08144594, 896 B); currently aborts at
-  0x08144A0C; corpus 1438→2690. Then: framediff re-scan to 600 (and 1200),
-  pixel compares, attract diff as the game.toml regression test. Non-strict
-  runs still capped ≈480 f (600 f aborts via heal-bridge stack growth). New
-  misses re-enter the audit loop with the cold-cache protocol below.
+- Next milestone: Phase 5 (in progress) — oracle harness done; **strict
+  1200-frame run FULLY_STATIC** (corpus 2797; bulk-harvest workflow: one
+  non-strict pass → all miss PCs, batch-fixed via the m4a [[jump_table]]
+  + seeds). The earlier "divergences" were: BIOS/handoff sampling-phase
+  artifacts (keep framediff same-index alignment), and one **self-inflicted
+  odd-pc dispatch ladder** from a jump_table declared with
+  `entries_mode = "thumb"` — must be `"auto"` for raw thumb pointers
+  (bit0 masked); see BRINGUP § "Reference-repo study". Next: pixel-sync
+  methodology (latched framebuffer), horizon 1200→2400, attract diff as the
+  game.toml regression test. Reference projects (mstan's Emerald/FRLG/RS/
+  MinishCap/WWT clones) ship useful patterns: reviewed-seed overlays,
+  input-CSV + golden-SHA gates; they have no frame-diff harness (ours leads).
 
 ## Environment gotchas (learned in Phase 3)
 

@@ -546,14 +546,46 @@ this stretch (corpus 1438 → 2690 discovered):
 - Current frontier: strict 600 aborts at pc=0x08144A0C (thumb, m4a region)
   — next in the loop. ARM corpus grew 19→40 (blob ARM section walked).
 
+### Reference-repo study + bulk harvest + the entries_mode lesson
+Studied mstan's five sibling repos (shallow clones; Emerald / FireRedLeafGreen /
+RubySapphire / MinishCap / WarioWareTwisted) for reusable practice:
+- Adopted **bulk miss harvest** (Emerald/FRLG reviewed-seed workflow): one
+  non-strict pass collects ALL miss PCs; per-miss strict cycles are for
+  verification only. Applied: non-strict 1200-frame run → **32 distinct miss
+  PCs in ONE pass** (all m4a region).
+- Adopted **pointer-table declaration** (MinishCap [[jump_table]] practice):
+  scanned for each missed handler start's thumb word → the 36-entry m4a
+  command handler table at 0x0836D098 (stride 4; default slot 0x081448FD
+  x12) + 2 stragglers (#17) → strict 1200 FULLY_STATIC, corpus 2690→2800.
+- Our pin already carries static_resume_all (on), resume_range,
+  alu-immediate overrides, overlay `--config` layering, symbol_map.cpp;
+  reference repos ship NO frame-diff harness (ours is ahead).
+
+**Then the first real divergence hunt — and it was self-inflicted.**
+Symptoms: banner `unmapped=121722415` open-bus W4 writes descending below
+EWRAM with frames {0x02008E60, 0x020084E0, 0, 0x081455C7}; scheduler cell
+0x03000E10 clobbered to 0x081455C7 from f275; ring: 0x08145608 (m4a
+song-start, `push {r4,r5,r6,lr}`) re-executing 255× back-to-back (SP −16 per
+iteration); framebuffer 59% / EWRAM 67% different at f1200. Bisect (stash
+#16/#17): pre-seed build clean → **our jump_table declaration caused it**.
+Root cause (dispatch-table diff): `entries_mode = "thumb"` does NOT mask the
+raw pointers' bit0 (TOML_SCHEMA: "the low bit … is not consulted"), so the
+finder seeded literal ODD addresses (0x08145609, +2, +4 …) as function
+starts → odd-pc host ladder → dispatcher re-entered the function's first
+instruction forever. FIX: `entries_mode = "auto"` (decodes bit0 → THUMB and
+clears it). Post-fix: `unmapped=0`, E10 normal, strict 1200 FULLY_STATIC;
+IWRAM diff at f600 = 83 B (~phase noise), EWRAM 275 B, cell-alignment probe:
+same-index best (70% match vs 30-40% at ±1/±2 shifts — no global offset).
+**Lesson: manual [[jump_table]] entries with interworking-convention pointers
+MUST use entries_mode = "auto"; after any jump_table change, grep the
+generated dispatch rows for odd addresses.**
+
 ### Next in Phase 5
-- Continue the strict-600 audit loop (next miss 0x08144A0C; one entry per
-  cold cycle) until FULLY_STATIC at 600.
-- Then re-run `tools/framediff.py --lo 4 --hi 600` (the tool now forces
-  `GBARECOMP_STRICT_STATIC=1` on the native side) and extend the horizon to
-  1200 in steps.
-- Pixel-level compares (TCP `screenshot` vs oracle `emu_screenshot`, both
-  240x160 RGB888) and the attract-screen diff wired as the game.toml
-  regression test.
-- Refine `framediff.py` to classify constant-offset wrap events for the
-  known phase bytes without hiding real step mismatches.
+- Pixel-level methodology: compare the same displayed frame (latched
+  framebuffer semantics), not cross-sampled live buffers; wire the
+  attract-screen comparison as the game.toml regression test.
+- Extend the strict horizon 1200 → 2400 with the bulk-harvest loop (harvest
+  misses non-strict, batch-fix, verify strict).
+- Keep `framediff.py`'s index alignment at 0 (validated) and add the known
+  phase-byte classification (counters/flag cells) so scans report signal.
+- Optional regression net: WarioWare-style input CSV + golden PNG SHA gate.
