@@ -93,6 +93,10 @@ Coverage loop (after every run): read the exit banner
 merge** real ones into `game.toml`, regenerate, rebuild, rerun — until
 `FULLY_STATIC`. Never auto-write `game.toml`.
 
+Crash sessions: the `.frag` flushes only at clean exit — after a crash, run
+`tools/cache_harvest.py --out logs/proposal.frag` to recover the miss pcs
+from `recomp_cache` unit filenames.
+
 Coverage report (three lenses — executed path / walker's static reach /
 pointer-pool reach): `.venv/bin/python tools/coverage_report.py` (defaults
 to a 1200-frame strict run; `--frames N`, `--json` for machine-readable,

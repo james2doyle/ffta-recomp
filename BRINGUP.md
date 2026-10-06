@@ -882,3 +882,36 @@ distinct self-heal miss PCs** (`logs/playtest_misses.frag`; 484 in
 - Next: battle-region harvesting from the savestates (`--load-state` +
   the trace's tail replays into the battle without the intro), then
   continue the play session to complete the battle.
+
+### Battle-session crash: self-heal bridge runaway — resolved by coverage (2026-10-06)
+- **Symptom**: SIGABRT after a ~56k-frame state2-loaded battle session. Core:
+  `abort()` inside `runtime_bridge_interpret` ← generated code. Terminal
+  message: `SELF-HEAL bridge for 0x080DAE78/0x0811F9F0 exceeded 200000000
+  instructions without returning to stop_pc=0x08092858 (current pc=0x0800041C)`
+  — the interpreter bridge spun executing code whose exit condition (an
+  IRQ-driven flag / VM state) cannot progress under the bridge's model; the
+  200M-instruction watchdog aborted loudly *by design* (PRINCIPLES: never
+  spin silently). Same `stop_pc` both times → same call context (battle code
+  at 0x080928xx calling into the script VM).
+- **Lost artifact**: the `.frag` proposal file flushes only at clean exit; the
+  crash lost that session's miss list. The durable record was the **heal
+  cache** (168 completed units) plus the terminal text.
+- **Deterministic repro**: `--load-state game.state2` +
+  `GBARECOMP_INPUT_REPLAY=logs/playthrough.csv` (the trace's frame counter
+  jumps `0 → 29592` at the state load because recordings are guest-frame
+  based → faithful replay). Abort reproduced headless within minutes.
+- **Resolution — batches c/d/e** (231 units total): c = session-2 cache units
+  (168), d = state2-repro heals (61, incl. script-VM blocks near
+  `gf_tfunc_0811F944`), e = final tail (2: 0x08122EC0, 0x08123958).
+  **Strict state2 battle repro (60,000 frames): FULLY_STATIC, 0 misses**
+  (`logs/state2_strict.log`); strict boot→newgame 6000-frame regression also
+  FULLY_STATIC; attract-gate hash unchanged throughout.
+- **Tooling**: added `tools/cache_harvest.py` — recovers miss pcs from
+  `recomp_cache` filenames when a session crashes before the `.frag` flushes
+  (the `.frag` writes at exit only — verified again this session).
+  Trace archived at `inputs/session2_battle_trace.csv` (needs local
+  `game.state2`).
+- **Open observation (framework-level)**: the bridge's stop contract
+  (LR / call-stack-top) was never satisfied for these mid-block entries — it
+  aborted rather than bridging. Coverage now avoids the situation entirely;
+  worth reporting upstream as a bridge-limitation data point.

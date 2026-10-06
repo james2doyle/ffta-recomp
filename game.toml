@@ -2710,3 +2710,329 @@ addr = 0x08126B32
 mode = "thumb"
 note = "session-2 heal-cache unit; entry from completed live heal (cache file 08126B32_t.c); pre-crash session evidence"
 
+
+# ─── Playtest batch d: state2-repro heals (2026-10-06) ───
+# From the deterministic crash reproduction (--load-state game.state2 +
+# user's recorded replay). Source: heal-cache units (the .frag does not
+# flush on abort). Includes script-VM blocks near gf_tfunc_0811F944.
+
+[[extra_func]]
+addr = 0x080D5F74
+mode = "thumb"
+note = "state2-repro heal-cache unit 080D5F74_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x0811F95C
+mode = "thumb"
+note = "state2-repro heal-cache unit 0811F95C_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x0811F980
+mode = "thumb"
+note = "state2-repro heal-cache unit 0811F980_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x0811F98E
+mode = "thumb"
+note = "state2-repro heal-cache unit 0811F98E_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x0811F998
+mode = "thumb"
+note = "state2-repro heal-cache unit 0811F998_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x0811F9A2
+mode = "thumb"
+note = "state2-repro heal-cache unit 0811F9A2_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x0811F9B2
+mode = "thumb"
+note = "state2-repro heal-cache unit 0811F9B2_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x0811F9BC
+mode = "thumb"
+note = "state2-repro heal-cache unit 0811F9BC_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x0811F9D4
+mode = "thumb"
+note = "state2-repro heal-cache unit 0811F9D4_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x0811F9F0
+mode = "thumb"
+note = "state2-repro heal-cache unit 0811F9F0_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x0811FB10
+mode = "thumb"
+note = "state2-repro heal-cache unit 0811FB10_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x0811FB20
+mode = "thumb"
+note = "state2-repro heal-cache unit 0811FB20_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x0811FB24
+mode = "thumb"
+note = "state2-repro heal-cache unit 0811FB24_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x0811FC1C
+mode = "thumb"
+note = "state2-repro heal-cache unit 0811FC1C_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x0811FD62
+mode = "thumb"
+note = "state2-repro heal-cache unit 0811FD62_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x0811FD74
+mode = "thumb"
+note = "state2-repro heal-cache unit 0811FD74_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x0811FD90
+mode = "thumb"
+note = "state2-repro heal-cache unit 0811FD90_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x0811FDA4
+mode = "thumb"
+note = "state2-repro heal-cache unit 0811FDA4_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x0811FDAC
+mode = "thumb"
+note = "state2-repro heal-cache unit 0811FDAC_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x0811FDD6
+mode = "thumb"
+note = "state2-repro heal-cache unit 0811FDD6_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x0811FDDC
+mode = "thumb"
+note = "state2-repro heal-cache unit 0811FDDC_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x0811FE24
+mode = "thumb"
+note = "state2-repro heal-cache unit 0811FE24_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x0811FEE8
+mode = "thumb"
+note = "state2-repro heal-cache unit 0811FEE8_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x0811FEF4
+mode = "thumb"
+note = "state2-repro heal-cache unit 0811FEF4_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x0811FFBC
+mode = "thumb"
+note = "state2-repro heal-cache unit 0811FFBC_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x0811FFD8
+mode = "thumb"
+note = "state2-repro heal-cache unit 0811FFD8_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x0811FFFE
+mode = "thumb"
+note = "state2-repro heal-cache unit 0811FFFE_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x0812000A
+mode = "thumb"
+note = "state2-repro heal-cache unit 0812000A_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x08120014
+mode = "thumb"
+note = "state2-repro heal-cache unit 08120014_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x08120024
+mode = "thumb"
+note = "state2-repro heal-cache unit 08120024_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x0812002E
+mode = "thumb"
+note = "state2-repro heal-cache unit 0812002E_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x08120036
+mode = "thumb"
+note = "state2-repro heal-cache unit 08120036_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x08120158
+mode = "thumb"
+note = "state2-repro heal-cache unit 08120158_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x08120160
+mode = "thumb"
+note = "state2-repro heal-cache unit 08120160_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x081202EC
+mode = "thumb"
+note = "state2-repro heal-cache unit 081202EC_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x08120380
+mode = "thumb"
+note = "state2-repro heal-cache unit 08120380_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x08120398
+mode = "thumb"
+note = "state2-repro heal-cache unit 08120398_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x081203C8
+mode = "thumb"
+note = "state2-repro heal-cache unit 081203C8_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x081203F0
+mode = "thumb"
+note = "state2-repro heal-cache unit 081203F0_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x08120436
+mode = "thumb"
+note = "state2-repro heal-cache unit 08120436_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x08120480
+mode = "thumb"
+note = "state2-repro heal-cache unit 08120480_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x08120486
+mode = "thumb"
+note = "state2-repro heal-cache unit 08120486_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x08120492
+mode = "thumb"
+note = "state2-repro heal-cache unit 08120492_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x08120494
+mode = "thumb"
+note = "state2-repro heal-cache unit 08120494_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x08120496
+mode = "thumb"
+note = "state2-repro heal-cache unit 08120496_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x081204A8
+mode = "thumb"
+note = "state2-repro heal-cache unit 081204A8_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x081204CE
+mode = "thumb"
+note = "state2-repro heal-cache unit 081204CE_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x081204FA
+mode = "thumb"
+note = "state2-repro heal-cache unit 081204FA_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x08120502
+mode = "thumb"
+note = "state2-repro heal-cache unit 08120502_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x08120526
+mode = "thumb"
+note = "state2-repro heal-cache unit 08120526_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x08120570
+mode = "thumb"
+note = "state2-repro heal-cache unit 08120570_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x08120588
+mode = "thumb"
+note = "state2-repro heal-cache unit 08120588_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x0812059C
+mode = "thumb"
+note = "state2-repro heal-cache unit 0812059C_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x081205BA
+mode = "thumb"
+note = "state2-repro heal-cache unit 081205BA_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x081205C4
+mode = "thumb"
+note = "state2-repro heal-cache unit 081205C4_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x081205C6
+mode = "thumb"
+note = "state2-repro heal-cache unit 081205C6_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x081205CC
+mode = "thumb"
+note = "state2-repro heal-cache unit 081205CC_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x08120644
+mode = "thumb"
+note = "state2-repro heal-cache unit 08120644_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x0812064A
+mode = "thumb"
+note = "state2-repro heal-cache unit 0812064A_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x0812065A
+mode = "thumb"
+note = "state2-repro heal-cache unit 0812065A_t; live-completed heal"
+
+[[extra_func]]
+addr = 0x08120710
+mode = "thumb"
+note = "state2-repro heal-cache unit 08120710_t; live-completed heal"
+
+
+# ─── Playtest batch e: final tail of the state2 repro (2026-10-06) ───
+# The last bridged PCs of the deterministic battle-session repro (2 misses,
+# 39 interpreted insns). After this batch the session should be FULLY_STATIC.
+
+[[extra_func]]
+addr = 0x08122EC0
+mode = "thumb"
+note = "state2-repro final tail heal unit 08122EC0_t"
+
+[[extra_func]]
+addr = 0x08123958
+mode = "thumb"
+note = "state2-repro final tail heal unit 08123958_t"
+
