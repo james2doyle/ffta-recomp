@@ -253,3 +253,91 @@ at `gbarecomp/bios/gba_bios.bin` (SHA-1 300c20df...) — never downloaded,
 never committed.
 
 **STOP — Phase 3 not started, per user instruction.**
+
+---
+
+## 2026-10-06 — Phase 3: first recompile, build, run (COMPLETE)
+
+### BIOS recomp generated + linked
+- BIOS dump verified: 16,384 bytes, SHA-1 300c20df6731a33952ded8c436f7f186d25d3492
+  (matches [bios].sha1; user-supplied, gitignored).
+- `gba_recompile --bios gbarecomp/bios/gba_bios.bin --config gbarecomp/bios/gba_bios.toml`
+  → 770 functions, 92 redundant-manual, 80 manual-only, 73 jump-table-expanded,
+  2 data_ranges honored. Wrote `src/runtime/generated_bios/`.
+- **Pitfall 1 (root-caused, fixed):** running `--bios` from the repo root wrote
+  generated output into `<root>/src/runtime/generated_bios/` — NOT the
+  framework worktree — so `gbarecomp_runtime` linked the placeholder stub and
+  the runtime silently fell back to BIOS HLE boot ("recompiled BIOS is not
+  linked" banner), which then segfaulted on FFTA's IWRAM code. Fix: copy
+  output into `gbarecomp/src/runtime/generated_bios/` (its designed location,
+  gitignored inside the submodule) + re-run CMake *configure* (the
+  `EXISTS bios_recompiled.cpp` check only re-evaluates at configure time, not
+  on rebuild). Framework docs' `build/gba_recompile.exe --bios bios/gba_bios.bin`
+  assumes cwd = gbarecomp checkout — record for future sessions: run BIOS gen
+  from inside `gbarecomp/`.
+- Collateral: accidentally `rm -rf src/` (untracked host sources) while
+  cleaning the misplaced output; recreated main.cpp / game_launcher_boot.{h,cpp}
+  from the exact contents in session context. Lesson recorded: commit host
+  sources *before* experimenting with generated-output locations.
+
+### Host project created
+- `CMakeLists.txt` — modeled on DragonBallZLegacyOfGokuRecomp (verified
+  against its actual files): GBARECOMP_ROOT/RECOMP_UI_ROOT, EXCLUDE_FROM_ALL
+  subdirectory, generated glob, recompiled_*.cpp at -O1 -g0, start-group link
+  of runtime/debug/gba/armv4t, compile definitions
+  (GBARECOMP_DEFAULT_DEBUG_PORT=19888, WINDOW_TITLE, DEFAULT_GAME_CONFIG),
+  recomp-ui launcher (game_launcher_ui static lib + boxart.tga placeholder —
+  host-authored gradient, no ROM-derived bytes), 16 MiB stack on MSVC/MinGW.
+- `src/main.cpp` — RunOptions: builtin_game_name "Final Fantasy Tactics
+  Advance", builtin_rom_sha1 4ac05441..., launcher_region "USA",
+  launcher_game_config "game.toml". No mod/widescreen opts (not validated).
+- `src/game_launcher_boot.{h,cpp}` — gbarecomp_launcher_preboot seam.
+
+### Pitfall 2 (root-caused, fixed): Linux host stack exhaustion
+- First run: SIGSEGV in `render_scanline_internal` with rsp 0x380 bytes below
+  the 8 MiB main-thread stack mapping bottom — the generated code's
+  VBlank-wait loop (`gf_tfunc_08000428` ↔ `gf_tfunc_08000418` alternating)
+  never unwinds guest frames; each guest BL becomes a host C call, plus
+  device ticks. First gdb backtrace showed rsp flush against [stack] end.
+- Framework only reserves 16 MiB on Windows (`LINKER:--stack`, exe-suffix
+  gated — see gbarecomp/CMakeLists.txt:317-338 `gbarecomp_target_link_host_stack`).
+  Linux main-thread stack = RLIMIT_STACK (8 MiB default here).
+- Fix in src/main.cpp: `raise_stack_limit()` — setrlimit(RLIMIT_STACK) to
+  RLIM_INFINITY at main() entry (hard limit is unlimited on this host).
+  First attempt (64 MiB cap) moved the crash to `tick_timers` at exactly
+  64 MiB below stack top — same class, deeper budget. Unlimited resolves it.
+
+### Run results (headless, --no-window)
+| Frames | Mode | Result |
+|---|---|---|
+| 60 | strict (GBARECOMP_STRICT_STATIC=1) | **FULLY_STATIC**, 0 misses, 0 interpreted — BIOS intro + early boot fully native |
+| 120 | strict | **FULLY_STATIC** |
+| 240 | strict | **FULLY_STATIC** — final framebuffer dump: 240x160 PNG, ~93% white + blue/magenta accents (post-intro white screen; real PPU render, not garbage) |
+| 480 | strict | dispatch-miss abort at pc=0x03005E78 (thumb) — first static gap |
+| 480 | self-heal | runs to completion, exit 0, full diagnostics written: **NOT_STATIC, 12 distinct misses, 505361 interpreted insns, 14 healed, 5 failed heals** |
+| 600 | self-heal | SIGSEGV (stack) — heal bridges + present-in-place accumulate host frames; heal-bridge re-entry doesn't unwind. 480 frames is the current non-strict budget ceiling. |
+
+- final_pc=0x08000428, ppu_frames=480, unmapped=0, io_unhandled=0.
+- Artifacts archived (gitignored, ROM-derived): `logs/miss480.frag`
+  (12 [[extra_func]] proposals), `logs/cov480.json`, `logs/run480.log`,
+  frame dumps at /tmp (reproduce with the commands in AGENTS.md).
+
+### Phase 4 miss list (handoff, from miss480.frag — needs per-PC audit)
+- IWRAM-installed code (5): 0x03000F10 arm x200, 0x03005E78 thumb x411,
+  0x03005EE8 x6, 0x03007D64 x48, 0x03007E60 x2 — FFTA copies code to RAM
+  (sound mixer + IRQ dispatch, per DBZ precedent) → need `[[code_copy]]`
+  mappings backed by runtime IWRAM dumps (GBARECOMP_IWRAM_DUMP) + literal
+  evidence; do NOT guess.
+- ROM interior resume/call targets (7): 0x080004D8, 0x0800076E x199,
+  0x08003674 x195, 0x0800367C, 0x0800371C, 0x080098C4 x197, 0x0813BCF0 x196
+  — audit each: push roots / literal pools / jump-table membership
+  (candidates near the auto_jt cluster at 0x08004058/0x080044C8).
+- 0x081448C4 (near gf_tfunc_08144456+0x46E, m4a region) appeared in the
+  earlier 600-frame verbose log but not the 480 frag — re-observe.
+
+### Phase 3 result
+Built binary + recompiled BIOS linked + runs headless 480 frames with full
+coverage diagnostics; BIOS intro + first ~240 frames are FULLY_STATIC.
+Expected-not-permanent: NOT_STATIC at 480 (12 misses, all characterized
+above) — Phase 4's audit loop starts from `logs/miss480.frag`.
+**STOP — Phase 4 not started, per user instruction.**
