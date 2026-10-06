@@ -716,27 +716,27 @@ note = "auto-batch 2026-10-06: covers miss 0x80231d8; prologue push @0x080231D8 
 [[extra_func]]
 addr = 0x08122E90
 mode = "thumb"
-note = "auto-batch 2026-10-06: covers miss 0x8122e90; prologue push @0x08122E90 (misspack wide scan)"
+note = "auto-batch 2026-10-06: covers miss 0x8122e90; prologue push @0x08122E90 (misspack wide scan); in event-interpreter region (0x08122xxx-0x08123xxx, LeonarthCG study; BRINGUP)"
 
 [[extra_func]]
 addr = 0x08123898
 mode = "thumb"
-note = "auto-batch 2026-10-06: covers miss 0x8123898; prologue push @0x08123898 (misspack wide scan)"
+note = "auto-batch 2026-10-06: covers miss 0x8123898; prologue push @0x08123898 (misspack wide scan); in event-interpreter region (0x08122xxx-0x08123xxx, LeonarthCG study; BRINGUP)"
 
 [[extra_func]]
 addr = 0x08122D20
 mode = "thumb"
-note = "auto-batch 2026-10-06: covers miss 0x8122d20; prologue push @0x08122D20 (misspack wide scan)"
+note = "auto-batch 2026-10-06: covers miss 0x8122d20; prologue push @0x08122D20 (misspack wide scan); in event-interpreter region (0x08122xxx-0x08123xxx, LeonarthCG study; BRINGUP)"
 
 [[extra_func]]
 addr = 0x081235C0
 mode = "thumb"
-note = "auto-batch 2026-10-06: covers miss 0x81235c0; prologue push @0x081235C0 (misspack wide scan)"
+note = "auto-batch 2026-10-06: covers miss 0x81235c0; prologue push @0x081235C0 (misspack wide scan); in event-interpreter region (0x08122xxx-0x08123xxx, LeonarthCG study; BRINGUP)"
 
 [[extra_func]]
 addr = 0x081237D0
 mode = "thumb"
-note = "auto-batch 2026-10-06: covers miss 0x81237d0; prologue push @0x081237D0 (misspack wide scan)"
+note = "auto-batch 2026-10-06: covers miss 0x81237d0; prologue push @0x081237D0 (misspack wide scan); in event-interpreter region (0x08122xxx-0x08123xxx, LeonarthCG study; BRINGUP)"
 
 
 # IWRAM code copy #6 (strict 6000 + replay frontier 0x03006B44): byte-identical
