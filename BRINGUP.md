@@ -647,10 +647,16 @@ end-to-end 2026-10-06: reproduces the numbers above in ~4 s (commit ae6966d).
   (0x08144A0C / 0x081448DC hits inside 0x0836D0xx; the run detector is
   deliberately over-wide — trim the extent on review). Manual review only;
   never auto-writes game.toml.
-- Follow-ups: `tools/cycle.py` (cold cycle + dispatch odd-address sanity),
-  `tools/ringscan.py` (FP_SAVE queries); contact-sheet dump for the f6000+
-  attract loop; extend the strict horizon beyond 2400 once the gate is
-  wired into the change loop.
+- `tools/cycle.py` — the standard change cycle: cold regen → aligned-dispatch
+  sanity check (the entries_mode guard) → build → attract gate; `--harvest N`
+  adds a non-strict miss fragment. Tested 2026-10-06: PASS in 3.4 s. Use this
+  after every game.toml change.
+- `tools/ringscan.py` — FP_SAVE instruction-ring queries (`--pc`, `--reg`,
+  `--reg-range`, `--cyc`, `--context`; capstone decode). Tested on the f1198
+  ring: resolves the RNG LCG writer chain (0x08002806..0x08002810).
+- Remaining follow-ups: contact-sheet dump for the f6000+ attract loop;
+  extend the strict horizon beyond 2400; input-trace drive past the title
+  screen (GBARECOMP_INPUT_REPLAY; `inputs/` CSV + milestone audit).
 
 ### Map-data regions verified (spiiin/FFTAUtils study, 2026-10-06)
 Studied spiiin/FFTAUtils — map-hacking utilities (C#, VS2012, single 2014

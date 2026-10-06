@@ -105,6 +105,15 @@ ports; encodes the park-phase model from § "Oracle & frame diff"):
 Miss evidence packs (after a non-strict `GBARECOMP_MISS_FRAG` harvest):
 `.venv/bin/python tools/misspack.py logs/missN.frag [--stubs | --pc 0x...]`
 
+Standard change cycle (cold regen → aligned-dispatch sanity → build →
+attract gate; `--harvest N` also runs a non-strict miss harvest):
+`.venv/bin/python tools/cycle.py [--frames N] [--harvest N]`
+
+Instruction-ring queries (on `GBARECOMP_INSN_TRACE` + `GBARECOMP_FP_SAVE`
+dumps; capstone decode):
+`.venv/bin/python tools/ringscan.py --file /tmp/fp.bin [--pc P | --reg R |
+--reg-range LO HI] [--cyc LO HI] [--context N]`
+
 ## Oracle & frame diff (Phase 5)
 
 The validation harness compares our runner against gbarecomp's own mGBA
@@ -164,7 +173,7 @@ commands: `emu_step`/`emu_step_to_vblank` (one runFrame = one PPU frame),
 | `src/` | Host code: `main.cpp` + integration (Phase 3) |
 | `generated/` | Recompiler output — gitignored, never edited |
 | `gbarecomp/`, `recomp-ui/` | Pinned submodules (see below) |
-| `tools/` | `disarm.py` (capstone disassembler), `m4a_detect.py`, `framediff.py` (native↔oracle delta scan), `dualrun.py` (lockstep probes), `coverage_report.py` (three-lens coverage table), `attract_check.py` (golden attract gate), `misspack.py` (miss evidence packs) |
+| `tools/` | `disarm.py` (capstone disassembler), `m4a_detect.py`, `framediff.py` (native↔oracle delta scan), `dualrun.py` (lockstep probes), `coverage_report.py` (three-lens coverage table), `attract_check.py` (golden attract gate), `misspack.py` (miss evidence packs), `cycle.py` (standard change cycle), `ringscan.py` (instruction-ring queries) |
 | `inputs/` | (future) deterministic keyinput traces — replay format `<frame>,0x<hex>`, active-low |
 | `BRINGUP.md` | Decision log — the project's memory |
 | `game.gba` | Retail ROM, gitignored |
