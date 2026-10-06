@@ -580,6 +580,27 @@ same-index best (70% match vs 30-40% at ±1/±2 shifts — no global offset).
 MUST use entries_mode = "auto"; after any jump_table change, grep the
 generated dispatch rows for odd addresses.**
 
+### Coverage report tooling (three lenses)
+`tools/coverage_report.py` regenerates the mapping-coverage table
+programmatically. Lens definitions (documented here so numbers stay
+comparable over time):
+- **Executed path** — strict native run (default 1200 frames) exit banner:
+  FULLY_STATIC ⇒ 100% of everything that ran is natively mapped.
+- **Walker's static reach** — trial config with `aot_scan_end` widened to
+  the whole ROM (0x09000000): everything the walker can find at all.
+  Current: 2,797 / 2,805 units ≈ 99.7% (the gap was +75 before the bulk
+  harvest; now +8).
+- **Pointer pool** — trial with `speculative_literal_harvest = true`:
+  2,797 / 23,157 ≈ 12.1%; the harvest kept 979 plausible pointers out of
+  65,792 PC-relative literals (trial only — `false` in game.toml by
+  evidence-driven policy).
+Trials are string-substituted copies of the live `game.toml` regenerated in
+a throwaway temp dir with a cold cache; `game.toml` and `generated/` are
+never touched. Usage: `.venv/bin/python tools/coverage_report.py
+[--frames N] [--json] [--log FILE] [--no-run]`; the executed-lens run log
+lands in `logs/coverage_report_strict_N.log` (gitignored). Verified
+end-to-end 2026-10-06: reproduces the numbers above in ~4 s (commit ae6966d).
+
 ### Next in Phase 5
 - Pixel-level methodology: compare the same displayed frame (latched
   framebuffer semantics), not cross-sampled live buffers; wire the

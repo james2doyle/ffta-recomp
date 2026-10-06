@@ -87,6 +87,13 @@ Coverage loop (after every run): read the exit banner
 merge** real ones into `game.toml`, regenerate, rebuild, rerun — until
 `FULLY_STATIC`. Never auto-write `game.toml`.
 
+Coverage report (three lenses — executed path / walker's static reach /
+pointer-pool reach): `.venv/bin/python tools/coverage_report.py` (defaults
+to a 1200-frame strict run; `--frames N`, `--json` for machine-readable,
+`--log FILE` to reuse an existing run log). Trial configs are derived from
+`game.toml` and regenerated in a throwaway temp dir with a cold cache —
+`game.toml` and `generated/` are never touched.
+
 ## Oracle & frame diff (Phase 5)
 
 The validation harness compares our runner against gbarecomp's own mGBA
@@ -142,7 +149,7 @@ commands: `emu_step`/`emu_step_to_vblank` (one runFrame = one PPU frame),
 | `src/` | Host code: `main.cpp` + integration (Phase 3) |
 | `generated/` | Recompiler output — gitignored, never edited |
 | `gbarecomp/`, `recomp-ui/` | Pinned submodules (see below) |
-| `tools/` | `disarm.py` (capstone disassembler), `m4a_detect.py`, `framediff.py` (native↔oracle scan) |
+| `tools/` | `disarm.py` (capstone disassembler), `m4a_detect.py`, `framediff.py` (native↔oracle scan), `coverage_report.py` (three-lens coverage table) |
 | `inputs/` | (future) deterministic keyinput traces — replay format `<frame>,0x<hex>`, active-low |
 | `BRINGUP.md` | Decision log — the project's memory |
 | `game.gba` | Retail ROM, gitignored |
