@@ -89,3 +89,190 @@ addr = 0x08000254
 mode = "thumb"
 name = "main"
 note = "Thumb entry via bx r1 at 0x080000EC from literal 0x08000255 @ 0x08000240; prologue push {r7,lr} verified"
+
+# ── Phase 4 audit seeds (runtime miss-driven, 2026-10-06) ─────────────
+# Audit entry #1 — miss 0x080004D8 (interior resume/call target; the
+# finder never rooted the containing function). Evidence: function
+# starts 0x080004B0 — `80b5 push {r7, lr}` + `mov r7, sp` @0x080004B2,
+# right after the previous function's literal pool [0x080004A0,
+# 0x080004B0) (its 4 words consumed by ldr [pc] sites at 0x0800046C/
+# 0x08000482/0x08000484/0x08000488). Miss PC 0x080004D8 is the
+# `bne` join @0x080004CE (also a bl 0x080012BC call site). Ends
+# `pop {r7}; pop {r0}; bx r0` @0x0800051E..22 + pool [0x08000524,
+# 0x0800052C); next root 0x0800052C already emitted. No BL anywhere
+# targets 0x080004B0 (ROM-wide scan) — only ref is thumb pointer
+# 0x080004B1 in a table @0x08149434. Walk from this seed also roots
+# 0x080006D0 (bl @0x080004B8), 0x08000718 (bl @0x080004D0),
+# 0x080012BC (bl @0x080004D8).
+[[extra_func]]
+addr = 0x080004B0
+mode = "thumb"
+note = "prologue push {r7,lr} @0x080004B0 after prev func's pool [0x080004A0,0x080004B0); contains resume-miss 0x080004D8 (bne join @0x080004CE); ends bx r0 @0x08000522; only ref: thumb ptr 0x080004B1 @0x08149434"
+
+# ── IWRAM code copies (live-IWRAM-dump evidence, 2026-10-06) ──────────
+# Audit entry #2 — the game copies its IRQ dispatcher (the ROM region
+# seeded above as rom_irq_dispatcher, ROM 0x080000FC..0x0800025C) into
+# IWRAM and re-points the IRQ vector at the copy. Evidence: exit-time
+# GBARECOMP_IWRAM_DUMP of the 480-frame run is byte-identical over
+# [0x03000F10, 0x03001070) ← [0x080000FC, 0x0800025C) and the next
+# bytes differ on both sides (copy extent). Cold 480-frame run dispatch
+# misses: 0x03000F10 (IRQ entry; disasm `mov r3,#0x4000000; add r3,
+# 0x200; ldr r2,[r3]` == ROM 0x080000FC) and 0x03000FD8 (copy of ROM
+# 0x080001C4, the IRQ exit/restore path entered as the return target of
+# the callback `stmdb sp!,{lr}; bx r0` idiom @ROM 0x080001B8-C0; disasm
+# `ldm sp!,{lr}; mrs r3,apsr; bic #0xdf; orr #0x92; ...` identical).
+[[code_copy]]
+runtime_start = 0x03000F10
+source_start = 0x080000FC
+size = 0x00000160
+name = "iwram_irq_dispatcher"
+note = "byte-identical span in exit-time IWRAM dump; runtime copy of rom_irq_dispatcher (0x080000FC..0x0800025C)"
+
+[[extra_func]]
+addr = 0x03000F10
+mode = "arm"
+source_addr = 0x080000FC
+name = "iwram_irq_entry"
+note = "runtime copy of rom_irq_dispatcher @0x080000FC; cold-run miss x200; disasm at 0x03000F10 identical to ROM 0x080000FC"
+
+[[extra_func]]
+addr = 0x03000FD8
+mode = "arm"
+source_addr = 0x080001C4
+name = "iwram_irq_exit"
+note = "runtime copy of 0x080001C4 (IRQ exit/restore path; return target of callback bx-r0 idiom @0x080001B8-C0); cold-run miss x200; body `ldm sp!,{lr}; mrs r3,apsr; bic/orr/msr; pop {r0,r1,r3,lr}; msr spsr_fc,r0; bx lr` matches ROM"
+
+# Audit entry #3 — IWRAM RAM-helper library copied from ROM 0x08A38A2C.
+# Evidence: exit-time IWRAM dump byte-identical over [0x03005E78,
+# 0x03006170) ← [0x08A38A2C, 0x08A38D24); next bytes differ on both
+# sides (copy extent 0x2F8). Both observed entry PCs are function starts
+# in the live copy: 0x03005E78 `push {lr}` (zero-fill loop: `stm r2!,
+# {r0}` word path + byte loop; args r0=ptr, r1=count) and 0x03005EE8
+# `push {r4,lr}` (copy loop: `ldm r1!,{r0}; stm r3!,{r0}` word path +
+# byte loop; r0=dst, r1=src, r2=count). Cold-run misses: 0x03005E78
+# x411, 0x03005EE8 x6.
+[[code_copy]]
+runtime_start = 0x03005E78
+source_start = 0x08A38A2C
+size = 0x000002F8
+name = "iwram_ram_helpers"
+note = "byte-identical span in exit-time IWRAM dump; contains zero-fill (0x03005E78) and copy (0x03005EE8) loops"
+
+[[extra_func]]
+addr = 0x03005E78
+mode = "thumb"
+source_addr = 0x08A38A2C
+note = "cold-run miss x411; live-dump disasm `push {lr}` @0x03005E78, zero-fill loop (word stm + byte), ends pop {r0}; bx r0 @0x03005EA6..AA"
+
+[[extra_func]]
+addr = 0x03005EE8
+mode = "thumb"
+source_addr = 0x08A38A9C
+note = "cold-run miss x6; live-dump disasm `push {r4,lr}` @0x03005EE8, word+byte copy loop (ldm r1!/stm r3!), ends pop {r4}; pop {r0}; bx r0 @0x03005F20..26"
+
+# Audit entry #4 — tiny IWRAM forward byte-copy helper copied from ROM
+# 0x08141AF0 (m4a region). Evidence: exit-time IWRAM dump byte-identical
+# over [0x03007D64, 0x03007D88) ← [0x08141AF0, 0x08141B14) (0x24 bytes =
+# 0x22-byte function + 2-byte pad; next ROM function at 0x08141B14 is
+# `f0b5 push` while the dump has zeros -> copy extent). Tail bytes
+# `9342 f8d1 10bc 01bc 0047` uniquely locate ROM 0x08141B08; whole head
+# `10b5041c531e002a08d001225242` uniquely locates ROM 0x08141AF0.
+# Live-dump disasm @0x03007D64: `push {r4,lr}`, forward byte-copy loop
+# (ldrb r0,[r4]/strb r0,[r1], r3 counts down vs r2=-1 sentinel), ends
+# pop {r4}; pop {r0}; bx r0 @0x03007D80..86. Cold-run miss x48.
+[[code_copy]]
+runtime_start = 0x03007D64
+source_start = 0x08141AF0
+size = 0x00000024
+name = "iwram_byte_copy"
+note = "byte-identical span in exit-time IWRAM dump; 0x22-byte forward byte-copy helper + pad"
+
+[[extra_func]]
+addr = 0x03007D64
+mode = "thumb"
+source_addr = 0x08141AF0
+note = "cold-run miss x48; live-dump disasm `push {r4,lr}` @0x03007D64, forward byte-copy loop, ends pop {r4}; pop {r0}; bx r0 @0x03007D80..86"
+
+# Audit entry #5 — miss 0x08003660 (cold-run x197; whole-function entry —
+# warm runs showed its interior case targets 0x08003674/7C/371C instead).
+# Evidence (own disasm): `f0b5 push {r4-r7,lr}` @0x08003660; switch on
+# byte [r7]: beq @0x08003668 -> 0x0800371C; bgt @0x0800366C ->
+# 0x08003674; beq @0x08003670 -> 0x0800367C; default b -> 0x08003870;
+# ends `pop {r4-r7}; pop {r0}; bx r0` @0x08003870..74; trailing pool
+# [0x08003878,0x08003886); next function 0x08003888 (`70b5 push`). No BL
+# anywhere targets it (ROM-wide scan); entered via IWRAM slot 0x030027D0
+# — init tables store thumb word 0x08003661 at 0x08000588 and 0x081494C8
+# (both preceded by a 0x030027D0 word; verified by ROM word scan).
+[[extra_func]]
+addr = 0x08003660
+mode = "thumb"
+note = "prologue f0b5 push {r4-r7,lr} @0x08003660; switch on [r7]: cases 0x08003674 (bgt @0x0800366C), 0x0800367C (beq @0x08003670), 0x0800371C (beq @0x08003668); ends pop/pop/bx r0 @0x08003870..74; entered via IWRAM slot 0x030027D0 (words 0x08003661 @0x08000588/0x081494C8); no BL target"
+
+# Audit entry #6 — miss 0x080098C4 (cold x197). Evidence (own disasm):
+# prologue `30b5 push {r4,r5,lr}` @0x080098C4, right after the previous
+# function's 5-word pool [0x080098B0,0x080098C4) (words consumed by its
+# ldr [pc] sites); body loops 3 entries calling `bl 0x08142248`;
+# ends `pop {r4,r5}; pop {r0}; bx r0` @0x080098EA..EE; pool word
+# 0x03000890 @0x080098F0; next function 0x080098F4 (`10b5 push`).
+# Registered as a callback: 0x08009964 loads thumb word 0x080098C5 from
+# 0x0800998C and calls the registration helper `bl 0x08006ADC`
+# @0x08009978 — no direct BL targets it.
+[[extra_func]]
+addr = 0x080098C4
+mode = "thumb"
+note = "prologue 30b5 push {r4,r5,lr} @0x080098C4 after prev func's pool [0x080098B0,0x080098C4); ends bx r0 @0x080098EE; registered via thumb word 0x080098C5 @0x0800998C + bl 0x08006ADC @0x08009978; cold-run miss x197"
+
+# Audit entry #7 — miss 0x0813BCF0 (cold x196; PC is the function start).
+# Evidence (own disasm): preceded by a 6-byte getter (`ldr r0,[pc,#4];
+# ldrb r0,[r0]; bx lr` @0x0813BCE4..E8) + its pool word 0x030009C8
+# @0x0813BCEC — clean boundary; prologue `70b5 push {r4,r5,r6,lr}`
+# @0x0813BCF0; byte-switch on [r6]: cases -> 0x0813BD0E (0), 0x0813BD48
+# (1), 0x0813BD98 (2), 0x0813BDB4 (0xFF), default b -> 0x0813BDC6;
+# shared epilogue `pop {r4,r5,r6}; pop {r0}; bx r0` @0x0813BDC6..CA.
+# Referenced by thumb word 0x0813BCF1 @0x08003704 (inside the 0x08003660
+# case-0 handler table) — no direct BL targets it.
+[[extra_func]]
+addr = 0x0813BCF0
+mode = "thumb"
+note = "prologue 70b5 push {r4,r5,r6,lr} @0x0813BCF0 after 6-byte getter+pool 0x0813BCE4..EC; switch cases 0x0813BD0E/48/98/B4; ends pop/pop/bx r0 @0x0813BDC6..CA; thumb ptr 0x0813BCF1 @0x08003704; cold-run miss x196"
+
+# Audit entry #8 — miss 0x081448C4 (cold x3; PC is the function start —
+# a leaf). Evidence (own disasm): preceded by the prior routine's return
+# (`pop {r3}; bx r3` @0x081448BC..BE) + its pool word 0x68736D53
+# @0x081448C0 (consumed by `ldr r3,[pc,#0x10]` @0x081448AC); leaf body
+# `mov ip,r4; movs r1-r4,#0; 4x stmia r0!,{r1-r4}; mov r4,ip; bx lr`
+# @0x081448C4..D8 (zeroes 64 bytes at r0); pad @0x081448DA; next
+# function 0x081448DC. Registered via the m4a handler table: thumb word
+# 0x081448C5 unique in ROM at 0x0836D124 (table region 0x0836D098..) —
+# no BL/BLX targets it.
+[[extra_func]]
+addr = 0x081448C4
+mode = "thumb"
+note = "leaf @0x081448C4: mov ip,r4 / movs r1-r4,#0 / 4x stmia r0!,{r1-r4} / mov r4,ip / bx lr @..D8 (zero 64B at r0); after prior func return+pool 0x081448C0; next func 0x081448DC; thumb ptr 0x081448C5 @0x0836D124 (m4a handler table); cold-run miss x3"
+
+# Audit entry #9 — miss 0x03007E60 (the last one; x2 in every 480-frame
+# run). Mechanism (fingerprint-ring evidence at the hit): the save/flash
+# driver (0x081418E0 region) calls a 4-byte IWRAM getter through the
+# `bx r5` veneer @0x08142258 with r5=0x03007E61 (= sp|1 at that moment;
+# sp=0x03007E60), r14=0x08141907, r0=0x0E000001 — the driver reads the
+# flash window 0x0E000000/0x0E000001 through it (two hits = the two byte
+# reads of its ID sequence). Live IWRAM dump at the miss (current build,
+# GBARECOMP_MISS_IWRAM_DUMP) shows bytes `00 78 70 47` at 0x03007E60 =
+# `ldrb r0,[r0]; bx lr`. The identical 4 bytes exist in ROM at
+# 0x08141AAC (pool word 0x47707800 in the [0x08141A98,0x08141AB0) pool;
+# unique 4-aligned occurrence in 0x08140xxx-0x08143xxx) — declared as the
+# decode source so the runtime PC dispatches a static function.
+# RISK noted: if any other path ever plants different bytes at this exact
+# PC, revisit this mapping (x2 misses so far were both this getter).
+[[code_copy]]
+runtime_start = 0x03007E60
+source_start = 0x08141AAC
+size = 0x00000004
+name = "iwram_flash_getter"
+note = "4-byte runtime-planted flash read getter (ldrb r0,[r0]; bx lr); live dump at miss == ROM 0x08141AAC (pool word 0x47707800)"
+
+[[extra_func]]
+addr = 0x03007E60
+mode = "thumb"
+source_addr = 0x08141AAC
+note = "flash read getter called via bx r5 veneer @0x08142258 (r5=sp|1); fp-ring: r14=0x08141907, r0=0x0E000001 at hit; dump bytes 00787047; cold-run miss x2"

@@ -112,16 +112,35 @@ recomp-net @ c58f125.
   launcher UI) builds; headless runs: 60/120/240 frames FULLY_STATIC (strict),
   480 frames NOT_STATIC (12 misses) with full miss/coverage artifacts in
   `logs/` (gitignored, ROM-derived — never commit).
-- Phase 4 (audit loop): **NEXT** — start from `logs/miss480.frag`: 5 IWRAM
-  code-copy misses (0x03000F10, 0x03005E78 x411, 0x03005EE8, 0x03007D64,
-  0x03007E60) need `[[code_copy]]` evidence (GBARECOMP_IWRAM_DUMP at a
-  miss point + ROM source match); 7 ROM interior targets need disassembly
-  audit (0x080004D8, 0x0800076E, 0x08003674/367C/371C, 0x080098C4,
-  0x0813BCF0). Also: 7 auto-detected jump tables (208 targets) at
-  0x08004058/0x080044C8/0x080C7EC0/0x080C85A0/0x080C9EF4/0x080CA33C/0x080CA7CC
-  (FFTA scripting/VM cluster).
+- Phase 4 (audit loop): **COMPLETE for the 480-frame horizon** — strict
+  480 = **FULLY_STATIC** (0 misses, 0 interpreted, exit 0); corpus
+  1072 → 1438 functions via 13 `[[extra_func]]` + 4 `[[code_copy]]` audit
+  entries (evidence per entry in `game.toml` + `BRINGUP.md` § Phase 4).
+  IWRAM code copies (IRQ dispatcher, RAM helpers, byte-copy, flash getter)
+  mapped from live-dump + ROM byte-match; ROM gaps seeded at verified
+  prologues (walks cascade). Artifacts: `logs/{cov,miss,run}_v*`, 
+  `logs/strict_v9.log`.
+- Next milestone: extend the strict horizon beyond 480 frames (600 f
+  aborted in non-strict via heal-bridge stack growth — re-check under
+  strict), then Phase 5 (install mGBA; attract-mode frame-diff harness).
+  New misses at longer horizons re-enter the audit loop with the
+  cold-cache protocol below.
 
 ## Environment gotchas (learned in Phase 3)
+
+- Audit/verify runs must be **cold-cache**: `rm -rf recomp_cache` first.
+  The self-heal overlay cache perturbs IRQ-resume landing PCs run-to-run;
+  warm-run miss lists are not stable evidence. Strict runs are inherently
+  cold. Verify one `game.toml` entry per cycle: regenerate (0.15 s) →
+  build (~3 s) → cold 480 f run (~2 s) → check `recomp_coverage_AFXE.json`.
+- Miss tracing without code changes: `GBARECOMP_MISS_IWRAM_DUMP` (state at
+  first IWRAM miss), `GBARECOMP_IWRAM_DUMP` (exit state),
+  `GBARECOMP_WRAM_TRACE`+`_LO/_HI` (per-frame write diff),
+  `GBARECOMP_INSN_TRACE=1`+`GBARECOMP_FP_SAVE` (per-instruction ring;
+  window = last ~8.4 M insns — size `--frames` so the event is in-window).
+  Pinned TCP surface is minimal (no `run_to_pc`/`get_registers`/`rdb_*`).
+- `tools/disarm.py` halts silently at the first undecodable halfword —
+  use narrow windows anchored on known boundaries.
 
 - BIOS recompile must run with cwd = `gbarecomp/` (or output lands in the
   wrong `src/runtime/generated_bios/`); after generating, **re-run CMake

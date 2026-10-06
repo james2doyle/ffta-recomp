@@ -2,7 +2,7 @@
 
 Decision log for the static recompilation of Final Fantasy Tactics Advance (US)
 to native PC via [mstan/gbarecomp](https://github.com/mstan/gbarecomp).
-Ground rules live in `ffta-bootstrap-prompt.md` (§Ground rules) and `CLAUDE.md`.
+Ground rules live in `ffta-bootstrap-prompt.md` (§Ground rules) and `AGENTS.md`.
 
 Legend: every ROM claim below was verified by disassembly/slicing of `game.gba`
 via capstone (`tools/disarm.py`) or direct byte inspection; addresses are
@@ -341,3 +341,96 @@ coverage diagnostics; BIOS intro + first ~240 frames are FULLY_STATIC.
 Expected-not-permanent: NOT_STATIC at 480 (12 misses, all characterized
 above) — Phase 4's audit loop starts from `logs/miss480.frag`.
 **STOP — Phase 4 not started, per user instruction.**
+
+---
+
+## 2026-10-06 — Phase 4: audit loop (COMPLETE for the 480-frame horizon)
+
+### Result
+**Strict 480-frame run: FULLY_STATIC — 0 dispatch misses, 0 interpreted
+insns** (`GBARECOMP_STRICT_STATIC=1 ./build/FFTARecomp … --frames 480
+--no-window --dump-png /tmp/ffta480_final.png`, exit 0, final_pc=0x08000428,
+cycles=62191750). Artifacts: `logs/strict_v9.log`, `logs/run_v9.log`,
+`logs/cov_v9.json`. Corpus grew 1072 → **1438 functions** (arm=18,
+thumb=1420; 0 undefined, 0 rejections) purely through reviewed seeds +
+their cascading walks.
+
+### Verification protocol (established this session)
+- **Cold-cache runs are the deterministic baseline** for audit
+  verification: `rm -rf recomp_cache` before each verify run. The
+  self-heal overlay cache shifts IRQ-resume landing PCs run-to-run
+  (warm-state miss sets differed: 0x080013B6 vs 0x080013CC vs …), so
+  warm runs cannot verify a fix. Strict runs are inherently cold.
+- Per-entry cycle (cheap, ~5 s total): regenerate (0.15 s) → build
+  (Ninja, ~3 s) → cold 480-frame run → check the miss list
+  (`recomp_coverage_AFXE.json`). One entry per cycle — never batch-verify.
+- Artifacts per cycle archived as `logs/{cov,miss,run}_vN.*`.
+
+### Audit entries (game.toml "Phase 4 audit seeds" + "IWRAM code copies")
+| # | Fix (entry) | Misses removed (evidence summary) | Miss count |
+|---|---|---|---|
+| 1 | `[[extra_func]]` 0x080004B0 | 0x080004D8 interior resume (bne join @0x080004CE); prologue 80b5 @0x080004B0 after prev func's pool; only ref = thumb ptr 0x080004B1 @0x08149434 | 12→10 |
+| 2 | `[[code_copy]]` 0x03000F10←0x080000FC (0x160) + `[[extra_func]]` 0x03000F10, 0x03000FD8 (arm) | IWRAM IRQ dispatcher copy; byte-identical exit-dump span; 0x03000FD8 = copy of 0x080001C4 (IRQ exit path, callback-return target of `stmdb sp!,{lr}; bx r0` @0x080001B8-C0) | 10→8 |
+| 3 | `[[code_copy]]` 0x03005E78←0x08A38A2C (0x2F8) + `[[extra_func]]` 0x03005E78, 0x03005EE8 | IWRAM RAM helpers (zero-fill; word/byte copy); byte-identical dump span | 8→6 |
+| 4 | `[[code_copy]]` 0x03007D64←0x08141AF0 (0x24) + `[[extra_func]]` 0x03007D64 | tiny forward byte-copy helper; byte-identical; tail bytes 9342f8d1 uniquely locate source | 6→5 |
+| 5 | `[[extra_func]]` 0x08003660 | byte-switch function; cases 0x08003674/7C/1C; entered via IWRAM slot 0x030027D0 (init tables @0x08000588/0x081494C8 store 0x08003661); no BL target | 5→4 |
+| 6 | `[[extra_func]]` 0x080098C4 | 30b5 prologue after prev pool; registered via thumb word @0x0800998C + `bl 0x08006ADC` @0x08009978 | 4→3 |
+| 7 | `[[extra_func]]` 0x0813BCF0 | 70b5 prologue after getter+pool @0x0813BCE4..EC; pointer 0x0813BCF1 in the 0x08003704 handler table | 3→2 |
+| 8 | `[[extra_func]]` 0x081448C4 | m4a leaf (zero 64B at r0); after prior return+pool 0x081448C0; ptr 0x081448C5 unique @0x0836D124 | 2→1 |
+| 9 | `[[code_copy]]` 0x03007E60←0x08141AAC (0x4) + `[[extra_func]]` 0x03007E60 | runtime-planted 4-byte flash getter `ldrb r0,[r0]; bx lr` (see below) | 1→0 |
+
+Miss-class cases #2/#3/#4/#9 were the handoff's IWRAM code-copy misses;
+#1 was the handoff ROM interior miss; #5-#8 were found during this audit.
+
+### The last miss (0x03007E60) — mechanism, fully traced
+The save/flash driver (0x081418E0 region) reads the flash window
+0x0E000000/0x0E000001 through a 4-byte IWRAM getter that it calls via the
+`bx r5` veneer @0x08142258 with **r5=0x03007E61 (= sp|1; sp=0x03007E60)**
+— i.e. it executes the mini getter planted at its own stack slot.
+Traced with the fingerprint ring (`GBARECOMP_INSN_TRACE=1
+GBARECOMP_FP_SAVE=…`, 8.4 M-entry ring = last ~180 frames at 480 f; the
+480-frame dump ended too late, a 340-frame run put the hits inside):
+record idx 5274670/5274679 have pc=0x03007E60, prior instruction pc=0x08142258
+(`bx r5`), r14=0x08141907/13, r0=0x0E000001/0x0E000000. Live
+`GBARECOMP_MISS_IWRAM_DUMP` at the miss shows `00 78 70 47` @0x03007E60.
+Identical bytes exist in ROM at 0x08141AAC (pool word 0x47707800 in the
+[0x08141A98,0x08141AB0) pool; unique 4-aligned hit in 0x08140xxx-0x08143xxx)
+→ declared as the decode source (code_copy + extra_func with source_addr).
+RISK, noted in game.toml: if any other path ever plants different bytes at
+this exact PC, this mapping must be revisited (both observed hits were the
+getter).
+
+### Insights / gotchas recorded for future sessions
+- **Corpus gaps host indirect-only code.** The finder never walked these
+  regions (no static edge); execution enters mid-body or via function
+  pointers, so runtime dispatch hits interior PCs. Seeding the contained
+  function start fixes the whole region: `static_resume_all=true` gives
+  every interior instruction a resume alias, and the walk cascades
+  massively (one seed → +201 functions; 0x0813BCF0's seed → +103).
+- **Warm self-heal cache perturbs IRQ timing** (different PCs served
+  natively → different IRQ landing instructions). Cold-cache verify (or
+  strict) is required; warm-run miss lists are not stable evidence.
+- **Tracing tools that worked** (all pinned-build, no code changes):
+  `GBARECOMP_MISS_IWRAM_DUMP` (first IWRAM-miss state), `GBARECOMP_IWRAM_DUMP`
+  (exit state), `GBARECOMP_WRAM_TRACE`+`_LO/_HI` (per-frame write diff),
+  `GBARECOMP_INSN_TRACE=1`+`GBARECOMP_FP_SAVE` (per-instruction fingerprint
+  ring: {cycles,pc,cpsr,r0..r15}; dump window = last ~8.4 M instructions —
+  size the frame count so the event falls in the window).
+- The pinned TCP surface (ecc9c55) is minimal: `ping`, `pause`, `continue`,
+  memory/ring reads (`read_iwram`, `cyc_anchor`, `irq_cap`, `state_hash`);
+  **`run_to_pc` / `get_registers` / `call_stack` / `rdb_*` are NOT present**
+  (TCP.md describes a newer surface). Future debug: extend
+  `src/debug/tcp_debug_server.cpp` or build with `--reverse-debug`.
+- `tools/disarm.py` stops silently at the first undecodable halfword —
+  use narrow windows anchored on known boundaries.
+- Non-TCP headless 480-frame runs are stable end-to-end; runs with `--tcp`
+  aborted this session with a generated call-return stack overflow
+  (`return_pc=0x08144B6C`) after pause/continue — investigate before
+  relying on TCP for long runs.
+
+### Phase 4 result
+All 12 handoff misses + all session-discovered misses are either fixed in
+`game.toml` (13 `[[extra_func]]`, 4 `[[code_copy]]` entries, each with
+disassembly/dump evidence) or explicitly documented (none outstanding).
+Strict 480 = FULLY_STATIC. Next horizon: extend frames beyond 480 (stack
+budget / heal-bridge unwind), then Phase 5 (mGBA + frame-diff harness).
