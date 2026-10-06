@@ -119,13 +119,17 @@ commands: `emu_step`/`emu_step_to_vblank` (one runFrame = one PPU frame),
 `read_emu_{iwram,ewram,vram,pal,oam,rom,io}`, `emu_set_keys`.
 
 **Comparison protocol** (learned the hard way — see BRINGUP § Phase 5):
-- Our runner's `step`/`run_frames` stops at **VBlank-start** (pre-IRQ);
-  mGBA `runFrame` stops at the **VBlank wrap** (post-IRQ). Same-index
-  reads are one IRQ handler apart → compare **per-frame deltas**
-  (old→new per byte), not absolute bytes. Standing ± offsets are expected
-  on phase-sensitive cells (BIOS phase: 0x03003B30 countdown, 0x03007FF8
-  IntrWait flag; stack regions ~0x03007D24-0x03007F9F — the BIOS→cart
-  handoff cluster there is currently under root-cause).
+- Both engines park at **VBlank-start** (source-verified; the old "mGBA
+  stops at the wrap" note was wrong). The real phase difference is CPU-side:
+  our runner executes the VBlank IRQ handler before parking (post-handler);
+  mGBA raises the IRQ and vectors it at the start of the next step
+  (pre-handler). Same-index **state** reads are therefore offset by exactly
+  one handler's effects (native ahead — e.g. snow RNG Δ=13 chain steps/frame
+  during the title animation; BRINGUP § "park-phase semantics"). **Pixels**
+  compare fine same-index (latched completed frames; static stretches
+  byte-exact; bounded band diffs on mid-frame-animated content). Keep
+  per-frame deltas for memory-divergence detection; use stable frames for
+  golden hashes.
 - Framework-ready tools: `gbarecomp/oracle/diff_cart.py` (absolute
   PAL/OAM/VRAM/IWRAM byte compare; `--native-exe ../build/FFTARecomp
   --rom ../game.gba --bios bios/gba_bios.bin`), `diff_frame.py`,
@@ -178,15 +182,14 @@ recomp-net @ c58f125.
   prologues (walks cascade). Artifacts: `logs/{cov,miss,run}_v*`, 
   `logs/strict_v9.log`.
 - Next milestone: Phase 5 (in progress) — oracle harness done; **strict
-  1200-frame run FULLY_STATIC** (corpus 2797; bulk-harvest workflow: one
-  non-strict pass → all miss PCs, batch-fixed via the m4a [[jump_table]]
-  + seeds). The earlier "divergences" were: BIOS/handoff sampling-phase
-  artifacts (keep framediff same-index alignment), and one **self-inflicted
-  odd-pc dispatch ladder** from a jump_table declared with
-  `entries_mode = "thumb"` — must be `"auto"` for raw thumb pointers
-  (bit0 masked); see BRINGUP § "Reference-repo study". Next: pixel-sync
-  methodology (latched framebuffer), horizon 1200→2400, attract diff as the
-  game.toml regression test. Reference projects (mstan's Emerald/FRLG/RS/
+  2400-frame run FULLY_STATIC** (corpus 2797). The earlier "divergences"
+  were: BIOS/handoff sampling-phase artifacts, one **self-inflicted odd-pc
+  dispatch ladder** (`entries_mode = "thumb"` must be `"auto"` for raw
+  thumb pointers), and the title-animation RNG "divergence" — all explained
+  by the park-phase offset (§ Oracle & frame diff; BRINGUP § "park-phase
+  semantics"). Next: build the Phase 5 tooling — `tools/dualrun.py`,
+  `tools/attract_check.py` (golden gate = the game.toml regression test),
+  `tools/misspack.py` (BRINGUP § "Next in Phase 5"). Reference projects (mstan's Emerald/FRLG/RS/
   MinishCap/WWT clones) ship useful patterns: reviewed-seed overlays,
   input-CSV + golden-SHA gates; they have no frame-diff harness (ours leads).
 - Android port (research done 2026-10-06; not started): the app shell already

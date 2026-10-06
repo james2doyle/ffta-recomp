@@ -601,15 +601,53 @@ never touched. Usage: `.venv/bin/python tools/coverage_report.py
 lands in `logs/coverage_report_strict_N.log` (gitignored). Verified
 end-to-end 2026-10-06: reproduces the numbers above in ~4 s (commit ae6966d).
 
+### Title-animation corridor + park-phase semantics (probes f556–f9600)
+- Strict 2400 = FULLY_STATIC (0 misses; corridor saturated since 1200).
+- Timeline (native `--dump-png`): logos f60/f240 → title-screen animation
+  (book → "It was a day" → snow montage) f~600–3400 → title logo f3600 →
+  "Push Start" f4200…≥f6000; f7800/f9600 sampled black (fade/loop segment —
+  needs a contact-sheet run).
+- **Corrected comparison semantics (source-verified in both engines).**
+  Both engines park at VBlank-start (scanline 159→160); mGBA `runFrame`
+  returns there too (video.c frameCounter++ at vcount 160). The real phase
+  difference is CPU-side: our runner executes the VBlank IRQ handler before
+  parking (post-handler); mGBA raises the IRQ (+7 cycles pending) and
+  vectors it at the start of the next step (pre-handler). Same-index state
+  reads differ by exactly one handler's effects — native ahead.
+- **Proof — snow RNG chain.** f1210 region: oracle@f1198 = oracle@f1197 =
+  0x083d9a03; native@f1198 = chain(oracle, 13) (backward chain walk; forward
+  walk ≥20 M finds nothing — earlier "NOT FOUND" was the wrong direction).
+  Constant Δ=13 steps from then on: the title animation's snow code consumes
+  13 RNG steps/frame inside the VBlank handler; at sample time native has
+  run it, mGBA hasn't yet. Constant offset ⇒ **no guest-state divergence**.
+- **Pixels:** native `screenshot` = latched completed frame (pre-handler
+  snapshot at vblank_started; tcp_debug_server.cpp:971-994, gba_ppu.h:199-
+  212); oracle `emu_screenshot` = mGBA's completed-frame buffer. Same-index
+  compare is correct (offset probe over f600–640: 0.78 % diff bytes at
+  shift 0 vs 5.8–15 % at ±1..3). Static stretches byte-exact (f825–950 all
+  zero); animated content shows bounded band diffs (f640: rows 64–78 = the
+  scrolling "It was a day" text band, ≤ ~2 kB) — sub-frame update placement
+  / rasterization granularity of the two models, not game-state divergence.
+  Fade/transition frames can flip whole-frame visibility (native scene vs
+  oracle black at f1300) — same class; pick stable frames for golden hashes.
+
 ### Next in Phase 5
-- Pixel-level methodology: compare the same displayed frame (latched
-  framebuffer semantics), not cross-sampled live buffers; wire the
-  attract-screen comparison as the game.toml regression test.
-- Extend the strict horizon 1200 → 2400 with the bulk-harvest loop (harvest
-  misses non-strict, batch-fix, verify strict).
-- Keep `framediff.py`'s index alignment at 0 (validated) and add the known
-  phase-byte classification (counters/flag cells) so scans report signal.
-- Optional regression net: WarioWare-style input CSV + golden PNG SHA gate.
+- Build `tools/dualrun.py` — dual-engine probe library+CLI (spawn/boot/step;
+  per-side read commands; region/pixel/cell diffs; PNG dumps; phase-aware:
+  native post-handler / oracle pre-handler; free-port allocation).
+  Replaces the 8×-reimplemented inline scaffolding (and its copy-paste bugs).
+- Build `tools/attract_check.py` — the attract regression gate for every
+  game.toml change: strict headless run + banner asserts + stable-frame
+  golden SHA-256 pinned in-script (WarioWare `verify-attract.ps1` pattern,
+  `--repin` for deliberate updates). Input-trace CSV (`inputs/`) only when
+  driving past the title.
+- Build `tools/misspack.py` — miss-frag → per-PC evidence pack (disasm
+  window, prologue check, ROM thumb-pointer scan → `[[jump_table]]`
+  proposals, nearest-dispatch distance, ready-to-paste game.toml stub);
+  proposals reviewed manually, never auto-written.
+- Follow-ups: `tools/cycle.py` (cold cycle + dispatch odd-address sanity
+  check), `tools/ringscan.py`; contact-sheet dump for the f6000+ attract
+  loop; extend the strict horizon beyond 2400 once the gate exists.
 
 ### Android port findings (research 2026-10-06; not started)
 Researched ahead of a possible Android release (user question: what gates
