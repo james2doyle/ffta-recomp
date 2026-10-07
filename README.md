@@ -15,9 +15,9 @@ precise miss count).
 title, new game, intro, and battles — the first non-tutorial battle was
 completed 2026-10-07 (first event-interpreter seeds merged) — with **every
 executed path FULLY_STATIC** (zero interpreted instructions) at last
-verification. Ten interactive playtest sessions are integrated (audit
-batches a–n): corpus **40,518 emitted units**, walker's static reach ≈ 98.8 %,
-pointer-pool lens ≈ 77.2 % (both are proxies — the bar for a route is
+verification. Eleven interactive playtest sessions are integrated (audit
+batches a–o): corpus **41,728 emitted units**, walker's static reach ≈ 98.8 %,
+pointer-pool lens ≈ 79.5 % (both are proxies — the bar for a route is
 FULLY_STATIC on executed paths; full table in § Verification). The attract
 regression gate hash has been stable since pinning. Remaining work:
 continuing past the first non-tutorial battle, a long-run attract contact
@@ -225,12 +225,12 @@ Current snapshot (2026-10-06, strict 1200-frame run; refresh with
 | Lens | Mapped / total | % |
 |---|---|---|
 | **Executed path** (strict 1200-frame run) | everything that ran | **100 % — FULLY_STATIC, zero interpreter fallback** |
-| **Walker's static reach** (whole-ROM scan trial) | **40,518 / 41,025** emitted units | **≈ 98.8 %** |
-| **Pointer-pool reach** (speculative-harvest trial) | **40,518 / 52,506** | **≈ 77.2 %** |
+| **Walker's static reach** (whole-ROM scan trial) | **41,728 / 42,235** emitted units | **≈ 98.8 %** |
+| **Pointer-pool reach** (speculative-harvest trial) | **41,728 / 52,506** | **≈ 79.5 %** |
 
 Rows 2–3 are proxies with different denominators (no ground-truth function
 inventory exists); a route is done when its replay is FULLY_STATIC. Corpus:
-40,518 emitted units (interior split units + IWRAM code-copy included); the
+41,728 emitted units (interior split units + IWRAM code-copy included); the
 speculative-harvest trial kept 2,078 pointer candidates out of 103,321
 PC-relative literals (`false` in `game.toml` by policy).
 - **Oracle frame-diff:** `tools/framediff.py --lo 4 --hi 300` (native vs the

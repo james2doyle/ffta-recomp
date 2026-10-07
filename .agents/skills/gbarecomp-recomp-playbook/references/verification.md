@@ -33,11 +33,15 @@ for attempt in 1..N:
 - After convergence, review the proposal file and merge it into the real
   config; run a normal cold cycle as the final acceptance (the overlay is
   throwaway).
-- Expect convergence in **0–2 iterations**; needing more usually means a
-  wrong entry (bad boundary or wrong ISA mode), not bad luck — re-check the
-  seed before looping again.
+- Typical convergence is **0–2 iterations**; a session that breaks into new
+  code can chain several more, one per newly reached entry point (each a
+  clean start, not a retry). Persistently missing the *same* PC usually
+  means a wrong entry (bad boundary or wrong ISA mode), not bad luck.
 - Strict replay surfaces PCs the interactive session never touched (input
   timing differs slightly). Seed them too.
+- If the containing start is already in the config and an interior still
+  misses, seed the interior PC directly — a seeded start does not guarantee
+  the walker covered every interior the session reached.
 - If the session reloaded a state mid-way, replay each monotonic segment
   separately from the same start state; both must pass.
 

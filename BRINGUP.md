@@ -1078,6 +1078,18 @@ distinct self-heal miss PCs** (`logs/playtest_misses.frag`; 484 in
   (attract hash unchanged). Corpus 39,027 → **40,518** (+1,491); walker
   ≈ 98.8 %; **pointer-pool 74.3 % → 77.2 %**.
 
+### Session 11 (2026-10-07 08:00): first 6-seed resolve chain
+- Loaded the session-10 end state (f32,050), ~50 s to ≈f35.0k, clean exit;
+  5 heal units (frag+cache agree, 6th validation).
+- **Batch o**: 4 starts (incl. 0x0808A158, binary-search-shaped, covering
+  interior 0x0808A1E8). The resolve then needed **6 iterations — a
+  new-region chain**: the already-seeded start did not walk the interior
+  (resolve direct-seeded 0x0808A1E8), then 5 more clean starts surfaced
+  (0x080220B4/CC, 0x08058D40, 0x080592F8, 0x08059454); all merged.
+- Strict replay FULLY_STATIC (`logs/session11_strict.log`); cycle.py PASS
+  (attract hash unchanged). Corpus 40,518 → **41,728** (+1,210); walker
+  ≈ 98.8 %; **pointer-pool 77.2 % → 79.5 %**.
+
 ### Native-save session (2026-10-06, 17:41): Batch i — the session that produced `game.state2`
 - The user played a continuation and performed an in-game (native/flash)
   save at 17:41. The session produced the post-save savestate `game.state2`

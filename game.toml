@@ -3867,3 +3867,57 @@ note = "session-10 start; push-root verified by prologue scan; covers interior 0
 addr = 0x0806094C
 mode = "thumb"
 note = "resolve-added seed (session-10 strict acceptance); frag/cache did not cover this pc"
+
+# ─── Batch o: session-11 (2026-10-07 08:00) ───
+# 5 heal-cache units; 4 starts cover all (one interior via new start).
+
+[[extra_func]]
+addr = 0x0805873C
+mode = "thumb"
+note = "session-11 start; push-root verified by prologue scan; covers interior 0x0805887C"
+
+[[extra_func]]
+addr = 0x0805C594
+mode = "thumb"
+note = "session-11 start; push-root verified by prologue scan"
+
+[[extra_func]]
+addr = 0x08073704
+mode = "thumb"
+note = "session-11 start; push-root verified by prologue scan"
+
+[[extra_func]]
+addr = 0x0808A158
+mode = "thumb"
+note = "session-11 start; push-root verified @0x0808A158 (push {r4-r7,lr} + mov r7,r8 / push {r7}; disarm); covers interior 0x0808A1E8 (binary-search-shaped body)"
+
+
+[[extra_func]]
+addr = 0x080220B4
+mode = "thumb"
+note = "resolve-added seed (session-11 strict acceptance); start"
+
+[[extra_func]]
+addr = 0x080220CC
+mode = "thumb"
+note = "resolve-added seed (session-11 strict acceptance); start"
+
+[[extra_func]]
+addr = 0x08058D40
+mode = "thumb"
+note = "resolve-added seed (session-11 strict acceptance); start"
+
+[[extra_func]]
+addr = 0x080592F8
+mode = "thumb"
+note = "resolve-added seed (session-11 strict acceptance); start"
+
+[[extra_func]]
+addr = 0x08059454
+mode = "thumb"
+note = "resolve-added seed (session-11 strict acceptance); start"
+
+[[extra_func]]
+addr = 0x0808A1E8
+mode = "thumb"
+note = "resolve-added seed (session-11 strict acceptance); interior of 0x0808A158"
