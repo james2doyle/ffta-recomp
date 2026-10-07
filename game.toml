@@ -5408,3 +5408,47 @@ addr = 0x0811518C
 mode = "thumb"
 note = "batch aa: interior of 0x08114F1C (runtime-dispatched); split-interior seed; stuck-session heal unit"
 
+
+# ─── Batch ab: session right after the summon (2026-10-07 ~16:0x) ───
+# 8 heal-cache units; all interiors of one hot battle-cluster start
+# 0x081151A0 (push {r4-r7,lr}); split-unit seeds, prologue scans verified.
+[[extra_func]]
+addr = 0x081151A0
+mode = "thumb"
+note = "batch ab: start [push {r4-r7,lr}]; prologue scan; covers 7 interiors (0x81151BC/1DE/34C/356/448/452/468)"
+
+[[extra_func]]
+addr = 0x081151BC
+mode = "thumb"
+note = "batch ab: interior of 0x081151A0 (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x081151DE
+mode = "thumb"
+note = "batch ab: interior of 0x081151A0 (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x0811534C
+mode = "thumb"
+note = "batch ab: interior of 0x081151A0 (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x08115356
+mode = "thumb"
+note = "batch ab: interior of 0x081151A0 (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x08115448
+mode = "thumb"
+note = "batch ab: interior of 0x081151A0 (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x08115452
+mode = "thumb"
+note = "batch ab: interior of 0x081151A0 (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x08115468
+mode = "thumb"
+note = "batch ab: interior of 0x081151A0 (runtime-dispatched); split-interior seed"
+
