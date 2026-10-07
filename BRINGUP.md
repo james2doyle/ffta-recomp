@@ -1882,3 +1882,14 @@ replays; two-clean-replays rule; frame counter = hang signal). Note: the
 observe listener serves a handful of sequential clients then stops accepting —
 one long-lived watcher per session. Session J's trace archived
 (`saves/trace_sessionJ_1639.csv`) as the first summon-completing route.
+
+### 2026-10-07 (cont.) — Batch ae: session K — summon subsystem going static (43 units)
+
+Session K (post-fix observe session 2; deepest yet, f29,384): first summon
+*turn completion* + a second (magic) summon. Clean-exit frag (9.4 KB) → 43
+units merged: 32 in the 0x080F0x–0x080F24 animation/effect cluster (summon
+visuals), 5 in the 0x0812 script VM (summon scripts), rest scattered.
+Resolve 0 seeds PASS; cycle PASS — regen **49,492** functions; attract gate
+`1EF4C118…` unchanged. Trace archived `saves/trace_sessionK_1648.csv`.
+Next: three-lens coverage report, then the bounded pointer-pool harvest
+trial (offline coverage push for unplayed content).

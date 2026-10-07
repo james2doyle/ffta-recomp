@@ -5597,3 +5597,222 @@ addr = 0x08115A08
 mode = "thumb"
 note = "batch ad: interior of 0x0811584C (runtime-dispatched)"
 
+
+# ─── Batch ae: session K (post-fix observe session 2 — summon turn + magic summon) ───
+# 43 units (43 from frag + cache-harvested); split-interior seeds.
+
+[[extra_func]]
+addr = 0x080F082C
+mode = "thumb"
+note = "batch ae: start [push {r4, r5, r6, r7, lr}]; prologue scan"
+
+[[extra_func]]
+addr = 0x080F0852
+mode = "thumb"
+note = "batch ae: interior of 0x080F082C (runtime-dispatched)"
+
+[[extra_func]]
+addr = 0x080F0862
+mode = "thumb"
+note = "batch ae: interior of 0x080F082C (runtime-dispatched)"
+
+[[extra_func]]
+addr = 0x080F086A
+mode = "thumb"
+note = "batch ae: interior of 0x080F082C (runtime-dispatched)"
+
+[[extra_func]]
+addr = 0x080F0876
+mode = "thumb"
+note = "batch ae: interior of 0x080F082C (runtime-dispatched)"
+
+[[extra_func]]
+addr = 0x080F0884
+mode = "thumb"
+note = "batch ae: interior of 0x080F082C (runtime-dispatched)"
+
+[[extra_func]]
+addr = 0x080F08CA
+mode = "thumb"
+note = "batch ae: interior of 0x080F082C (runtime-dispatched)"
+
+[[extra_func]]
+addr = 0x080F08D8
+mode = "thumb"
+note = "batch ae: interior of 0x080F082C (runtime-dispatched)"
+
+[[extra_func]]
+addr = 0x080F08DE
+mode = "thumb"
+note = "batch ae: interior of 0x080F082C (runtime-dispatched)"
+
+[[extra_func]]
+addr = 0x080F0910
+mode = "thumb"
+note = "batch ae: interior of 0x080F082C (runtime-dispatched)"
+
+[[extra_func]]
+addr = 0x080F0930
+mode = "thumb"
+note = "batch ae: interior of 0x080F082C (runtime-dispatched)"
+
+[[extra_func]]
+addr = 0x080F0A2A
+mode = "thumb"
+note = "batch ae: interior of 0x080F082C (runtime-dispatched)"
+
+[[extra_func]]
+addr = 0x080F0A34
+mode = "thumb"
+note = "batch ae: interior of 0x080F082C (runtime-dispatched)"
+
+[[extra_func]]
+addr = 0x080F0A3C
+mode = "thumb"
+note = "batch ae: interior of 0x080F082C (runtime-dispatched)"
+
+[[extra_func]]
+addr = 0x080F0A44
+mode = "thumb"
+note = "batch ae: interior of 0x080F082C (runtime-dispatched)"
+
+[[extra_func]]
+addr = 0x080F0A56
+mode = "thumb"
+note = "batch ae: interior of 0x080F082C (runtime-dispatched)"
+
+[[extra_func]]
+addr = 0x080F0A5E
+mode = "thumb"
+note = "batch ae: interior of 0x080F082C (runtime-dispatched)"
+
+[[extra_func]]
+addr = 0x080F0AB4
+mode = "thumb"
+note = "batch ae: interior of 0x080F082C (runtime-dispatched)"
+
+[[extra_func]]
+addr = 0x080F0BFC
+mode = "thumb"
+note = "batch ae: start [push {r4, r5, r6, r7, lr}]; prologue scan"
+
+[[extra_func]]
+addr = 0x080F0D58
+mode = "thumb"
+note = "batch ae: start [push {r4, r5, r6, r7, lr}]; prologue scan"
+
+[[extra_func]]
+addr = 0x080F0EF4
+mode = "thumb"
+note = "batch ae: start [push {r4, r5, r6, r7, lr}]; prologue scan"
+
+[[extra_func]]
+addr = 0x080F11A8
+mode = "thumb"
+note = "batch ae: start [push {lr}]; prologue scan"
+
+[[extra_func]]
+addr = 0x080F1210
+mode = "thumb"
+note = "batch ae: start [push {r4, lr}]; prologue scan"
+
+[[extra_func]]
+addr = 0x080F121C
+mode = "thumb"
+note = "batch ae: interior of 0x080F1210 (runtime-dispatched)"
+
+[[extra_func]]
+addr = 0x080F1224
+mode = "thumb"
+note = "batch ae: interior of 0x080F1210 (runtime-dispatched)"
+
+[[extra_func]]
+addr = 0x080F1226
+mode = "thumb"
+note = "batch ae: interior of 0x080F1210 (runtime-dispatched)"
+
+[[extra_func]]
+addr = 0x080F1234
+mode = "thumb"
+note = "batch ae: interior of 0x080F1210 (runtime-dispatched)"
+
+[[extra_func]]
+addr = 0x080F14D4
+mode = "thumb"
+note = "batch ae: start [push {r4, r5, r6, lr}]; prologue scan"
+
+[[extra_func]]
+addr = 0x080F21E8
+mode = "thumb"
+note = "batch ae: start [push {r4, r5, r6, r7, lr}]; prologue scan"
+
+[[extra_func]]
+addr = 0x080F220E
+mode = "thumb"
+note = "batch ae: interior of 0x080F21E8 (runtime-dispatched)"
+
+[[extra_func]]
+addr = 0x080F22F4
+mode = "thumb"
+note = "batch ae: interior of 0x080F21E8 (runtime-dispatched)"
+
+[[extra_func]]
+addr = 0x080F2310
+mode = "thumb"
+note = "batch ae: interior of 0x080F21E8 (runtime-dispatched)"
+
+[[extra_func]]
+addr = 0x080F2370
+mode = "thumb"
+note = "batch ae: interior of 0x080F21E8 (runtime-dispatched)"
+
+[[extra_func]]
+addr = 0x080F2384
+mode = "thumb"
+note = "batch ae: interior of 0x080F21E8 (runtime-dispatched)"
+
+[[extra_func]]
+addr = 0x080F2388
+mode = "thumb"
+note = "batch ae: interior of 0x080F21E8 (runtime-dispatched)"
+
+[[extra_func]]
+addr = 0x080F2398
+mode = "thumb"
+note = "batch ae: interior of 0x080F21E8 (runtime-dispatched)"
+
+[[extra_func]]
+addr = 0x080F23B2
+mode = "thumb"
+note = "batch ae: interior of 0x080F21E8 (runtime-dispatched)"
+
+[[extra_func]]
+addr = 0x080F23D0
+mode = "thumb"
+note = "batch ae: interior of 0x080F21E8 (runtime-dispatched)"
+
+[[extra_func]]
+addr = 0x080F23D4
+mode = "thumb"
+note = "batch ae: interior of 0x080F21E8 (runtime-dispatched)"
+
+[[extra_func]]
+addr = 0x080F23EC
+mode = "thumb"
+note = "batch ae: interior of 0x080F21E8 (runtime-dispatched)"
+
+[[extra_func]]
+addr = 0x080F23F8
+mode = "thumb"
+note = "batch ae: interior of 0x080F21E8 (runtime-dispatched)"
+
+[[extra_func]]
+addr = 0x080F2428
+mode = "thumb"
+note = "batch ae: interior of 0x080F21E8 (runtime-dispatched)"
+
+[[extra_func]]
+addr = 0x080F243A
+mode = "thumb"
+note = "batch ae: interior of 0x080F21E8 (runtime-dispatched)"
+
