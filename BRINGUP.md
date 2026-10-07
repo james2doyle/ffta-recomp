@@ -1104,6 +1104,17 @@ distinct self-heal miss PCs** (`logs/playtest_misses.frag`; 484 in
   unchanged). Corpus 41,728 → **43,900** (+2,172); walker ≈ 98.9 %;
   **pointer-pool 79.5 % → 83.6 %**.
 
+### Session 13 (2026-10-07 08:39–08:41): short session, 7 starts
+- Loaded the session-12b end state (f41,238), ~95 s to ≈f47.2k, clean exit;
+  13 heal units (frag+cache agree, 8th validation) — further 0x08018-19xxx
+  region code (the A-press-incident neighborhood) plus a 0x080601xx pair.
+- **Batch q**: 7 verified starts cover all 13; the 8-PC candidate run
+  [0x080194A8, 0x08019594] resolved to **three** adjacent functions
+  (0x080194A8, 0x080194E4, 0x08019574 — each with interiors).
+- resolve iter 0, 0 seeds; strict FULLY_STATIC (`logs/session13_strict.log`);
+  cycle.py PASS (attract hash unchanged). Corpus 43,900 → **43,981** (+81 —
+  near-leaf functions); walker ≈ 98.9 %; pointer-pool 83.6 % (flat).
+
 ### Native-save session (2026-10-06, 17:41): Batch i — the session that produced `game.state2`
 - The user played a continuation and performed an in-game (native/flash)
   save at 17:41. The session produced the post-save savestate `game.state2`

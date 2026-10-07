@@ -235,8 +235,8 @@ recomp-net @ c58f125.
 - Phase 5 (validation harness + audit loop): **near done.** Harness complete
   (oracle/framediff/dualrun/attract gate/misspack/cycle/coverage_report/
   ringscan) plus playtest tooling (`play.sh`, `cache_harvest.py`,
-  `resolve.py`). Twelve sessions integrated (batches a–p): corpus 23.4k →
-  43,900 emitted units; walker's reach ≈ 98.9 %; pointer-pool lens ≈ 83.6 %
+  `resolve.py`). Thirteen sessions integrated (batches a–q): corpus 23.4k →
+  43,981 emitted units; walker's reach ≈ 98.9 %; pointer-pool lens ≈ 83.6 %
   (proxy, not a goal — the bar is FULLY_STATIC on executed paths). Every
   executed path is FULLY_STATIC (strict replays: boot→newgame 6000 f; state2
   battle 60k f; session-5 112k f; session-7 battle f19k→21.5k) and the

@@ -3976,3 +3976,42 @@ addr = 0x08085AA8
 mode = "thumb"
 note = "session-12 start; push-root verified by prologue scan"
 
+
+# ─── Batch q: session-13 (2026-10-07 08:39–08:41) ───
+# 13 heal-cache units; 7 verified starts cover all (candidate run = 3 adjacent functions).
+
+[[extra_func]]
+addr = 0x08018EB4
+mode = "thumb"
+note = "session-13 start; push-root verified by prologue scan"
+
+[[extra_func]]
+addr = 0x08018FF0
+mode = "thumb"
+note = "session-13 start; push-root verified by prologue scan"
+
+[[extra_func]]
+addr = 0x0801904C
+mode = "thumb"
+note = "session-13 start; push-root verified by prologue scan"
+
+[[extra_func]]
+addr = 0x080194A8
+mode = "thumb"
+note = "session-13 start; push-root verified by prologue scan; covers interior 0x080194CA"
+
+[[extra_func]]
+addr = 0x080194E4
+mode = "thumb"
+note = "session-13 start; push-root verified by prologue scan; covers interiors 0x08019500/504"
+
+[[extra_func]]
+addr = 0x08019574
+mode = "thumb"
+note = "session-13 start; push-root verified by prologue scan; covers interiors 0x08019590/594"
+
+[[extra_func]]
+addr = 0x08060100
+mode = "thumb"
+note = "session-13 start; push-root verified by prologue scan; covers interior 0x08060120"
+

@@ -18,9 +18,9 @@ no start found.
 - A dense run of consecutive same-mode misses is almost always the
   **case targets of a computed-jump switch** inside one or two ordinary
   functions — not a data table. Seed the starts first. In practice expect
-  **two** functions (a dispatcher plus an adjacent handler); scan forward
-  inside the run for a second prologue before concluding the run is one
-  function.
+  **one to a few** adjacent functions (most runs resolve to 1–3); scan
+  forward inside the run for further prologues before concluding the run
+  is one function.
 - Prefer a sized **jump-table entry** only if a strict replay still misses
   interiors after seeding the start. To size one, find the dispatcher
   (`ldr rT,[pc,#..]; add rT,index<<2; ldr/mov pc`), then read off the table
