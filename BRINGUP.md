@@ -915,3 +915,31 @@ distinct self-heal miss PCs** (`logs/playtest_misses.frag`; 484 in
   (LR / call-stack-top) was never satisfied for these mid-block entries — it
   aborted rather than bridging. Coverage now avoids the situation entirely;
   worth reporting upstream as a bridge-limitation data point.
+
+### Crash #2 (session 3, 2026-10-06): same bridge-runaway family — resolved by cache harvest
+- **Session shape**: state2 loaded at boot, then two backward replays
+  (guest-frame timeline 0→98,327; backward jumps 70,858→66,370 and
+  68,120→66,357 = state2 reloads), heavy savestate save churn — the
+  intermediate f66191 state was overwritten and is unrecoverable; the final
+  `game.state2` resumes at frame 97,209.
+- **Crash**: bridge entry **0x0811E2A4** — a `BL`-return point after
+  `bl 0x814186C` (the same SWI-stub thunk family as crash #1) — same
+  `stop_pc=0x08092858`; watchdog abort after 200M instructions (current
+  pc=0x08000428, the VBlank-wait loop). Saves interleaved during the spin.
+  The `.frag` again did not flush (exit-only; mtime unchanged).
+- **Harvest**: heal cache had 61 completed units from the session
+  (0x0800D3xx, 0x080D95xx/0x080DFBxx, 0x0811E1xx–0x0811E2xx clusters) —
+  merged as **batch f**; it includes 0x0811E2A4 itself (game.toml line 3191).
+  `tools/cache_harvest.py` used again (second validated use).
+- **Verification**: strict continuation from the final state2 (frame 97,209,
+  60,000 frames idle) = **FULLY_STATIC**, 0 misses
+  (`logs/state3_strict.log`); attract gate unchanged.
+- **Tooling**: `play.sh` now auto-archives the previous session's
+  `game.stateN` → `saves/*_prev_<ts>.state` and the previous trace →
+  `saves/trace_prev_<ts>.csv` at launch (states are destructive across
+  sessions; this session's f66191 state was lost that way). The final state
+  from this session is archived at `saves/session3_state2_late_f97209.state`.
+- **Pattern**: both crashes = bridge entered at a stub-call **return point**
+  inside the 0x0811xxxx VM region; each session's discovery wave moves
+  deeper. The `.frag`-flush gap is covered by cache_harvest; the bridge
+  stop-contract limitation stays noted for upstream.

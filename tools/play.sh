@@ -24,6 +24,14 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 mkdir -p logs saves
+# Preserve the previous session's savestates + input trace before they get
+# overwritten (states are destructive across sessions; the trace is replay
+# evidence for the last session's route).
+ts=$(date +%Y%m%d_%H%M%S)
+for slot in game.state1 game.state2; do
+  [ -f "$slot" ] && cp "$slot" "saves/${slot%.*}_prev_${ts}.state" || true
+done
+[ -f logs/playthrough.csv ] && cp logs/playthrough.csv "saves/trace_prev_${ts}.csv" || true
 exec env -u GBARECOMP_STRICT_STATIC \
   GBARECOMP_INPUT_RECORD="$PWD/logs/playthrough.csv" \
   GBARECOMP_MISS_FRAG="$PWD/logs/playtest_misses.frag" \

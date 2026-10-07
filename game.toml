@@ -3036,3 +3036,314 @@ addr = 0x08123958
 mode = "thumb"
 note = "state2-repro final tail heal unit 08123958_t"
 
+
+# ─── Playtest batch f: session-3 (crash #2) heal-cache units (2026-10-06) ───
+# Session-3 recording: state2 loads + two backward replays, 98,327 frames; end
+# crash = bridge runaway on 0x0811E2A4 (same stop_pc=0x08092858 family as
+# crash #1). Deduped against all previous batches.
+
+[[extra_func]]
+addr = 0x0800D324
+mode = "thumb"
+note = "session-3 heal-cache unit 0800D324_t"
+
+[[extra_func]]
+addr = 0x0800D34C
+mode = "thumb"
+note = "session-3 heal-cache unit 0800D34C_t"
+
+[[extra_func]]
+addr = 0x080D9528
+mode = "thumb"
+note = "session-3 heal-cache unit 080D9528_t"
+
+[[extra_func]]
+addr = 0x080D9546
+mode = "thumb"
+note = "session-3 heal-cache unit 080D9546_t"
+
+[[extra_func]]
+addr = 0x080D9614
+mode = "thumb"
+note = "session-3 heal-cache unit 080D9614_t"
+
+[[extra_func]]
+addr = 0x080D9620
+mode = "thumb"
+note = "session-3 heal-cache unit 080D9620_t"
+
+[[extra_func]]
+addr = 0x080D9626
+mode = "thumb"
+note = "session-3 heal-cache unit 080D9626_t"
+
+[[extra_func]]
+addr = 0x080D9628
+mode = "thumb"
+note = "session-3 heal-cache unit 080D9628_t"
+
+[[extra_func]]
+addr = 0x080D962A
+mode = "thumb"
+note = "session-3 heal-cache unit 080D962A_t"
+
+[[extra_func]]
+addr = 0x080D997C
+mode = "thumb"
+note = "session-3 heal-cache unit 080D997C_t"
+
+[[extra_func]]
+addr = 0x080D9988
+mode = "thumb"
+note = "session-3 heal-cache unit 080D9988_t"
+
+[[extra_func]]
+addr = 0x080D9998
+mode = "thumb"
+note = "session-3 heal-cache unit 080D9998_t"
+
+[[extra_func]]
+addr = 0x080D99A8
+mode = "thumb"
+note = "session-3 heal-cache unit 080D99A8_t"
+
+[[extra_func]]
+addr = 0x080D99AE
+mode = "thumb"
+note = "session-3 heal-cache unit 080D99AE_t"
+
+[[extra_func]]
+addr = 0x080DFB0C
+mode = "thumb"
+note = "session-3 heal-cache unit 080DFB0C_t"
+
+[[extra_func]]
+addr = 0x080DFB22
+mode = "thumb"
+note = "session-3 heal-cache unit 080DFB22_t"
+
+[[extra_func]]
+addr = 0x080DFB2C
+mode = "thumb"
+note = "session-3 heal-cache unit 080DFB2C_t"
+
+[[extra_func]]
+addr = 0x080DFB50
+mode = "thumb"
+note = "session-3 heal-cache unit 080DFB50_t"
+
+[[extra_func]]
+addr = 0x080DFC98
+mode = "thumb"
+note = "session-3 heal-cache unit 080DFC98_t"
+
+[[extra_func]]
+addr = 0x0811E1F8
+mode = "thumb"
+note = "session-3 heal-cache unit 0811E1F8_t"
+
+[[extra_func]]
+addr = 0x0811E222
+mode = "thumb"
+note = "session-3 heal-cache unit 0811E222_t"
+
+[[extra_func]]
+addr = 0x0811E22C
+mode = "thumb"
+note = "session-3 heal-cache unit 0811E22C_t"
+
+[[extra_func]]
+addr = 0x0811E23A
+mode = "thumb"
+note = "session-3 heal-cache unit 0811E23A_t"
+
+[[extra_func]]
+addr = 0x0811E248
+mode = "thumb"
+note = "session-3 heal-cache unit 0811E248_t"
+
+[[extra_func]]
+addr = 0x0811E264
+mode = "thumb"
+note = "session-3 heal-cache unit 0811E264_t"
+
+[[extra_func]]
+addr = 0x0811E284
+mode = "thumb"
+note = "session-3 heal-cache unit 0811E284_t"
+
+[[extra_func]]
+addr = 0x0811E288
+mode = "thumb"
+note = "session-3 heal-cache unit 0811E288_t"
+
+[[extra_func]]
+addr = 0x0811E28A
+mode = "thumb"
+note = "session-3 heal-cache unit 0811E28A_t"
+
+[[extra_func]]
+addr = 0x0811E292
+mode = "thumb"
+note = "session-3 heal-cache unit 0811E292_t"
+
+[[extra_func]]
+addr = 0x0811E2A4
+mode = "thumb"
+note = "session-3 heal-cache unit 0811E2A4_t"
+
+[[extra_func]]
+addr = 0x0811E2B8
+mode = "thumb"
+note = "session-3 heal-cache unit 0811E2B8_t"
+
+[[extra_func]]
+addr = 0x0811E2C4
+mode = "thumb"
+note = "session-3 heal-cache unit 0811E2C4_t"
+
+[[extra_func]]
+addr = 0x0811E478
+mode = "thumb"
+note = "session-3 heal-cache unit 0811E478_t"
+
+[[extra_func]]
+addr = 0x0811E480
+mode = "thumb"
+note = "session-3 heal-cache unit 0811E480_t"
+
+[[extra_func]]
+addr = 0x0811E48A
+mode = "thumb"
+note = "session-3 heal-cache unit 0811E48A_t"
+
+[[extra_func]]
+addr = 0x0811E492
+mode = "thumb"
+note = "session-3 heal-cache unit 0811E492_t"
+
+[[extra_func]]
+addr = 0x0811E49C
+mode = "thumb"
+note = "session-3 heal-cache unit 0811E49C_t"
+
+[[extra_func]]
+addr = 0x0811E4B2
+mode = "thumb"
+note = "session-3 heal-cache unit 0811E4B2_t"
+
+[[extra_func]]
+addr = 0x0811E4D0
+mode = "thumb"
+note = "session-3 heal-cache unit 0811E4D0_t"
+
+[[extra_func]]
+addr = 0x0811E4F4
+mode = "thumb"
+note = "session-3 heal-cache unit 0811E4F4_t"
+
+[[extra_func]]
+addr = 0x0811E50E
+mode = "thumb"
+note = "session-3 heal-cache unit 0811E50E_t"
+
+[[extra_func]]
+addr = 0x0811E532
+mode = "thumb"
+note = "session-3 heal-cache unit 0811E532_t"
+
+[[extra_func]]
+addr = 0x0811E53E
+mode = "thumb"
+note = "session-3 heal-cache unit 0811E53E_t"
+
+[[extra_func]]
+addr = 0x0811E54A
+mode = "thumb"
+note = "session-3 heal-cache unit 0811E54A_t"
+
+[[extra_func]]
+addr = 0x0811E566
+mode = "thumb"
+note = "session-3 heal-cache unit 0811E566_t"
+
+[[extra_func]]
+addr = 0x0811E56A
+mode = "thumb"
+note = "session-3 heal-cache unit 0811E56A_t"
+
+[[extra_func]]
+addr = 0x0811E574
+mode = "thumb"
+note = "session-3 heal-cache unit 0811E574_t"
+
+[[extra_func]]
+addr = 0x0811E57C
+mode = "thumb"
+note = "session-3 heal-cache unit 0811E57C_t"
+
+[[extra_func]]
+addr = 0x0811E580
+mode = "thumb"
+note = "session-3 heal-cache unit 0811E580_t"
+
+[[extra_func]]
+addr = 0x0811E5B4
+mode = "thumb"
+note = "session-3 heal-cache unit 0811E5B4_t"
+
+[[extra_func]]
+addr = 0x0811E5C0
+mode = "thumb"
+note = "session-3 heal-cache unit 0811E5C0_t"
+
+[[extra_func]]
+addr = 0x0811E602
+mode = "thumb"
+note = "session-3 heal-cache unit 0811E602_t"
+
+[[extra_func]]
+addr = 0x0811E618
+mode = "thumb"
+note = "session-3 heal-cache unit 0811E618_t"
+
+[[extra_func]]
+addr = 0x0811E668
+mode = "thumb"
+note = "session-3 heal-cache unit 0811E668_t"
+
+[[extra_func]]
+addr = 0x08122D74
+mode = "thumb"
+note = "session-3 heal-cache unit 08122D74_t"
+
+[[extra_func]]
+addr = 0x08122D90
+mode = "thumb"
+note = "session-3 heal-cache unit 08122D90_t"
+
+[[extra_func]]
+addr = 0x08122D98
+mode = "thumb"
+note = "session-3 heal-cache unit 08122D98_t"
+
+[[extra_func]]
+addr = 0x08123900
+mode = "thumb"
+note = "session-3 heal-cache unit 08123900_t"
+
+[[extra_func]]
+addr = 0x0812390A
+mode = "thumb"
+note = "session-3 heal-cache unit 0812390A_t"
+
+[[extra_func]]
+addr = 0x08123912
+mode = "thumb"
+note = "session-3 heal-cache unit 08123912_t"
+
+[[extra_func]]
+addr = 0x0812395E
+mode = "thumb"
+note = "session-3 heal-cache unit 0812395E_t"
+
