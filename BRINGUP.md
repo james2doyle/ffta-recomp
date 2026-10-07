@@ -1730,3 +1730,19 @@ descriptor step after). (2) Capture `0x0813ADF0` checksum results per record
 on both engines. (3) Find the writer of `0x02000000` by ring-querying the
 load window for stores (ring `--cyc` context around the store time), not by
 mid-block breakpoints.
+
+### 2026-10-07 (cont.) — Batch w: session 13:57 (party/ability menus) — ACCEPTED
+
+27 heal-cache units (frag 6,640 B; cache 77 total / 27 new) from one play
+session. Three hot multi-entry functions — `0x0804E408` (10 dispatched
+interiors, bridged x1110/x118/x14/x10/x29), `0x0804E6EC` (x731/x72), and the
+`0x0804CABC`/`0x0804CAD0` pair — seeded as start + split-interior entries
+(prologue scans verified; the frag's "jump-table candidate" flags again
+resolved to branch-target interiors). Standalones: `0x080197BC`,
+`0x0804D91C`, `0x0804E858`, `0x08050F1C`, `0x080CB63C` (interior of a start
+outside the frag). Acceptance: `resolve.py` on the session trace
+(`logs/playthrough.csv`, f7500) — **iter 0 STRICT replay PASSED end-to-end,
+0 seeds, FULLY_STATIC**. Cold cycle: regen OK (discovered **47,677**
+functions — the batch-v/w seeds pulled in a ~+1.2k cascade over the
+previously emitted 46,4xx), dispatch sanity OK, **attract gate PASS**
+(sha256 `1EF4C118…`, unchanged since pinning). `cycle: PASS`.

@@ -4503,3 +4503,144 @@ addr = 0x081285B6
 mode = "thumb"
 note = "batch v (A): interior of 0x0812803C (runtime-dispatched unit; split-interior seed)"
 
+
+# ─── Batch w: session 13:57 (party/ability menus, 2026-10-07) ───
+# 27 heal-cache units from one play session (frag 6,640 B; cache 77 total/27 new).
+# Hot multi-entry functions bridged x100s; starts verified by prologue scan;
+# dispatched interiors seeded directly (split-unit pattern).
+
+[[extra_func]]
+addr = 0x080197BC
+mode = "thumb"
+note = "batch w: start [push {r4, r5, lr}]; prologue scan; bridged x1"
+
+[[extra_func]]
+addr = 0x080197FE
+mode = "thumb"
+note = "batch w: interior of 0x080197BC (runtime-dispatched; bridged x1); split-interior seed"
+
+[[extra_func]]
+addr = 0x0804CABC
+mode = "thumb"
+note = "batch w: start [push {lr}]; prologue scan; bridged x1"
+
+[[extra_func]]
+addr = 0x0804CACA
+mode = "thumb"
+note = "batch w: interior of 0x0804CABC (runtime-dispatched; bridged x1); split-interior seed"
+
+[[extra_func]]
+addr = 0x0804CAD0
+mode = "thumb"
+note = "batch w: start [push {lr}]; prologue scan; bridged x1"
+
+[[extra_func]]
+addr = 0x0804CADE
+mode = "thumb"
+note = "batch w: interior of 0x0804CAD0 (runtime-dispatched; bridged x1); split-interior seed"
+
+[[extra_func]]
+addr = 0x0804D91C
+mode = "thumb"
+note = "batch w: start [push {r4, r5, r6, lr}]; prologue scan; bridged x1"
+
+[[extra_func]]
+addr = 0x0804D9C4
+mode = "thumb"
+note = "batch w: interior of 0x0804D91C (runtime-dispatched; bridged x1); split-interior seed"
+
+[[extra_func]]
+addr = 0x0804E408
+mode = "thumb"
+note = "batch w: start [push {r4, r5, r6, r7, lr}]; prologue scan; bridged x1110"
+
+[[extra_func]]
+addr = 0x0804E41A
+mode = "thumb"
+note = "batch w: interior of 0x0804E408 (runtime-dispatched; bridged x118); split-interior seed"
+
+[[extra_func]]
+addr = 0x0804E424
+mode = "thumb"
+note = "batch w: interior of 0x0804E408 (runtime-dispatched; bridged x14); split-interior seed"
+
+[[extra_func]]
+addr = 0x0804E43E
+mode = "thumb"
+note = "batch w: interior of 0x0804E408 (runtime-dispatched; bridged x10); split-interior seed"
+
+[[extra_func]]
+addr = 0x0804E446
+mode = "thumb"
+note = "batch w: interior of 0x0804E408 (runtime-dispatched; bridged x29); split-interior seed"
+
+[[extra_func]]
+addr = 0x0804E548
+mode = "thumb"
+note = "batch w: interior of 0x0804E408 (runtime-dispatched; bridged x94); split-interior seed"
+
+[[extra_func]]
+addr = 0x0804E560
+mode = "thumb"
+note = "batch w: interior of 0x0804E408 (runtime-dispatched; bridged x85); split-interior seed"
+
+[[extra_func]]
+addr = 0x0804E598
+mode = "thumb"
+note = "batch w: interior of 0x0804E408 (runtime-dispatched; bridged x20); split-interior seed"
+
+[[extra_func]]
+addr = 0x0804E5AA
+mode = "thumb"
+note = "batch w: interior of 0x0804E408 (runtime-dispatched; bridged x4); split-interior seed"
+
+[[extra_func]]
+addr = 0x0804E5AC
+mode = "thumb"
+note = "batch w: interior of 0x0804E408 (runtime-dispatched; bridged x4); split-interior seed"
+
+[[extra_func]]
+addr = 0x0804E6EC
+mode = "thumb"
+note = "batch w: start [push {r4, r5, r6, r7, lr}]; prologue scan; bridged x731"
+
+[[extra_func]]
+addr = 0x0804E70C
+mode = "thumb"
+note = "batch w: interior of 0x0804E6EC (runtime-dispatched; bridged x72); split-interior seed"
+
+[[extra_func]]
+addr = 0x0804E734
+mode = "thumb"
+note = "batch w: interior of 0x0804E6EC (runtime-dispatched; bridged x1); split-interior seed"
+
+[[extra_func]]
+addr = 0x0804E754
+mode = "thumb"
+note = "batch w: interior of 0x0804E6EC (runtime-dispatched; bridged x1); split-interior seed"
+
+[[extra_func]]
+addr = 0x0804E764
+mode = "thumb"
+note = "batch w: interior of 0x0804E6EC (runtime-dispatched; bridged x1); split-interior seed"
+
+[[extra_func]]
+addr = 0x0804E858
+mode = "thumb"
+note = "batch w: start [push {r4, r5, r6, lr}]; prologue scan; bridged x172"
+
+[[extra_func]]
+addr = 0x08050F1C
+mode = "thumb"
+note = "batch w: start [push {r4, r5, r6, lr}]; prologue scan; bridged x3881"
+
+[[extra_func]]
+addr = 0x08050FFA
+mode = "thumb"
+note = "batch w: interior of 0x08050F1C (runtime-dispatched; bridged x3859); split-interior seed"
+
+[[extra_func]]
+addr = 0x080CB63C
+mode = "thumb"
+note = "batch w: interior of 0x080CB5A8 (runtime-dispatched; bridged x39); split-interior seed"
+
