@@ -4913,3 +4913,423 @@ addr = 0x08146C62
 mode = "thumb"
 note = "batch y: interior of 0x08146BB0 (runtime-dispatched; bridged x24); split-interior seed"
 
+
+# ─── Batch z: crash-spiral sessions (2026-10-07 14:18–14:26) ───
+# 83 heal-cache units (crash-safe harvest; the session's frag did not flush).
+# 20 starts + 63 dispatched interiors; prologue scans verified; split-unit pattern.
+
+[[extra_func]]
+addr = 0x080B7F74
+mode = "thumb"
+note = "batch z: start [push {r4, r5, lr}]; prologue scan; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x080D7B08
+mode = "thumb"
+note = "batch z: start [push {r4, r5, r6, r7, lr}]; prologue scan; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x080D8E00
+mode = "thumb"
+note = "batch z: start [push {r4, r5, r6, r7, lr}]; prologue scan; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x080D8E28
+mode = "thumb"
+note = "batch z: interior of 0x080D8E00 (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x080D8E30
+mode = "thumb"
+note = "batch z: interior of 0x080D8E00 (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x080D8F4C
+mode = "thumb"
+note = "batch z: interior of 0x080D8E00 (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x080D8F7A
+mode = "thumb"
+note = "batch z: interior of 0x080D8E00 (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x080D8F8E
+mode = "thumb"
+note = "batch z: interior of 0x080D8E00 (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x080D8FC2
+mode = "thumb"
+note = "batch z: interior of 0x080D8E00 (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x080D8FD2
+mode = "thumb"
+note = "batch z: interior of 0x080D8E00 (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x080D8FE0
+mode = "thumb"
+note = "batch z: interior of 0x080D8E00 (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x080D8FEC
+mode = "thumb"
+note = "batch z: interior of 0x080D8E00 (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x080D8FF4
+mode = "thumb"
+note = "batch z: interior of 0x080D8E00 (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x080D9BCC
+mode = "thumb"
+note = "batch z: start [push {r4, r5, lr}]; prologue scan; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x080D9BE2
+mode = "thumb"
+note = "batch z: interior of 0x080D9BCC (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x080D9C48
+mode = "thumb"
+note = "batch z: start [push {lr}]; prologue scan; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x080D9C52
+mode = "thumb"
+note = "batch z: interior of 0x080D9C48 (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x080DAC40
+mode = "thumb"
+note = "batch z: start [push {r4, r5, r6, lr}]; prologue scan; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x080DEF90
+mode = "thumb"
+note = "batch z: start [push {r4, r5, lr}]; prologue scan; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x080DFCAC
+mode = "thumb"
+note = "batch z: start [push {r4, r5, r6, lr}]; prologue scan; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x080E0CC4
+mode = "thumb"
+note = "batch z: start [push {r4, r5, r6, r7, lr}]; prologue scan; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x080E0CE4
+mode = "thumb"
+note = "batch z: interior of 0x080E0CC4 (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x080E0CEC
+mode = "thumb"
+note = "batch z: interior of 0x080E0CC4 (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x080E0DF4
+mode = "thumb"
+note = "batch z: interior of 0x080E0CC4 (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x080E0DFE
+mode = "thumb"
+note = "batch z: interior of 0x080E0CC4 (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x080E0E0E
+mode = "thumb"
+note = "batch z: interior of 0x080E0CC4 (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x080E11C4
+mode = "thumb"
+note = "batch z: start [push {r4, r5, r6, r7, lr}]; prologue scan; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x080E11FA
+mode = "thumb"
+note = "batch z: interior of 0x080E11C4 (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x080E1202
+mode = "thumb"
+note = "batch z: interior of 0x080E11C4 (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x080E12DC
+mode = "thumb"
+note = "batch z: interior of 0x080E11C4 (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x080E12E2
+mode = "thumb"
+note = "batch z: interior of 0x080E11C4 (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x080E12EE
+mode = "thumb"
+note = "batch z: interior of 0x080E11C4 (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x080E1320
+mode = "thumb"
+note = "batch z: interior of 0x080E11C4 (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x080E1346
+mode = "thumb"
+note = "batch z: interior of 0x080E11C4 (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x080E1388
+mode = "thumb"
+note = "batch z: interior of 0x080E11C4 (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x080E308C
+mode = "thumb"
+note = "batch z: start [push {r4, r5, r6, r7, lr}]; prologue scan; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x080F2FFC
+mode = "thumb"
+note = "batch z: start [push {r4, r5, r6, r7, lr}]; prologue scan; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x080F3018
+mode = "thumb"
+note = "batch z: interior of 0x080F2FFC (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x080F303A
+mode = "thumb"
+note = "batch z: interior of 0x080F2FFC (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x080F30E4
+mode = "thumb"
+note = "batch z: interior of 0x080F2FFC (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x080F3110
+mode = "thumb"
+note = "batch z: interior of 0x080F2FFC (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x080F3178
+mode = "thumb"
+note = "batch z: interior of 0x080F2FFC (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x08109664
+mode = "thumb"
+note = "batch z: start [push {r4, r5, r6, lr}]; prologue scan; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x0810973C
+mode = "thumb"
+note = "batch z: start [push {r4, r5, r6, r7, lr}]; prologue scan; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x08109762
+mode = "thumb"
+note = "batch z: interior of 0x0810973C (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x0810976C
+mode = "thumb"
+note = "batch z: interior of 0x0810973C (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x08109772
+mode = "thumb"
+note = "batch z: interior of 0x0810973C (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x081097BC
+mode = "thumb"
+note = "batch z: interior of 0x0810973C (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x081097C8
+mode = "thumb"
+note = "batch z: interior of 0x0810973C (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x081097CE
+mode = "thumb"
+note = "batch z: interior of 0x0810973C (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x081098B4
+mode = "thumb"
+note = "batch z: interior of 0x0810973C (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x081098BA
+mode = "thumb"
+note = "batch z: interior of 0x0810973C (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x081098C6
+mode = "thumb"
+note = "batch z: interior of 0x0810973C (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x0810990A
+mode = "thumb"
+note = "batch z: interior of 0x0810973C (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x08109980
+mode = "thumb"
+note = "batch z: interior of 0x0810973C (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x08113FEC
+mode = "thumb"
+note = "batch z: start [push {r4, r5, r6, r7, lr}]; prologue scan; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x081141EC
+mode = "thumb"
+note = "batch z: start [push {r4, r5, r6, r7, lr}]; prologue scan; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x08114438
+mode = "thumb"
+note = "batch z: start [push {r4, r5, r6, r7, lr}]; prologue scan; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x08114454
+mode = "thumb"
+note = "batch z: interior of 0x08114438 (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x08114478
+mode = "thumb"
+note = "batch z: interior of 0x08114438 (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x08114482
+mode = "thumb"
+note = "batch z: interior of 0x08114438 (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x08114488
+mode = "thumb"
+note = "batch z: interior of 0x08114438 (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x08114490
+mode = "thumb"
+note = "batch z: interior of 0x08114438 (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x081145C4
+mode = "thumb"
+note = "batch z: interior of 0x08114438 (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x0811475C
+mode = "thumb"
+note = "batch z: interior of 0x08114438 (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x08114874
+mode = "thumb"
+note = "batch z: interior of 0x08114438 (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x0811487A
+mode = "thumb"
+note = "batch z: interior of 0x08114438 (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x08114886
+mode = "thumb"
+note = "batch z: interior of 0x08114438 (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x081148FE
+mode = "thumb"
+note = "batch z: interior of 0x08114438 (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x08114910
+mode = "thumb"
+note = "batch z: start [push {r4, r5, r6, r7, lr}]; prologue scan; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x0811492C
+mode = "thumb"
+note = "batch z: interior of 0x08114910 (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x08115560
+mode = "thumb"
+note = "batch z: start [push {r4, r5, r6, r7, lr}]; prologue scan; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x08115576
+mode = "thumb"
+note = "batch z: interior of 0x08115560 (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x0811558E
+mode = "thumb"
+note = "batch z: interior of 0x08115560 (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x081155D0
+mode = "thumb"
+note = "batch z: interior of 0x08115560 (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x081155DA
+mode = "thumb"
+note = "batch z: interior of 0x08115560 (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x08115656
+mode = "thumb"
+note = "batch z: interior of 0x08115560 (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x0811566E
+mode = "thumb"
+note = "batch z: interior of 0x08115560 (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x08115708
+mode = "thumb"
+note = "batch z: interior of 0x08115560 (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x0811570E
+mode = "thumb"
+note = "batch z: interior of 0x08115560 (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x08115716
+mode = "thumb"
+note = "batch z: interior of 0x08115560 (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x08115842
+mode = "thumb"
+note = "batch z: interior of 0x08115560 (runtime-dispatched); split-interior seed; crash-session heal unit"
+
+[[extra_func]]
+addr = 0x08132138
+mode = "thumb"
+note = "batch z: start [push {r4, lr}]; prologue scan; crash-session heal unit"
+

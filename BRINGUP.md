@@ -1768,3 +1768,19 @@ session trace, f9000) — **iter 0 STRICT replay PASSED end-to-end, 0 seeds,
 FULLY_STATIC**. Cold cycle: regen OK (discovered **48,247** — +373 cascade),
 dispatch sanity OK, attract gate PASS (`1EF4C118…` unchanged). `cycle: PASS`.
 Heal cache fully merged.
+
+### 2026-10-07 (cont.) — Batch z: crash-spiral battle sessions — ACCEPTED
+
+83 heal-cache units (crash-safe harvest; the crashed session's frag never
+flushed — the cache is the durable store, as designed). 20 starts + 63
+dispatched interiors across the battle regions (`0x080B`/`0x080D–0x080E`,
+`0x080F2F–31`, `0x0810–0x0811`, `0x081321`); split-unit seeds. Crash context:
+SIGABRT from `runtime_bridge_interpret` under `gf_tfunc_0814186E` — the
+game's BIOS SWI thunk bank (`svc #N; bx lr`; corpus unit root `0x08141838`)
+— during a live battle while the session was healing these units. A faithful
+replay with the warm cache runs the whole route clean (21,400 frames), so
+the abort is a mid-heal bridge artifact, not a persistent bad path; making
+the path static is the fix. Acceptance: resolve (session F trace, f21400) —
+**iter 0 STRICT replay PASSED end-to-end, 0 seeds, FULLY_STATIC**. Cold
+cycle: regen OK (discovered **49,084** — +837 cascade), dispatch sanity OK,
+attract gate PASS (`1EF4C118…` unchanged). `cycle: PASS`.
