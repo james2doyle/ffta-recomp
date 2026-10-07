@@ -1126,6 +1126,19 @@ distinct self-heal miss PCs** (`logs/playtest_misses.frag`; 484 in
   hash unchanged). Corpus 43,981 → **45,122** (+1,141); walker ≈ 98.9 %;
   **pointer-pool 83.6 % → 85.8 %**.
 
+### Session 15 (2026-10-07 09:09): second shopping run — mega-function test
+- Loaded the session-14 end state (f47,414), ~70 s of shopping to ≈f51.8k,
+  clean exit; 14 heal units (frag+cache agree, 10th validation), all in the
+  0x0806B/C/D shop/menu region.
+- **Batch s**: 2 starts (0x0806B228, 0x0806B6D0) merged first; 11 of the
+  unit PCs are deep interiors of the 0x0806B6D0 **mega-function** (measured
+  up to 0x1AF0 back). The walker covered all 11 from the single start —
+  good validation of the start-first policy on multi-KB state machines.
+  Resolve chained 1 extra clean start (0x0806D2B4); merged; iter 1 pass.
+- Strict FULLY_STATIC (`logs/session15_strict.log`); cycle.py PASS (attract
+  hash unchanged). Corpus 45,122 → **45,537** (+415); walker ≈ 98.9 %;
+  **pointer-pool 85.8 % → 86.6 %**.
+
 ### Native-save session (2026-10-06, 17:41): Batch i — the session that produced `game.state2`
 - The user played a continuation and performed an in-game (native/flash)
   save at 17:41. The session produced the post-save savestate `game.state2`

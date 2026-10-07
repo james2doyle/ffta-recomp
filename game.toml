@@ -4054,3 +4054,23 @@ note = "resolve-added seed (session-14 strict acceptance); start"
 addr = 0x0806EB48
 mode = "thumb"
 note = "resolve-added seed (session-14 strict acceptance); start"
+
+# ─── Batch s: session-15 (2026-10-07 09:09, second shopping run) ───
+# 14 heal-cache units; 2 starts merged first; deep interiors of the
+# 0x0806B6D0 mega-span (0x5EC–0x1AF0 back) left to the resolve loop.
+
+[[extra_func]]
+addr = 0x0806B228
+mode = "thumb"
+note = "session-15 start; push-root verified by prologue scan (shop/menu region)"
+
+[[extra_func]]
+addr = 0x0806B6D0
+mode = "thumb"
+note = "session-15 start; push-root verified by prologue scan; covers interior 0x0806B6E8; mega-function (≥0x1B00 bytes — deep interiors not pre-seeded, resolve judges)"
+
+
+[[extra_func]]
+addr = 0x0806D2B4
+mode = "thumb"
+note = "resolve-added seed (session-15 strict acceptance); start"
