@@ -4015,3 +4015,42 @@ addr = 0x08060100
 mode = "thumb"
 note = "session-13 start; push-root verified by prologue scan; covers interior 0x08060120"
 
+
+# ─── Batch r: session-14 shopping (2026-10-07 08:47) ───
+# 2 heal-cache units; one verified start covers both.
+
+[[extra_func]]
+addr = 0x08068AE0
+mode = "thumb"
+note = "session-14 start; push-root verified by prologue scan; covers interior 0x08068BBE (shopping/menu wave)"
+
+
+[[extra_func]]
+addr = 0x08018D38
+mode = "thumb"
+note = "resolve-added seed (session-14 strict acceptance); start"
+
+[[extra_func]]
+addr = 0x08068C10
+mode = "thumb"
+note = "resolve-added seed (session-14 strict acceptance); start"
+
+[[extra_func]]
+addr = 0x08069574
+mode = "thumb"
+note = "resolve-added seed (session-14 strict acceptance); start"
+
+[[extra_func]]
+addr = 0x08069658
+mode = "thumb"
+note = "resolve-added seed (session-14 strict acceptance); start"
+
+[[extra_func]]
+addr = 0x0806B338
+mode = "thumb"
+note = "resolve-added seed (session-14 strict acceptance); start"
+
+[[extra_func]]
+addr = 0x0806EB48
+mode = "thumb"
+note = "resolve-added seed (session-14 strict acceptance); start"
