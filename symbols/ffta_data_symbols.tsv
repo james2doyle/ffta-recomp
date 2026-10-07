@@ -13,3 +13,9 @@
 0x0814BB24	rom	0x0	gMPlayTable
 0x0814BB48	rom	0x0	gSongTable
 0x0855187C	rom	0x0	gAbilityTable
+# Section 2: RAM fields from BCROBERT's FFTA notes pack (v12.2) + the
+# recovered DataCrystal FFTA RAM map (reference/datacrystal/) — 2026-10-07.
+0x02002B08	ewram	0xC0	gMissionItems
+0x02002FBA	ewram	0x1	gMonth
+0x02002FBB	ewram	0x1	gDay
+0x02002FBC	ewram	0x4	gPlayTime
