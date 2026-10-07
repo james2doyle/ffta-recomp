@@ -5528,3 +5528,72 @@ addr = 0x08115A0A
 mode = "thumb"
 note = "batch ac: interior of 0x0811584C (runtime-dispatched); split-interior seed"
 
+
+# ─── Batch ad: session J (post-fix observe session — first full summon) ───
+# 13 units (13 from frag + cache-harvested); split-interior seeds.
+
+[[extra_func]]
+addr = 0x03006CF4
+mode = "thumb"
+note = "batch ad: direct seed"
+
+[[extra_func]]
+addr = 0x081154F4
+mode = "thumb"
+note = "batch ad: interior of 0x081154D8 (runtime-dispatched)"
+
+[[extra_func]]
+addr = 0x08115508
+mode = "thumb"
+note = "batch ad: interior of 0x081154D8 (runtime-dispatched)"
+
+[[extra_func]]
+addr = 0x0811550E
+mode = "thumb"
+note = "batch ad: interior of 0x081154D8 (runtime-dispatched)"
+
+[[extra_func]]
+addr = 0x08115558
+mode = "thumb"
+note = "batch ad: interior of 0x081154D8 (runtime-dispatched)"
+
+[[extra_func]]
+addr = 0x08115882
+mode = "thumb"
+note = "batch ad: interior of 0x0811584C (runtime-dispatched)"
+
+[[extra_func]]
+addr = 0x0811588C
+mode = "thumb"
+note = "batch ad: interior of 0x0811584C (runtime-dispatched)"
+
+[[extra_func]]
+addr = 0x0811593E
+mode = "thumb"
+note = "batch ad: interior of 0x0811584C (runtime-dispatched)"
+
+[[extra_func]]
+addr = 0x08115952
+mode = "thumb"
+note = "batch ad: interior of 0x0811584C (runtime-dispatched)"
+
+[[extra_func]]
+addr = 0x08115962
+mode = "thumb"
+note = "batch ad: interior of 0x0811584C (runtime-dispatched)"
+
+[[extra_func]]
+addr = 0x08115986
+mode = "thumb"
+note = "batch ad: interior of 0x0811584C (runtime-dispatched)"
+
+[[extra_func]]
+addr = 0x081159AC
+mode = "thumb"
+note = "batch ad: interior of 0x0811584C (runtime-dispatched)"
+
+[[extra_func]]
+addr = 0x08115A08
+mode = "thumb"
+note = "batch ad: interior of 0x0811584C (runtime-dispatched)"
+

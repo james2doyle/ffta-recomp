@@ -1868,3 +1868,17 @@ warm G clean; sessionH (user's post-summon hang) warm f22,000 clean and
 (8 units) merged. The underlying stale-frame re-invocation divergence
 remains open but every observed symptom is now bounded (degraded call, no
 hang). New tool: `tools/spinhunt.py`.
+
+### 2026-10-07 (cont.) — Batch ad: session J — first full Totema summon; live watchdog tooling
+
+Session J (post-fix, windowed observe mode): the user's summon retry **completed
+end-to-end** — first full Totema summon on record through their real play path.
+13 heal-cache units merged (batch ad; 0.081155xx battle cluster continuing);
+strict resolve 0 seeds PASS; cycle PASS — regen **49,235** functions, attract
+gate PASS (`1EF4C118…` unchanged). New: `tools/livewatch.py` (frame-stall
+watchdog over the windowed observe port; froze-state capture) + playbook
+"Live-session debugging" section (state-load discontinuities break boot
+replays; two-clean-replays rule; frame counter = hang signal). Note: the
+observe listener serves a handful of sequential clients then stops accepting —
+one long-lived watcher per session. Session J's trace archived
+(`saves/trace_sessionJ_1639.csv`) as the first summon-completing route.
