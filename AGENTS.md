@@ -164,7 +164,18 @@ port 19843; args `--bios <real bios> --rom <rom> --port N`; run with
 cwd=`gbarecomp/` (default BIOS path is cwd-relative). Key JSON-line
 commands: `emu_step`/`emu_step_to_vblank` (one runFrame = one PPU frame),
 `emu_vblank_count`, `emu_screenshot` (240x160 RGB888 hex),
-`read_emu_{iwram,ewram,vram,pal,oam,rom,io}`, `emu_set_keys`.
+`read_emu_{iwram,ewram,vram,pal,oam,rom,io}`, `emu_set_keys`, plus
+`emu_step_inst`/`emu_registers`/`emu_run_until_pc`/`emu_write` for
+register-level captures. The oracle **autoloads `<rom>.sav`** (patch:
+`tools/patches/oracle-save-autoload.patch`, applied in the working tree —
+re-apply after submodule updates); put a save copy next to a symlinked ROM
+to drive save/load flows (`tools/dualrun.py probe saveflow` does this).
+
+**Save-flow caveat**: the interactive `--tcp` serve mode does **not** load
+the battery save (`save_loaded` never prints; flash stays zeroed), so
+register/TCP probes of save paths must run through the normal
+windowed/`--frames` path until the serve mode honours `--save-path` (see
+BRINGUP § "Save/load flow: oracle save autoload…").
 
 **Comparison protocol** (learned the hard way — see BRINGUP § Phase 5):
 - Both engines park at **VBlank-start** (source-verified; the old "mGBA
