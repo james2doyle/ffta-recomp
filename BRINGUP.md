@@ -1124,3 +1124,54 @@ distinct self-heal miss PCs** (`logs/playtest_misses.frag`; 484 in
   scene. Remaining unknown: whether hardware/mGBA also wedges at THIS
   exact point (needs the oracle at the scene — blocked by the
   savestate-format interop gap; noted for upstream).
+
+### Session 7 (2026-10-06, 21:10): boot→load-native-save playthrough; Batch j — all 68 frag misses reviewed
+- The user played from **boot** (title → loaded the native save →
+  in-game), ~11.6k frames, clean exit: frag flushed to
+  `logs/playtest_misses.frag` (68 proposals), trace `logs/playthrough.csv`
+  (frames 0..11,210), exit auto-save wrote a new `game.state2` (frame
+  11,635 — the session's end state; the slot had held the 17:41
+  post-save state at frame 115,148). No hang this time — consistent with
+  the session-6 knife-edge being scene/timing-specific, not a
+  save-load bug.
+- **Batch j** (all 68 reviewed via misspack + disarm): 25
+  `[[extra_func]]` + 4 sized `[[jump_table]]` (55 targets):
+  - 23 prologue-verified function entries (0x0807C7E8, 0x0807D96C,
+    0x0807E2C4, 0x08083FB0, 0x080BEF28, 0x080D4D2C, 0x080D4DEC,
+    0x080DAE7C, 0x080DC55C, 0x080DCAD4, 0x080DD900, 0x080DD9AC,
+    0x080DDA94, 0x080DE61C, 0x080DFF04, 0x080E0824, 0x080E0A8C,
+    0x080E0E98, 0x080E2398, 0x080E7D20, 0x080E7F4C, 0x08122C28,
+    0x08126B9C).
+  - 0x080E0506: interior-split entry — shared epilogue (`add sp,#0x34;
+    pop {r4-r7}; pop {r1}; bx r1`) of the body at 0x080E03F8, walked
+    inside emitted unit gf_tfunc_080DFEAE; reached by `b #0x80e0506`
+    @0x080E0414 + runtime entry from outside the host unit.
+  - 0x0813215C: 1-insn `bx lr` no-op stub, registered callback
+    @0x083A88AC (record table of {ptr,0,1} triples).
+  - jump_table 0x0807C810 ×19 — 0x0807C7E8's computed switch (bound
+    `cmp r0,#0x12; bls`; dispatcher ends `mov pc,r0` — non-interworking,
+    entries stored EVEN → entries_mode="thumb").
+  - jump_table 0x080036D8 ×12 — callback pool (covers 0x08139C70, x468 =
+    the session's hottest miss).
+  - jump_table 0x081454D8 ×12 — m4a callback pool (covers the m4a
+    command dispatcher 0x081464C4).
+  - jump_table 0x0836D340 ×12 — m4a command-handler table
+    (0xFFFFFFFF-terminated; dispatcher = 0x081464C4: `ldrb r3,[r2];
+    lsls r3,r3,#2; ldr r2,[pc,#0x10]; ldr r2,[r3]; bl`).
+- **Frag heuristic overridden by disarm evidence**: the frag's 5
+  "JUMP-TABLE CANDIDATE" clusters are if/else comparison chains
+  (cmp/bne/beq/bgt trees), NOT computed jumps — every mid-function miss
+  in them is a direct branch target or a BL fall-through, covered by
+  walking each function entry. Only 0x0807C7E8 has a true computed
+  switch. Mid-function miss taxonomy for future reviews: (a) computed-
+  switch case targets → sized [[jump_table]]; (b) branch targets of
+  un-emitted if-tree functions → covered by the entry's walk;
+  (c) BL fall-throughs → covered by the enclosing unit; (d) runtime
+  entries into emitted spans → own [[extra_func]] (interior split).
+- **Acceptance: strict replay of session 7 from game.toml = FULLY_STATIC,
+  0 misses, 0 follow-on seeds** (`tools/resolve.py --trace
+  logs/playthrough.csv --frames 12000` — passed iteration 0).
+- **Cycle**: cold regen OK (30,554 → **33,868** emitted — the seeds
+  unlocked whole previously-unreachable islands: menus/shops/m4a
+  subtrees), dispatch sanity OK, build OK, attract gate PASS (golden
+  sha256 `1EF4C118…EF321C1` unchanged).

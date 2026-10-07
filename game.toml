@@ -3458,3 +3458,177 @@ addr = 0x08142160
 mode = "thumb"
 note = "push {r4-r7,lr}; sub sp,#0x40 @0x08142160 (disarm); heal-cache unit from the native-save playtest session (17:41)"
 
+
+# ─── Batch j: playtest-session frag review (2026-10-06, 21:10 session) ───
+# logs/playtest_misses.frag proposed 68 PCs (boot→title→load-native-save
+# playthrough, ~11.6k frames). Reviewed with misspack + disarm: 23 function
+# entries + 2 special entries below, plus 4 sized [[jump_table]] entries
+# covering 55 table/pool targets. The frag's 5 "jump-table candidate"
+# clusters turned out to be if/else comparison chains (cmp/bne/beq/bgt
+# trees) — their mid-function misses are direct branch targets and BL
+# fall-throughs, covered by walking each function entry. Only 0x0807C7E8
+# has a true computed switch (mov pc,r0 over the 19-entry table).
+
+[[extra_func]]
+addr = 0x0807C7E8
+mode = "thumb"
+note = "push {r4-r7,lr}; sub sp,#0x120 @0x0807C7E8 (disarm); callback ptrs @0x0807E1F8/0x0807E33C; contains computed switch: cmp r0,#0x12; bls 0x0807C800 -> lsls r0,r0,#2; ldr r1,[pc,#8](=0x0807C810); ldr r0,[r0]; mov pc,r0 (cases sized by jump_table 0x0807C810; covers mid misses 0x0807C800/0x0807C9B0/0x0807CF26/0x0807D0B0/0x0807D0DC via walk)"
+
+[[extra_func]]
+addr = 0x0807D96C
+mode = "thumb"
+note = "push {r4-r7,lr} @0x0807D96C (disarm); playtest miss x1; called from 0x0807E2FA (bl #0x807d96c)"
+
+[[extra_func]]
+addr = 0x0807E2C4
+mode = "thumb"
+note = "push {r4,r5,lr} @0x0807E2C4 (disarm); callback ptrs @0x08079330/0x08080174; if-tree switch (cmp r1,#9; beq 0x0807E350; bgt 0x0807E2D8; beq 0x0807E2DE; b 0x0807E368) — walker covers mid misses 0x0807E2D8/E2DE/E2FE/E340/E366/E368 (branch targets + BL fall-through @0x0807E2FE)"
+
+[[extra_func]]
+addr = 0x08083FB0
+mode = "thumb"
+note = "push {r4-r7,lr} @0x08083FB0 (disarm); playtest miss x458 (hottest non-table miss); called from 0x0807CF22 (bl #0x8083fb0)"
+
+[[extra_func]]
+addr = 0x080BEF28
+mode = "thumb"
+note = "push {r4-r7,lr} @0x080BEF28 (disarm); callback ptr @0x080C0330; miss x2"
+
+[[extra_func]]
+addr = 0x080D4D2C
+mode = "thumb"
+note = "push {r4,r5,lr} @0x080D4D2C (disarm); miss x44; called from 0x080E7ED6 (bl #0x80d4d2c)"
+
+[[extra_func]]
+addr = 0x080D4DEC
+mode = "thumb"
+note = "push {r4-r7,lr}; sub sp,#0x4c @0x080D4DEC (disarm); callback ptr @0x080D6110; if-tree (beq 0x080D4E40; bgt 0x080D4E0C; beq 0x080D4E1e; b 0x080D5116; deeper: beq 0x080D4F90/FAA/FBC/FE0) — walker covers mid misses 0x080D4E0C/E4A/F90/FAA/FBC/FE0"
+
+[[extra_func]]
+addr = 0x080DAE7C
+mode = "thumb"
+note = "push {r4,r5,r6,lr} @0x080DAE7C (disarm); callback ptrs @0x080DBB70/0x080DBC04; miss x17"
+
+[[extra_func]]
+addr = 0x080DC55C
+mode = "thumb"
+note = "push {r4-r7,lr}; sub sp,#0x18 @0x080DC55C (disarm); callback ptrs @0x080DCFE0/0x080DD050/0x080DD15C/0x080DD8FC; if-tree bne 0x080DC576 — walker covers mid miss 0x080DC576"
+
+[[extra_func]]
+addr = 0x080DCAD4
+mode = "thumb"
+note = "push {r4,r5,r6,lr} @0x080DCAD4 (disarm); callback ptrs @0x080DD088/0x080DD194/0x080DD1DC/0x080DD210/0x080DD244; if-tree (bgt 0x080DCAEA; beq 0x080DCB16; ...) — walker covers mid misses 0x080DCAEA/B16/BA4"
+
+[[extra_func]]
+addr = 0x080DD900
+mode = "thumb"
+note = "push {r4,r5,lr} @0x080DD900 (disarm); callback ptrs @0x080DE0A8/0x080DE0DC; miss x25"
+
+[[extra_func]]
+addr = 0x080DD9AC
+mode = "thumb"
+note = "push {r4,r5,r6,lr} @0x080DD9AC (disarm); callback ptr @0x080DE108; miss x11"
+
+[[extra_func]]
+addr = 0x080DDA94
+mode = "thumb"
+note = "push {r4-r7,lr} @0x080DDA94 (disarm); callback ptrs @0x080DE4F0/0x080DE618; miss x90"
+
+[[extra_func]]
+addr = 0x080DE61C
+mode = "thumb"
+note = "push {r4-r7,lr} @0x080DE61C (disarm); callback ptr @0x080DF908; miss x12"
+
+[[extra_func]]
+addr = 0x080DFF04
+mode = "thumb"
+note = "push {r4,r5,r6,lr} @0x080DFF04 (disarm); callback ptr @0x080E0518; if-tree (bgt 0x080DFF1C; beq 0x080DFF2C...) — walker covers mid miss 0x080DFF1C"
+
+[[extra_func]]
+addr = 0x080E0506
+mode = "thumb"
+note = "add sp,#0x34; pop {r4-r7}; pop {r1}; bx r1 @0x080E0506 (disarm); interior-split entry: shared epilogue of the body at 0x080E03F8 (walked inside emitted unit gf_tfunc_080DFEAE); reached by b #0x80e0506 @0x080E0414 and by runtime entry from outside the host unit; miss x2"
+
+[[extra_func]]
+addr = 0x080E0824
+mode = "thumb"
+note = "push {r4-r7,lr} @0x080E0824 (disarm); callback ptr @0x08395280; miss x24"
+
+[[extra_func]]
+addr = 0x080E0A8C
+mode = "thumb"
+note = "push {r4-r7,lr} @0x080E0A8C (disarm); callback ptr @0x08395288; miss x24"
+
+[[extra_func]]
+addr = 0x080E0E98
+mode = "thumb"
+note = "push {r4-r7,lr} @0x080E0E98 (disarm); callback ptr run @0x080E395C1C (8 consecutive entries); miss x91"
+
+[[extra_func]]
+addr = 0x080E2398
+mode = "thumb"
+note = "push {r4-r7,lr}; sub sp,#0x24 @0x080E2398 (disarm); callback ptrs @0x080D35CC/0x0810CCF8/0x0811CEC0/0x0811E9AC/0x0811EAD4/0x08395298; if-tree bne 0x080E23B4 — walker covers mid miss 0x080E23B4"
+
+[[extra_func]]
+addr = 0x080E7D20
+mode = "thumb"
+note = "push {r4-r7,lr}; sub sp,#0x10 @0x080E7D20 (disarm); callback ptr run @0x080E811C (2); if-tree (beq 0x080E7D8C; bgt 0x080E7D44; ...) — walker covers mid misses 0x080E7D44/7D4C/7D8C/E7ECC/E7EDA/E7F2C"
+
+[[extra_func]]
+addr = 0x080E7F4C
+mode = "thumb"
+note = "push {r4-r7,lr}; sub sp,#0x30 @0x080E7F4C (disarm); callback ptrs @0x08394890/0x08394898/0x083948A0/0x08394F08; if-tree (bne 0x080E7F64; bgt 0x080E7F86; beq 0x080E8000; ...) — walker covers mid misses 0x080E7F64/7F86/7F8E/7F9A/8000/8124"
+
+[[extra_func]]
+addr = 0x08122C28
+mode = "thumb"
+note = "push {lr} @0x08122C28 (disarm); callback ptr @0x083A7F10; miss x1"
+
+[[extra_func]]
+addr = 0x08126B9C
+mode = "thumb"
+note = "push {lr} @0x08126B9C (disarm); callback ptr @0x08126AEC; miss x19"
+
+[[extra_func]]
+addr = 0x0813215C
+mode = "thumb"
+note = "bx lr @0x0813215C (disarm); 1-insn no-op return stub registered as a callback @0x083A88AC (record table of {ptr,0,1} triples); miss x1"
+
+# ─── Batch j jump tables (sized from ROM word dumps + dispatchers) ───
+
+[[jump_table]]
+addr = 0x0807C810
+stride = 4
+count = 19
+format = "abs32"
+entries_mode = "thumb"
+name = "switch_0807C810"
+note = "19-entry abs32 switch table of 0x0807C7E8 (bound: cmp r0,#0x12; bls @0x0807C7F8; dispatcher @0x0807C800 ends mov pc,r0 — non-interworking, entries stored EVEN, hence entries_mode=thumb). Covers missed cases 0x0807C988/0x0807CF20/0x0807D07C/0x0807D230 + 15 unexercised cases (0x0807CB1C/0x0807C85C/0x0807CCB0/0x0807CD74/0x0807CE48/0x0807D050/0x0807D0E2/0x0807D100/0x0807D166/0x0807D184/0x0807D1EA/0x0807D222/...)"
+
+[[jump_table]]
+addr = 0x080036D8
+stride = 4
+count = 12
+format = "abs32"
+entries_mode = "auto"
+name = "callbacks_080036D8"
+note = "12 consecutive thumb callback ptrs @0x080036D8..0x08003704 (ROM word dump; followed by IWRAM ptrs 0x030034D0/0x030034B8). Covers missed 0x08139C70 (x468 — hottest miss of the session) + 11 unexercised callbacks (0x08002800/0x08030200/0x08023F00/0x08070414/0x08070604/0x08135890/0x08138EFC/0x0804C888/0x0813BF5C/0x08070C94/0x0813BCF0)"
+
+[[jump_table]]
+addr = 0x081454D8
+stride = 4
+count = 12
+format = "abs32"
+entries_mode = "auto"
+name = "m4a_callbacks_081454D8"
+note = "12 consecutive thumb callback ptrs @0x081454D8..0x08145508 (ROM word dump; followed by non-pointer data 0x50/0x05000040). Covers missed m4a command dispatcher 0x081464C4 (x2; itself dispatches via table 0x0836D340) + 11 unexercised callbacks (0x0814636C/0x08145070/0x08145084/0x08145008/0x08145608/0x08144D94/0x081459D0/0x08145A98/0x08145CAC/0x08145BF4/0x08145B4C)"
+
+[[jump_table]]
+addr = 0x0836D340
+stride = 4
+count = 12
+format = "abs32"
+entries_mode = "auto"
+name = "m4a_command_handlers_0836D340"
+note = "12-entry abs32 m4a command-handler table @0x0836D340 (0xFFFFFFFF-terminated); dispatcher = missed func 0x081464C4: ldrb r3,[r2]; lsls r3,r3,#2; ldr r2,[pc,#0x10](=0x0836D340); ldr r2,[r3]; bl @0x081464C4-0x081464D6. Covers missed handlers 0x081465A4/0x081465B0 (command bytes 8/9) + 10 unexercised (0x081464E4/0x081464F8/0x08146540/0x081464E4/0x08146554/0x08146568/0x0814657C/0x08146590/0x081465BC/0x081465D0)"
+
