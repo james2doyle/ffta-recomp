@@ -33,6 +33,30 @@ emulator.
 - If the spin sits in an HLE/shadow-serviced area (audio mixer, timing
   model), suspect host-side model desync before guest logic.
 
+## Memory growth triage (climbing RSS during a hang)
+
+- **Classify before guessing.** Sample `/proc/PID/smaps` twice a few seconds
+  apart: if the mapping *count* is unchanged and one region's RSS grows, the
+  growth is in an existing mapping. A region whose range grows *downward*
+  from a fixed end is the main thread stack → suspect **unbounded
+  recursion**; a growing heap/anonymous region instead → allocation leak.
+- **Heap leaks**: interpose `malloc/calloc/realloc` with a tiny `LD_PRELOAD`
+  shim that counts bytes and captures `backtrace()` at thresholds (call
+  glibc's `__libc_malloc` family directly to avoid `dlsym` recursion). Blind
+  spots: `mremap`, `aligned_alloc`, direct `mmap` paths — wrap or
+  syscall-trace those too if nothing shows.
+- **Stack/recursion capture**: attaching is often blocked by ptrace policy —
+  launch the process *under* gdb instead, then interrupt by sending SIGINT
+  to *gdb* (in batch mode it stops the inferior and runs the next scripted
+  command, e.g. `bt 60`). Hundreds of identical frames name the recursing
+  function directly.
+- In re-dispatch machinery, a guest loop that returns to the same address
+  with a corrupted LR can recurse one host frame per guest hop — each hop
+  may also do full MMIO catch-up (CPU burn plus tens of MB/s of stack
+  growth). It is downstream of whatever corrupted the guest state: fix the
+  root; meanwhile kill stalled sessions (memory frees on exit) and gate
+  probes with write-triggered abort hooks that stop runaways within seconds.
+
 ## Savestate-related wedges
 
 - Host-side models (HLE mixers, shadow devices) that are not part of the

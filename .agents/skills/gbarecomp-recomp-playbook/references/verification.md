@@ -42,6 +42,10 @@ for attempt in 1..N:
 - If the containing start is already in the config and an interior still
   misses, seed the interior PC directly — a seeded start does not guarantee
   the walker covered every interior the session reached.
+- **Stop on out-of-range miss PCs.** A "miss" PC outside the addressable
+  code image (or in hardware I/O space) means the replay itself diverged —
+  a behavioral bug, not a coverage gap. Abort the loop with a clear message
+  and fix the divergence; never seed such a PC into the overlay.
 - If the session reloaded a state mid-way, replay each monotonic segment
   separately from the same start state; both must pass.
 

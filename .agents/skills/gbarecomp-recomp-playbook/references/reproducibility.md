@@ -10,6 +10,13 @@ Archive both on every launch; a play session overwrites its slots, so the
 archiver is what makes "the previous session" recoverable. Keep a battery
 save too — some bugs only reproduce through the game's own save/load path.
 
+**Proposal-file lifecycle.** A clean exit *rewrites* the miss-proposal file
+— but only when the session had misses/heals; a zero-miss clean exit leaves
+the previous file untouched (stale, not new), and a crash flushes nothing.
+So archive the proposal at every launch next to state+trace, and treat the
+**heal cache as the durable store**: it accumulates across sessions and
+"units not yet in the config" is always the authoritative to-do list.
+
 ## Replay semantics to verify once, then never assume
 
 - **Frame budgets after loading a state** usually mean N frames *from the

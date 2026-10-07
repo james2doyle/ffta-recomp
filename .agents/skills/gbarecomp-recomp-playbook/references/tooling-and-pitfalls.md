@@ -78,6 +78,19 @@ Run this after every play session; it is the whole loop in order.
   not one-shot traps.** After a hit you must *clear the break, step one
   instruction, then re-arm*; stepping (or re-arming) without clearing looks
   like an infinite loop of identical fake hits parked on the same PC.
+- **A yield predicate cannot fire mid-block.** A break set on a PC *inside*
+  one compiled block silently never triggers there, so any count it produces
+  is a lower bound. Cross-check surprising breakpoint counts against the
+  instruction ring before concluding divergence — "engine A made 1 read, B
+  made 4" can be pure instrumentation artifact.
+- **Prefer the instruction ring for per-instruction truth.** An always-on
+  ring of the last few million instructions (window ≈ the last ~120 frames;
+  size the run so the event is in-window) answers "did PC X run, and what
+  did the flow do around it" with no breakpoint mechanics. Query by
+  PC/register/cycle. Two cautions: the window moves with run length, and the
+  same input applied by a stepped server vs a batch replay lands on
+  *slightly different frames* — pick one regime per investigation and never
+  compare absolute frame numbers across regimes.
 - **Keep the machine idle during lockstep/timing probes.** A concurrent
   build or regeneration slows both engines and can trip the tool's command
   timeout — which then looks exactly like the stall you are hunting. Check

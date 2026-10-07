@@ -21,6 +21,12 @@ no start found.
   **one to a few** adjacent functions (most runs resolve to 1–3); scan
   forward inside the run for further prologues before concluding the run
   is one function.
+- An auto-generated proposal's "jump-table candidate" comment is a **hint,
+  not a verdict**: classify by prologue scan first. Observed in practice,
+  these runs are more often branch-target interiors of ordinary function(s)
+  than real tables; heat counts (bridged x hundreds) mark hot in-function
+  switch blocks. Size a table only once the dispatcher and its pool table
+  are actually located.
 - Prefer a sized **jump-table entry** only if a strict replay still misses
   interiors after seeding the start. To size one, find the dispatcher
   (`ldr rT,[pc,#..]; add rT,index<<2; ldr/mov pc`), then read off the table
