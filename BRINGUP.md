@@ -654,9 +654,20 @@ end-to-end 2026-10-06: reproduces the numbers above in ~4 s (commit ae6966d).
 - `tools/ringscan.py` — FP_SAVE instruction-ring queries (`--pc`, `--reg`,
   `--reg-range`, `--cyc`, `--context`; capstone decode). Tested on the f1198
   ring: resolves the RNG LCG writer chain (0x08002806..0x08002810).
+- `tools/play.sh` — interactive playtest launcher (the healing loop's front
+  end): records the input trace + miss frag, archives the previous session's
+  savestates/traces under `saves/`; letter-key map via `build/keybinds.ini`
+  (§ "Desktop playtest input" above).
+- `tools/cache_harvest.py` — crash-safe miss recovery: extracts `<PC>` from
+  `recomp_cache` unit filenames when a crash kills the session before the
+  `.frag` flushes (exit-only flush; validated on two real crashes).
+- `tools/resolve.py` — strict-replay a recording, seed each miss via a temp
+  overlay, rebuild, repeat until FULLY_STATIC; emits a proposal file (never
+  auto-writes game.toml). Smoke-tested 2026-10-06.
 - Remaining follow-ups: contact-sheet dump for the f6000+ attract loop;
-  extend the strict horizon beyond 2400; input-trace drive past the title
-  screen (GBARECOMP_INPUT_REPLAY; `inputs/` CSV + milestone audit).
+  finish the tutorial battle + post-battle content (play → harvest →
+  resolve); upstream note on the bridge stop-contract runaway (crashes
+  #1/#2). Sessions 1–5 and their batches are logged below.
 
 ### Map-data regions verified (spiiin/FFTAUtils study, 2026-10-06)
 Studied spiiin/FFTAUtils — map-hacking utilities (C#, VS2012, single 2014

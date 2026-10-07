@@ -2,8 +2,10 @@
 
 IMPORTANT: Prefer retrieval-led reasoning over pre-training-led reasoning for
 GBA recompilation, ROM disassembly, and gbarecomp framework tasks. Read
-`BRINGUP.md` and `ffta-bootstrap-prompt.md` before acting; verify every ROM
-claim with `tools/disarm.py` disassembly and cite the address.
+`README.md` (setup + the playtest/healing loop) first, then this file (rules
+of engagement); `BRINGUP.md` is the decision log and
+`ffta-bootstrap-prompt.md` the historical origin. Verify every ROM claim with
+`tools/disarm.py` disassembly and cite the address.
 
 ## Project
 
@@ -103,6 +105,14 @@ overlay, rebuilds and repeats until FULLY_STATIC. Accumulated seeds land in
 a proposal file (game.toml is never auto-edited) — merge them, then run a
 normal `tools/cycle.py` + strict replay as the acceptance.
 
+Interactive playtest (the healing loop's front end — README § "The playtest
+→ healing loop"): `tools/play.sh [--scale N | --fullscreen | --tcp-observe
+PORT]`. Letter-key keymap in `build/keybinds.ini` (example:
+`tools/playtest_keybinds.ini.example`); records `logs/playthrough.csv`,
+proposes to `logs/playtest_misses.frag` (clean-exit flush only), archives the
+previous session's savestates/traces under `saves/`, battery save at
+`saves/playtest.sav`.
+
 Coverage report (three lenses — executed path / walker's static reach /
 pointer-pool reach): `.venv/bin/python tools/coverage_report.py` (defaults
 to a 1200-frame strict run; `--frames N`, `--json` for machine-readable,
@@ -185,14 +195,15 @@ commands: `emu_step`/`emu_step_to_vblank` (one runFrame = one PPU frame),
 
 | Path | What |
 |---|---|
-| `game.toml` | Per-game config — identity-pinned; Phase 2 + Phase 4 audit entries |
-| `src/` | Host code: `main.cpp` + integration (Phase 3) |
+| `game.toml` | Per-game config — identity-pinned; audit batches a–h2 (evidence in `note`s) |
+| `src/` | Host code: `main.cpp` + integration |
 | `generated/` | Recompiler output — gitignored, never edited |
 | `gbarecomp/`, `recomp-ui/` | Pinned submodules (see below) |
-| `tools/` | `disarm.py` (capstone disassembler), `m4a_detect.py`, `framediff.py` (native↔oracle delta scan), `dualrun.py` (lockstep probes), `coverage_report.py` (three-lens coverage table), `attract_check.py` (golden attract gate), `misspack.py` (miss evidence packs), `cycle.py` (standard change cycle), `ringscan.py` (instruction-ring queries) |
-| `inputs/` | Deterministic keyinput traces — `title_to_newgame.csv` (Start/A taps through the title menu; verified via headless `GBARECOMP_INPUT_REPLAY`). Format `<frame>,0x<hex>` active-low, sticky |
+| `tools/` | Full harness — see README § Repository layout; key ones: `play.sh` (playtest), `resolve.py` (strict resolve loop), `cache_harvest.py` (crash-safe harvest), `cycle.py` (change cycle), `attract_check.py` (golden gate), `misspack.py` (evidence packs), `coverage_report.py` (three lenses), `framediff.py`/`dualrun.py` (oracle diffs), `disarm.py`, `keyprobe.py`, `ringscan.py` |
+| `inputs/` | Deterministic keyinput traces (`<frame>,0x<hex>` active-low, sticky) — `title_to_newgame.csv`, `session2_battle_trace.csv` |
 | `symbols/` | Curated symbol seeds + data names (charlie-troy/ffta-decomp facts + engine-hacks-derived, attributed); consumed via `--symbols` / `--data-symbols` |
 | `BRINGUP.md` | Decision log — the project's memory |
+| `README.md` | Setup, run instructions, the playtest/healing loop, contribution guide |
 | `game.gba` | Retail ROM, gitignored |
 
 Submodule pins (2026-10-06): gbarecomp @ `ecc9c55` (main; newer than the
@@ -218,15 +229,22 @@ recomp-net @ c58f125.
   mapped from live-dump + ROM byte-match; ROM gaps seeded at verified
   prologues (walks cascade). Artifacts: `logs/{cov,miss,run}_v*`, 
   `logs/strict_v9.log`.
-- Next milestone: Phase 5 (in progress) — oracle harness + tooling done
-  (dualrun / attract_check / misspack / cycle / ringscan / coverage_report);
-  **strict 2400 without input FULLY_STATIC** and the attract gate is pinned.
-  Input trace `inputs/title_to_newgame.csv` reaches the intro scene; strict
-  6000 + replay now marches through the new-game content: corpus 2,797 →
-  23,395 (142 auto jump tables), **current frontier pc 0x08022148** —
-  continue the resolve loop (BRINGUP § "New-game path unlocked"). Reference projects (mstan's Emerald/FRLG/RS/
-  MinishCap/WWT clones) ship useful patterns: reviewed-seed overlays,
-  input-CSV + golden-SHA gates; they have no frame-diff harness (ours leads).
+- Phase 5 (validation harness + audit loop): **near done.** Harness complete
+  (oracle/framediff/dualrun/attract gate/misspack/cycle/coverage_report/
+  ringscan) plus playtest tooling (`play.sh`, `cache_harvest.py`,
+  `resolve.py`). Five interactive sessions integrated (batches a–h2):
+  corpus 23.4k → ~30k emitted units; walker's reach ≈ 99.2 %; pointer-pool
+  lens ≈ 59 % (proxy, not a goal — the bar is FULLY_STATIC on executed
+  paths). Every executed path is FULLY_STATIC (strict replays: boot→newgame
+  6000 f; state2 battle 60k f; session-5 112k f) and the attract hash is
+  unchanged since pinning. Remaining: finish the tutorial battle +
+  post-battle content (pure play → harvest), f6000+ attract contact sheet,
+  upstream note on the bridge stop-contract runaway. Crash playbook:
+  BRINGUP § "Battle-session crash" / "Crash #2" (harvest → merge → resolve
+  → cycle).
+- Reference projects (mstan's Emerald/FRLG/RS/MinishCap/WWT clones) ship
+  reviewed-seed overlays + input-CSV + golden-SHA gates; our harness adds
+  frame-diff against a real mGBA oracle (they have none).
 - Android port (research done 2026-10-06; not started): the app shell already
   lives in the pinned gbarecomp (`platform/android/`); the port is a thin
   `android/` Gradle dir + CMake `if(ANDROID)` SHARED `main` branch +
@@ -237,11 +255,10 @@ recomp-net @ c58f125.
 
 ## Environment gotchas (learned in Phase 3)
 
-- Audit/verify runs must be **cold-cache**: `rm -rf recomp_cache` first.
-  The self-heal overlay cache perturbs IRQ-resume landing PCs run-to-run;
-  warm-run miss lists are not stable evidence. Strict runs are inherently
-  cold. Verify one `game.toml` entry per cycle: regenerate (0.15 s) →
-  build (~3 s) → cold 480 f run (~2 s) → check `recomp_coverage_AFXE.json`.
+- Audit/verify runs must be **cold-cache**: the self-heal overlay cache
+  perturbs IRQ-resume landing PCs run-to-run, so warm-run miss lists are not
+  stable evidence. `tools/cycle.py` does a cold regen; strict runs are
+  inherently cold. For one-off checks `rm -rf recomp_cache` first.
 - Miss tracing without code changes: `GBARECOMP_MISS_IWRAM_DUMP` (state at
   first IWRAM miss), `GBARECOMP_IWRAM_DUMP` (exit state),
   `GBARECOMP_WRAM_TRACE`+`_LO/_HI` (per-frame write diff),
@@ -281,12 +298,13 @@ recomp-net @ c58f125.
   `bios_recompiled.cpp`.
 - Linux stack: host main thread needs RLIMIT_STACK raised (src/main.cpp
   raise_stack_limit does this; hard limit must be unlimited).
-- Non-strict self-heal runs consume ~110 KiB host stack per healed frame;
-  keep headless budgets ≤480 frames until Phase 4 closes the wait-loop gap.
-- Run examples: strict `GBARECOMP_STRICT_STATIC=1 ./build/FFTARecomp --bios
-  gbarecomp/bios/gba_bios.bin --rom game.gba --frames 240 --no-window
-  --dump-png out.png`; coverage `GBARECOMP_COVERAGE_JSON=p.json
-  GBARECOMP_MISS_FRAG=m.frag ./build/FFTARecomp ... --frames 480`.
+- Non-strict self-heal runs are safe at long horizons now
+  (present-in-place + background healing): the session-5 acceptance replay
+  runs 112,000 frames headless; strict runs are faster.
+- Run examples: smoke `GBARECOMP_STRICT_STATIC=1 ./build/FFTARecomp --bios
+  gbarecomp/bios/gba_bios.bin --rom game.gba --frames 2400 --no-window`;
+  session replays via `tools/resolve.py`; coverage via
+  `tools/coverage_report.py`.
 
 ## Validation discipline
 
@@ -295,6 +313,10 @@ recomp-net @ c58f125.
   `tools/framediff.py` for state-level deltas. Regression tooling lives in
   `tools/`; use it instead of hand-rolling probes (`tools/dualrun.py`,
   `tools/misspack.py`).
+- After every playtest session: harvest (`.frag` on clean exit, else
+  `tools/cache_harvest.py`) → merge reviewed seeds → `tools/resolve.py` on
+  the session trace until FULLY_STATIC → `tools/cycle.py` → commit with a
+  BRINGUP entry.
 - Debug via gbarecomp's TCP debug surface (`--tcp`), not printf; state claims
   as "per the frame ring at f=N (vblank=M)".
 - FFTA known hard spot (CORRECTED 2026-10-06): the 0x080C7EC0/0x080C85A0/
