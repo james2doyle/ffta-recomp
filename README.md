@@ -12,18 +12,18 @@ as statically recompiled code (`self_heal_coverage=FULLY_STATIC ...` or the
 precise miss count).
 
 **Current status (2026-10-07):** boots (BIOS LLE), plays the attract loop,
-title, new game, intro, and battles — the first non-tutorial battle was
-completed 2026-10-07 (first event-interpreter seeds merged) — with **every
-executed path FULLY_STATIC** (zero interpreted instructions) at last
-verification. Interactive playtest sessions are integrated through audit
-batch **y** (menus/party/ability/battle screens; batches a–s plus
-t–y): corpus **48,247 emitted units**, walker's static reach ≈ 99.1 %,
-pointer-pool lens ≈ 90.8 % (both are proxies — the bar for a route is
+title, new game, intro, battles, and now complete **Totema and magic summons**
+(the save-menu/summon stalls were fixed via the LZSS-decoder entry guard +
+RAM-copy fixups — BRINGUP § "Summon crash") — with **every executed path
+FULLY_STATIC** (zero interpreted instructions) at last verification.
+Interactive playtest sessions are integrated through audit batch **ae**
+(22 batches): corpus **49,492 emitted units**, walker's static reach ≈ 98.4 %,
+pointer-pool lens ≈ 91.0 % (both are proxies — the bar for a route is
 FULLY_STATIC on executed paths; full table in § Verification). The attract
-regression gate hash has been stable since pinning. Remaining work: the
-save-flow divergence fix (open investigation below), continuing past the
-first non-tutorial battle, a long-run attract contact sheet, and one
-upstream note — see Roadmap.
+regression gate hash has been stable since pinning. Remaining work:
+completing the pointer-pool harvest for unplayed content, the save-flow
+divergence fix (open investigation below), a long-run attract contact sheet,
+and one upstream note — see Roadmap.
 
 > **You must own the game and BIOS.** Both are user-supplied, hash-verified at
 > launch, and **never committed** (no ROM-derived bytes in git history, ever —
@@ -231,13 +231,13 @@ Current snapshot (2026-10-07, strict 1200-frame run; refresh with
 | Lens | Mapped / total | % |
 |---|---|---|
 | **Executed path** (strict 1200-frame run) | everything that ran | **100 % — FULLY_STATIC, zero interpreter fallback** |
-| **Walker's static reach** (whole-ROM scan trial) | **48,247 / 48,702** emitted units | **≈ 99.1 %** |
-| **Pointer-pool reach** (speculative-harvest trial) | **48,247 / 53,142** | **≈ 90.8 %** |
+| **Walker's static reach** (whole-ROM scan trial) | **49,492 / 50,316** emitted units | **≈ 98.4 %** |
+| **Pointer-pool reach** (speculative-harvest trial) | **49,492 / 54,404** | **≈ 91.0 %** |
 
 Rows 2–3 are proxies with different denominators (no ground-truth function
 inventory exists); a route is done when its replay is FULLY_STATIC. Corpus:
-48,247 emitted units (interior split units + IWRAM code-copy included); the
-speculative-harvest trial kept 2,093 pointer candidates out of 103,805
+49,492 emitted units (interior split units + IWRAM code-copy included); the
+speculative-harvest trial kept 2,122 pointer candidates out of 104,907
 PC-relative literals (`false` in `game.toml` by policy).
 
 **Open investigation (2026-10-07):** the save **load/save flow** diverges on
