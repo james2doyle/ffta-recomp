@@ -666,8 +666,9 @@ end-to-end 2026-10-06: reproduces the numbers above in ~4 s (commit ae6966d).
   auto-writes game.toml). Smoke-tested 2026-10-06.
 - Remaining follow-ups: contact-sheet dump for the f6000+ attract loop;
   finish the tutorial battle + post-battle content (play → harvest →
-  resolve); upstream note on the bridge stop-contract runaway (crashes
-  #1/#2). Sessions 1–5 and their batches are logged below.
+  resolve); savestate-wedge root cause (see session-6 section) + upstream
+  reports (bridge stop-contract runaway #1/#2; wedge once pinned).
+  Sessions 1–6 and their batches are logged below.
 
 ### Map-data regions verified (spiiin/FFTAUtils study, 2026-10-06)
 Studied spiiin/FFTAUtils — map-hacking utilities (C#, VS2012, single 2014
@@ -993,6 +994,36 @@ distinct self-heal miss PCs** (`logs/playtest_misses.frag`; 484 in
 - **Tooling**: the resolve loop is now scripted — `tools/resolve.py`
   (temp overlay + proposal file; never writes game.toml). Next session
   closes with: cache_harvest → merge → `resolve.py` → cycle → commit.
+
+### Session 6 + the savestate wedge (2026-10-06 late)
+- **Savestate wedge (OPEN)**: loading `game.state2` (captured at f115,148
+  right at the user's 17:41 in-game save) and pressing A wedges the game at
+  guest frame **115,248** — deterministic in strict and non-strict, headless;
+  >150 s with zero progress (not a coverage miss — nothing bridged; without
+  the press the same state runs 140,000 f clean; frames 1–99 after the press
+  are normal ~0.5 s). Repro preserved: `saves/state2_prev_20261006_*.state`
+  (identical copies, 20:51–21:10 archives). Evidence so far: the spin is
+  guest-side in the frame-gate wait loop (0x08000418/0x08000428, flag
+  `0x03000E10`) with IRQs enabled; gdb sampling shows m4a-region code (BIOS
+  SWI wrappers @0x0814186x; m4a track setup @0x081377B0 calling CpuFastSet)
+  rotating with PPU-render ticks from `runtime_tick` — the post-load path
+  re-enters the per-frame m4a sync handshake and never completes it.
+  Next: read flag/IF/IE/IME at the wedge (gdb child + `&g_cpu`/bus frame
+  reads) and compare against the mGBA oracle driven from the in-game save.
+  The user re-ran the repro at 20:51/21:10 (unchanged) and moved on via a
+  fresh playthrough.
+- **Fresh-playthrough sessions**: A = boot → f11,210 (in-game save 21:11;
+  state2 saved @f11,635 = `state2_prev_20261006_215054.state`); B = from
+  that state → f19,274 (the 21-unit heal wave, 21:51–52). Strict replays of
+  both are **FULLY_STATIC** (`logs/session6a_strict.log`,
+  `logs/session6_strict.log`).
+- **Batch j**: 5 reviewed entries — starts 0x080E8590 / 0x080E87C0 (cover
+  18 switch-interior entries) + direct entries 0x080E8734 / 0x080E8956 /
+  0x080E8A18 — cover all 21 session-6 units; frag and heal-cache agree
+  exactly (3rd cross-validation). The two starts walked out **+3,391 units**
+  (corpus 30,554 → 33,945); pointer-pool lens 59.8 % → 65.2 %.
+- **Batch i** (merged earlier, committed here): 0x080191B0 + 0x08142160 —
+  live-healed during the 17:41 in-game save; save-path helpers.
 
 ### Native-save session (2026-10-06, 17:41): Batch i — the session that produced `game.state2`
 - The user played a continuation and performed an in-game (native/flash)

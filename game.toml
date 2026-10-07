@@ -3632,3 +3632,34 @@ entries_mode = "auto"
 name = "m4a_command_handlers_0836D340"
 note = "12-entry abs32 m4a command-handler table @0x0836D340 (0xFFFFFFFF-terminated); dispatcher = missed func 0x081464C4: ldrb r3,[r2]; lsls r3,r3,#2; ldr r2,[pc,#0x10](=0x0836D340); ldr r2,[r3]; bl @0x081464C4-0x081464D6. Covers missed handlers 0x081465A4/0x081465B0 (command bytes 8/9) + 10 unexercised (0x081464E4/0x081464F8/0x08146540/0x081464E4/0x08146554/0x08146568/0x0814657C/0x08146590/0x081465BC/0x081465D0)"
 
+
+# ─── Batch j: session-6 fresh-playthrough wave (2026-10-06 21:51) ───
+# 21 heal-cache units (frag+cache agree) in the 0x080E85xx-0x080E8A18 cluster;
+# two verified function starts cover 18 interior entries; three direct entries
+# where dispatch landed mid-routine.
+
+[[extra_func]]
+addr = 0x080E8590
+mode = "thumb"
+note = "session-6 start; push-root verified by prologue scan @0x080E8590; covers frag switch interiors 0x080E85B4/BC/FC (jump-table candidate)"
+
+[[extra_func]]
+addr = 0x080E87C0
+mode = "thumb"
+note = "session-6 start; push-root verified by prologue scan @0x080E87C0; covers frag interiors 0x080E87D8..0x080E888E"
+
+[[extra_func]]
+addr = 0x080E8734
+mode = "thumb"
+note = "session-6 direct entry; interior block (movs r6,#1 @0x080E8734, no prologue within 0x100 back — disarm)"
+
+[[extra_func]]
+addr = 0x080E8956
+mode = "thumb"
+note = "session-6 direct entry; interior block after bne @0x080E894E (disarm)"
+
+[[extra_func]]
+addr = 0x080E8A18
+mode = "thumb"
+note = "session-6 direct entry; shared epilogue (add sp,#0x30 / pop r3-r7 / bx r1 @0x080E8A18) entered via computed jump (disarm)"
+

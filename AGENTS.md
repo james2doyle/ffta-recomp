@@ -232,10 +232,9 @@ recomp-net @ c58f125.
 - Phase 5 (validation harness + audit loop): **near done.** Harness complete
   (oracle/framediff/dualrun/attract gate/misspack/cycle/coverage_report/
   ringscan) plus playtest tooling (`play.sh`, `cache_harvest.py`,
-  `resolve.py`). Five interactive sessions integrated (batches a–h2):
-  corpus 23.4k → 30,554 emitted units; walker's reach ≈ 99.2 %; pointer-pool
-  lens ≈ 59.8 % (proxy, not a goal — the bar is FULLY_STATIC on executed
-  paths). Every executed path is FULLY_STATIC (strict replays: boot→newgame
+  `resolve.py`). Six sessions integrated (batches a–j): corpus 23.4k → 33,945
+  emitted units; walker's reach ≈ 98.3 %; pointer-pool lens ≈ 65.2 % (proxy,
+  not a goal — the bar is FULLY_STATIC on executed paths). Every executed path is FULLY_STATIC (strict replays: boot→newgame
   6000 f; state2 battle 60k f; session-5 112k f) and the attract hash is
   unchanged since pinning. Remaining: finish the tutorial battle +
   post-battle content (pure play → harvest), f6000+ attract contact sheet,
