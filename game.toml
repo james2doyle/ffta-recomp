@@ -3921,3 +3921,58 @@ note = "resolve-added seed (session-11 strict acceptance); start"
 addr = 0x0808A1E8
 mode = "thumb"
 note = "resolve-added seed (session-11 strict acceptance); interior of 0x0808A158"
+
+# ─── Batch p: session-12 party-menu wave (2026-10-07 08:15–08:18, two sessions) ───
+# 22 heal-cache units (17 from session A, 5 from session B; frag+cache agree).
+# 8 starts + 2 direct post-pool entries cover all.
+
+[[extra_func]]
+addr = 0x08076560
+mode = "thumb"
+note = "session-12a/b start; push-root verified by prologue scan; covers hot interiors 0x08076578/84/8E/B2/610 (bridged up to x1331/x2024; 6-PC candidate run = one function)"
+
+[[extra_func]]
+addr = 0x0807698C
+mode = "thumb"
+note = "session-12 direct entry; post-pool block opening with bl 0x08073254 (disarm); no prologue within 0x300"
+
+[[extra_func]]
+addr = 0x080775A8
+mode = "thumb"
+note = "session-12 start; push-root verified by prologue scan"
+
+[[extra_func]]
+addr = 0x08078818
+mode = "thumb"
+note = "session-12 start; push-root verified by prologue scan; covers interiors 0x08078830/83C/894 (4-PC candidate)"
+
+[[extra_func]]
+addr = 0x0807934C
+mode = "thumb"
+note = "session-12 direct entry; post-pool block (ldr base, field compares; disarm); no prologue within 0x300"
+
+[[extra_func]]
+addr = 0x0807A79C
+mode = "thumb"
+note = "session-12b start; push-root verified by prologue scan"
+
+[[extra_func]]
+addr = 0x0807DDB8
+mode = "thumb"
+note = "session-12 start; push-root verified by prologue scan"
+
+[[extra_func]]
+addr = 0x08081078
+mode = "thumb"
+note = "session-12 start; push-root verified by prologue scan; covers interiors 0x08081110/8117C"
+
+[[extra_func]]
+addr = 0x0808118C
+mode = "thumb"
+note = "session-12 start; push-root verified by prologue scan; covers interiors 0x080811BC/811CA"
+
+[[extra_func]]
+addr = 0x08085AA8
+mode = "thumb"
+note = "session-12 start; push-root verified by prologue scan"
+

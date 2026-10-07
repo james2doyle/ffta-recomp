@@ -1090,6 +1090,20 @@ distinct self-heal miss PCs** (`logs/playtest_misses.frag`; 484 in
   (attract hash unchanged). Corpus 40,518 → **41,728** (+1,210); walker
   ≈ 98.8 %; **pointer-pool 77.2 % → 79.5 %**.
 
+### Session 12 (2026-10-07 08:15–08:18): party-menu wave, two sessions
+- Two sessions ran since session 11 (A: 08:15→08:17, 17 units; B: the
+  party-menu pass, 5 units); heal-cache mtimes attributed the units and
+  the frag+cache agreement held (22 total, 7th validation).
+- **Batch p**: 8 verified starts + 2 direct post-pool entries (0x0807698C,
+  0x0807934C) cover all 22. Unlike earlier batches, the hot 6-PC candidate
+  [0x08076560, 0x08076610] (bridged up to x2024) was **one** function, and
+  the 4-PC candidate [0x08078818, 0x08078894] was one function too.
+- resolve.py: both sessions PASSED iter 0 with 0 seeds (batch p was complete
+  on the first try); strict acceptance FULLY_STATIC for both
+  (`logs/session12{a,b}_strict.log`); cycle.py PASS (attract hash
+  unchanged). Corpus 41,728 → **43,900** (+2,172); walker ≈ 98.9 %;
+  **pointer-pool 79.5 % → 83.6 %**.
+
 ### Native-save session (2026-10-06, 17:41): Batch i — the session that produced `game.state2`
 - The user played a continuation and performed an in-game (native/flash)
   save at 17:41. The session produced the post-save savestate `game.state2`

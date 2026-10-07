@@ -28,7 +28,10 @@ Run this after every play session; it is the whole loop in order.
 1. Harvest first (before anything touches the build): proposal file if the
    exit was clean, cache filenames if it crashed.
 2. Classify the PCs mechanically (start / interior / none); check the trace
-   for backward jumps and split into segments if reload happened.
+   for backward jumps and split into segments if reload happened. If more
+   than one session ran since the last close-out, attribute units by
+   heal-cache mtimes and accept each session separately — the per-launch
+   state+trace archives make that mechanical.
 3. Merge one dated batch; evidence in every note; dedupe against the config
    and earlier batches; never auto-write.
 4. Resolve (each segment) until fully static; fold any resolve-added PCs
