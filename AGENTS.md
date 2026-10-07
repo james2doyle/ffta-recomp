@@ -202,6 +202,7 @@ commands: `emu_step`/`emu_step_to_vblank` (one runFrame = one PPU frame),
 | `generated/` | Recompiler output — gitignored, never edited |
 | `gbarecomp/`, `recomp-ui/` | Pinned submodules (see below) |
 | `tools/` | Full harness — see README § Repository layout; key ones: `play.sh` (playtest), `resolve.py` (strict resolve loop), `trace_split.py` (split non-monotonic traces), `cache_harvest.py` (crash-safe harvest), `cycle.py` (change cycle), `attract_check.py` (golden gate), `misspack.py` (evidence packs), `coverage_report.py` (three lenses), `framediff.py`/`dualrun.py` (oracle diffs), `disarm.py`, `keyprobe.py`, `ringscan.py` |
+| `.agents/skills/` | Project-local agent skills — `gbarecomp-recomp-playbook` (portable playtest/healing/audit playbook; task-grouped references under `references/`) |
 | `inputs/` | Deterministic keyinput traces (`<frame>,0x<hex>` active-low, sticky) — `title_to_newgame.csv`, `session2_battle_trace.csv` |
 | `symbols/` | Curated symbol seeds + data names (charlie-troy/ffta-decomp facts + engine-hacks-derived, attributed); consumed via `--symbols` / `--data-symbols` |
 | `BRINGUP.md` | Decision log — the project's memory |
