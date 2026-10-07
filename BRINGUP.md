@@ -993,3 +993,87 @@ distinct self-heal miss PCs** (`logs/playtest_misses.frag`; 484 in
 - **Tooling**: the resolve loop is now scripted — `tools/resolve.py`
   (temp overlay + proposal file; never writes game.toml). Next session
   closes with: cache_harvest → merge → `resolve.py` → cycle → commit.
+
+### Session 6 hang (2026-10-06, user report "still got a hang"): reproduced + root-caused to a nestable-VBlank × non-reentrant-SoundMain race — TIMING bug, not coverage
+- **User report**: interactive playthrough froze; the user pinned the repro
+  himself: load `game.state2` (the post-native-save savestate, frame
+  115,148), press A (guest frame 115,302) → hang.
+- **Reproduction (deterministic)**: headless `--load-state game.state2` +
+  `GBARECOMP_INPUT_REPLAY=logs/playthrough.csv` + `--frames N`: for any
+  N ≥ ~1200 the run NEVER exits (timeout kill; the guest wedges inside ONE
+  never-returning dispatch — a budget-1200 run ran its vblank counter to
+  1439+ past its own budget without the runner loop ever iterating again).
+  Two concurrent identical runs trip the hang watchdog at byte-identical
+  guest state (pc=0x08001646, cycles=404,347,423, vblank=1439, identical
+  m4a snapshot) → the guest state at the wedge is deterministic; earlier
+  one-off trip-point scatter (1281/1403) was wall-clock sampling of the
+  same stuck loop at different host speeds. **NOT a coverage problem**:
+  FULLY_STATIC, dispatch_misses=0, interpreted_insns=0, empty heal cache
+  through every repro run.
+- **Guest-side mechanism (all ROM-verified via tools/disarm.py)**:
+  - Main loop frame sync is a BUSY-WAIT, not IntrWait: 0x0800040C-0x08000416
+    clears the flag `[0x03000E10]`, then 0x08000418-0x08000428 spins until
+    non-zero, then `bl 0x08000460` runs the frame step.
+  - The flag is written at the very END of the per-frame callback
+    0x080004B0 (called from the VBlank path): 0x0800050A-0x0800051C
+    (`ldrh; movs#0; orrs#1; strh` → flag=1). Before that the callback runs
+    SoundMain (`bl 0x08144AF0` @0x080004B4 — the IWRAM mixer copy
+    0x030034DC..0x0300385C, game.toml audit #15) plus ~12 subsystem calls
+    (0x080004B8-0x08000506).
+  - At the wedge the callback NEVER reaches its flag write: the
+    hang-watchdog fp tail (16k records, INSN_TRACE armed) is 100% mixer
+    (0x03003774-0x030037B8 etc.) — SoundMain's channel walk never
+    terminates (voices progress forever into the same 264-sample chunk at
+    0x02008D58, spv=264) → the main loop's wait spins forever → frozen
+    screen with the mixer burning the CPU (no HALT; vblank_starts still
+    ticks because the spin's cycles still advance the PPU).
+- **The trigger scene**: `irq_cap` (TCP) around guest frame ~1197-1290
+  (≈17 s after the A press) shows VBlank IRQs vectoring with rets INSIDE
+  sound-driver code (0x081466xx-0x081468xx, 0x08142C3E) and BIOS/early-ROM
+  code (~50% of frames) — a cutscene/transition whose per-frame work
+  (mixer + task handler 0x0813C0EC + sprite math 0x080014C8 + CpuSet
+  thunks) sits at the one-frame limit.
+- **Why the game can wedge at all**: FFTA's IRQ dispatcher
+  (ROM 0x080000FC, IWRAM copy 0x03000F10) RE-ENABLES interrupts inside the
+  handler — `mrs r3,apsr; bic r3,r3,#0xdf; orr r3,r3,#0x1f; msr
+  cpsr_fc,r3` @0x0800019C-0x080001A8 clears the I-bit and enters system
+  mode. Nesting is by design (hardware too). m4a SoundMain is NOT
+  reentrant: a VBlank that vectors while SoundMain is mid-walk corrupts
+  the shared channel-walk state → the walk never ends. The runtime models
+  all of this faithfully (runtime_irq sets CPSR_I_BIT, tracks nesting).
+- **Driver sensitivity (the knife edge)**: the SAME state+press driven
+  over TCP (`set_keyinput` + `continue`) survives the scene (ran 12k
+  frames, parked later at the same flag-wait pattern ~frame 10.9k), while
+  the replay path wedges at ~1.2k. Identical input (composed KEYINPUT =
+  host&synth, both default 0x3FF — verified gba_io.h:264-265); identical
+  guest state; only per-dispatch host work differs (apply_input_replay
+  after every dispatch in the --frames path). The scene is right at the
+  280,896-cycle frame boundary, so small IRQ-delivery/batching shifts
+  decide whether SoundMain finishes before the next VBlank vectors.
+- **Excluded by evidence**: flash save engine state (SAV0 chunk of the
+  state parsed: flash_state=Idle, id_mode=0, bank=0, dirty=0 — clean, not
+  mid-write); self-heal bridging (0 misses); present-in-place (hang
+  reproduces with GBARECOMP_PRESENT_IN_PLACE=0); touch-policy composition;
+  KEYINPUT divergence between drivers.
+- **Measured our cycle model in the mixer inner loop** (fp-ring deltas):
+  ~1 cycle per simple insn, 1 cycle for MUL (hardware ARM7TDMI: 2-5+), 6
+  cycles per ROM sample fetch (`ldrsb` from 0x0816xxxx/0x081BAxxxx). The
+  VBlank IRQ cadence is exact (280,890-280,906 cycles, TCP irq_cap) — IRQ
+  delivery is not drifting.
+- **Root cause statement**: a TIMING knife-edge. The post-save cutscene
+  runs SoundMain-in-a-nestable-VBlank at (or over) one frame of work; when
+  the next VBlank vectors mid-SoundMain, the non-reentrant mixer corrupts
+  and the channel walk never terminates. Whether the boundary is crossed
+  depends on sub-frame timing deltas between our runtime and hardware.
+  Next steps: (a) mGBA oracle comparison of SoundMain's cycle cost at this
+  scene (blocked: the oracle cannot load our GBAS savestates — needs a
+  boot-to-scene trace; the playthrough traces exist but span state loads),
+  (b) audit the wait model against mGBA for the mixer's ROM/EWRAM fetch
+  pattern (runtime_wait_model.h — prefetch/WAITCNT), (c) upstream note:
+  gbarecomp should expose a diagnostic for "IRQ vectored while a prior
+  same-source handler is in flight" (g_irq_nest_depth by source) to make
+  this class self-documenting, (d) workaround candidate: none clean —
+  this is guest-legal behavior; the fix must be timing-accuracy.
+- Scratch artifacts from the hunt live under /tmp/opencode/ffta-hang/
+  (repro dirs, probes, ring dumps) — nothing repo-side changed; no
+  game.toml edits (this is not a coverage issue).
