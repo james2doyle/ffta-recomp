@@ -5333,3 +5333,78 @@ addr = 0x08132138
 mode = "thumb"
 note = "batch z: start [push {r4, lr}]; prologue scan; crash-session heal unit"
 
+
+# ─── Batch aa: session 14:34 (battle, stuck) ───
+# 14 heal-cache units (crash/stall-safe harvest; dense 0x081150xx cluster).
+# Split-unit seeds; prologue scans verified.
+
+[[extra_func]]
+addr = 0x08114DBC
+mode = "thumb"
+note = "batch aa: start [push {r4, r5, r6, r7, lr}]; prologue scan; stuck-session heal unit"
+
+[[extra_func]]
+addr = 0x08114F1C
+mode = "thumb"
+note = "batch aa: start [push {r4, r5, r6, r7, lr}]; prologue scan; stuck-session heal unit"
+
+[[extra_func]]
+addr = 0x08114F40
+mode = "thumb"
+note = "batch aa: interior of 0x08114F1C (runtime-dispatched); split-interior seed; stuck-session heal unit"
+
+[[extra_func]]
+addr = 0x08114F4A
+mode = "thumb"
+note = "batch aa: interior of 0x08114F1C (runtime-dispatched); split-interior seed; stuck-session heal unit"
+
+[[extra_func]]
+addr = 0x08115030
+mode = "thumb"
+note = "batch aa: interior of 0x08114F1C (runtime-dispatched); split-interior seed; stuck-session heal unit"
+
+[[extra_func]]
+addr = 0x08115040
+mode = "thumb"
+note = "batch aa: interior of 0x08114F1C (runtime-dispatched); split-interior seed; stuck-session heal unit"
+
+[[extra_func]]
+addr = 0x08115054
+mode = "thumb"
+note = "batch aa: interior of 0x08114F1C (runtime-dispatched); split-interior seed; stuck-session heal unit"
+
+[[extra_func]]
+addr = 0x08115060
+mode = "thumb"
+note = "batch aa: interior of 0x08114F1C (runtime-dispatched); split-interior seed; stuck-session heal unit"
+
+[[extra_func]]
+addr = 0x08115072
+mode = "thumb"
+note = "batch aa: interior of 0x08114F1C (runtime-dispatched); split-interior seed; stuck-session heal unit"
+
+[[extra_func]]
+addr = 0x081150A6
+mode = "thumb"
+note = "batch aa: interior of 0x08114F1C (runtime-dispatched); split-interior seed; stuck-session heal unit"
+
+[[extra_func]]
+addr = 0x081150AC
+mode = "thumb"
+note = "batch aa: interior of 0x08114F1C (runtime-dispatched); split-interior seed; stuck-session heal unit"
+
+[[extra_func]]
+addr = 0x08115108
+mode = "thumb"
+note = "batch aa: interior of 0x08114F1C (runtime-dispatched); split-interior seed; stuck-session heal unit"
+
+[[extra_func]]
+addr = 0x08115114
+mode = "thumb"
+note = "batch aa: interior of 0x08114F1C (runtime-dispatched); split-interior seed; stuck-session heal unit"
+
+[[extra_func]]
+addr = 0x0811518C
+mode = "thumb"
+note = "batch aa: interior of 0x08114F1C (runtime-dispatched); split-interior seed; stuck-session heal unit"
+

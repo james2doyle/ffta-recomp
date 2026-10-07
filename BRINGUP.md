@@ -1784,3 +1784,17 @@ the path static is the fix. Acceptance: resolve (session F trace, f21400) —
 **iter 0 STRICT replay PASSED end-to-end, 0 seeds, FULLY_STATIC**. Cold
 cycle: regen OK (discovered **49,084** — +837 cascade), dispatch sanity OK,
 attract gate PASS (`1EF4C118…` unchanged). `cycle: PASS`.
+
+### 2026-10-07 (cont.) — Batch aa: session 14:34 (Totema summon stall) — merge OK; route DIVERGES (deterministic repro!)
+
+14 heal-cache units (`0x08114D–0x081151` dense battle/effect cluster;
+crash-safe harvest). User-identified trigger: a **Totema summon**. The strict
+replay of session G's route **deterministically diverges — landing on
+`pc=0xE25EF004`, the same corrupted-dispatch signature as the save-flow
+stalls** (found-save load; playtest save). The resolve guard (out-of-range
+PC stop) caught it cleanly without seeding garbage. Two different gameplay
+contexts hitting the same signature ⇒ suspected shared root. Pre-summon
+repro seed: slot-1 savestate (`game.state1`, frame 18,643) + trace tail
+(`saves/trace_sessionG_1436.csv`, events f18,716–18,958). Next: abort-on-write
+probe on this route to capture the runaway caller chain and compare with the
+save-flow's `src = ~count` signature.
