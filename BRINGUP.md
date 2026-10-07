@@ -1360,3 +1360,51 @@ distinct self-heal miss PCs** (`logs/playtest_misses.frag`; 484 in
   unlocked whole previously-unreachable islands: menus/shops/m4a
   subtrees), dispatch sanity OK, build OK, attract gate PASS (golden
   sha256 `1EF4C118…EF321C1` unchanged).
+
+### Native-save hang #2b: LOAD path (2026-10-07 09:56) — same machinery, tiny repro
+- **Symptom (reported)**: boot → title → Continue → select the flash save → hang.
+  The save file itself is fine (written before the earlier hang).
+- **This gives the BEST repro we have**: boot + `logs/playthrough.csv` (57 lines,
+  last input frame 908) + `saves/playtest.sav` + `--frames 3000` →
+  non-strict HANGS (timeout); strict aborts at `pc=0xE25EF004 (arm)`.
+  Saved copies: `saves/playthrough_before_loadhang_20261007_095630.csv`,
+  `/tmp/loadhang_playtest.sav`, core `/tmp/ffta_load_hang.core`,
+  binary `/tmp/FFTARecomp_at_load_hang`.
+- **Mechanism (trace ring + core evidence, high confidence)**:
+  1. The load flow uses the same save driver (call site `lr=0x08141BA5`, the
+     `bl 0x08142250` veneer at 0x08141BA0) to call an IWRAM helper
+     (`0x03007D72`, within our mapped byte-copy span) that runs a
+     byte loop over ~0x1000 bytes writing 0x00 across `0x030008xx..`
+     (caught live: `mem-write abort pc=0x03007D74 addr=0x030008D8 value=0
+     width=1 (vblanks=1813)`) — i.e. it clears/restages the game's IWRAM
+     variable block, which contains the IRQ handler table at 0x030008D0.
+  2. A VBlank IRQ fires mid-staging. The game's IWRAM IRQ dispatcher
+     (copy of ROM 0x080000FC; live bytes byte-verified == ROM at both
+     0x03000F10 and pools 0x03001050-1064) computes the handler slot
+     (`r1 = [0x03001060]=0x030008D0; +r2(=8)`) and reads `r0=[0x030008D8]`.
+  3. In the failing instant r0 comes out as `0xE25EF004` (which is the ARM
+     encoding of `subs pc, lr, #4` — an instruction word, not a pointer);
+     `bx r0` executes garbage → bridged cascade → the observed permanent
+     spin (core bt: wait-loop `0x08141B74 ⇄ 0x08141B80` with the
+     call-thunk `0x03000FCC` and IWRAM IRQ frames nested).
+  4. At the abort, IWRAM+0x8D8 already holds *other* staged bytes
+     (core: 0x68207841-ish) — consistent with the slot being written by the
+     staging sweep while the IRQ consumed it (torn read) — the values at
+     [0x03000E50] also rotate during the flow (IE-restore low half 0xF004 is
+     stable; upper half = adjacent live data).
+- **Why it must not happen on hardware**: the real game clearly must have
+  IRQs masked (or not sweep the table) while restaging, else it would hit the
+  same torn pointer. Our run either (a) misses the game's IME/IE masking
+  somewhere upstream, or (b) our staging bounds/source data are wrong
+  (divergence), or (c) we execute the staging where the game wouldn't.
+- **Unifying lead with hang #1 (write path)**: both hangs show the driver
+  computing/consuming garbage pointers that look like code words
+  (`0x2201D008` = bytes `08 D0 01 22`, `0xE25EF004` = `subs pc,lr,#4`),
+  after reading its EWRAM context (`ldr r0,[0x08141BAC]=0x0200F370;
+  ldr r0,[r0]; ldrb r0,[r0,#8]` in the driver tail). Next tools:
+  `GBARECOMP_WRAM_TRACE` on the EWRAM context range
+  (0x0200F300-0x02010000) and on `0x04000200/0x04000208` (IE/IME) during
+  the boot+load repro; `GBARECOMP_ABORT_ON_MEM_WRITE_ADDR` per candidate
+  cell; the two cores above for before/after snapshots.
+- **Batch t status unchanged**: save-path coverage merged; strict acceptance
+  of both repros still stops at the relocation/IRQ frontier above.
