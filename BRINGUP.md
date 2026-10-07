@@ -1746,3 +1746,12 @@ outside the frag). Acceptance: `resolve.py` on the session trace
 functions — the batch-v/w seeds pulled in a ~+1.2k cascade over the
 previously emitted 46,4xx), dispatch sanity OK, **attract gate PASS**
 (sha256 `1EF4C118…`, unchanged since pinning). `cycle: PASS`.
+
+### 2026-10-07 (cont.) — Batch x: session 14:07 — ACCEPTED
+
+1 heal-cache unit: `0x0807E37C` (start `push {r4-r7,lr}`, bridged x170 —
+hot). Acceptance: resolve (session trace, f7000) — **iter 0 STRICT replay
+PASSED end-to-end, 0 seeds, FULLY_STATIC**. Cold cycle: regen OK
+(discovered **47,874** functions — single-seed cascade +197), dispatch sanity
+OK, attract gate PASS (sha256 `1EF4C118…`, unchanged). `cycle: PASS`. Heal
+cache fully merged (78/78 units).

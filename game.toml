@@ -4644,3 +4644,11 @@ addr = 0x080CB63C
 mode = "thumb"
 note = "batch w: interior of 0x080CB5A8 (runtime-dispatched; bridged x39); split-interior seed"
 
+
+# ─── Batch x: session 14:07 (2026-10-07) ───
+# 1 heal-cache unit (hot: bridged x170); start verified by prologue scan.
+[[extra_func]]
+addr = 0x0807E37C
+mode = "thumb"
+note = "batch x: start [push {r4-r7,lr}]; prologue scan @0x0807E37C; bridged x170"
+
