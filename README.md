@@ -16,8 +16,8 @@ title, new game, intro, and battles — the first non-tutorial battle was
 completed 2026-10-07 (first event-interpreter seeds merged) — with **every
 executed path FULLY_STATIC** (zero interpreted instructions) at last
 verification. Interactive playtest sessions are integrated through audit
-batch **w** (menus/party/ability screens; batches a–s plus t–w):
-corpus **47,677 emitted units**, walker's static reach ≈ 98.9 %,
+batch **x** (menus/party/ability screens; batches a–s plus t–x):
+corpus **47,874 emitted units**, walker's static reach ≈ 98.9 %,
 pointer-pool lens ≈ 90.3 % (both are proxies — the bar for a route is
 FULLY_STATIC on executed paths; full table in § Verification). The attract
 regression gate hash has been stable since pinning. Remaining work: the
