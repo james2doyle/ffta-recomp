@@ -1798,3 +1798,24 @@ repro seed: slot-1 savestate (`game.state1`, frame 18,643) + trace tail
 (`saves/trace_sessionG_1436.csv`, events f18,716–18,958). Next: abort-on-write
 probe on this route to capture the runaway caller chain and compare with the
 save-flow's `src = ~count` signature.
+
+### 2026-10-07 (cont.) — Summon crash: corrupted copy-invocation captured (entry + stack decoded)
+
+Deterministic repro (session G route) narrowed with `tools/chunkprobe.py` (new:
+chunked breakpoint driver + stack dump; parks at the copy unit entry
+`0x03007D72` with the break armed late). Capture at f18,335 (the corruption
+onset — ~300 frames BEFORE the user's state save at 18,643):
+`r0=0 (src=0), r1=0x02A1BC48 (dst), r2=0xFFFFFFFF (count) → immediate
+4-billion-iteration runaway; lr=0x08141BA5 (inside the flash driver, its
+stub-call site)` — with NO driver-entry (`0x08141B14`) dispatch after
+f17,794. The guest-stack dump at the park shows why: the frame still holds
+the **save-load operation from f17,794** — job descriptor `{0x03007E08,
+0x02003CB0, 0x02003CB0}`, load-loop return `0x0813B60D`, validator-caller
+return `0x0813B4A3`, and **the planted copy routine verbatim at sp+0x20
+(=0x03007D74)**. I.e. the copy is re-invoked from a stale, never-unwound
+save-flow frame with irrelevant (battle) registers — a broken two-phase
+handoff, the same subsystem whose `0x02000000` descriptor write diverges in
+the pt repro. Ring capacity note: `GBARECOMP_TRACE_DUMP_DEPTH` clamps at
+4096 events. Next: compare the handoff state (`0x03007E08`/`0x02003CB0`
+structures) native-vs-oracle in the mid-session read window; trace events
+around f18,3xx listed above.
