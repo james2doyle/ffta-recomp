@@ -16,9 +16,9 @@ title, new game, intro, and battles — the first non-tutorial battle was
 completed 2026-10-07 (first event-interpreter seeds merged) — with **every
 executed path FULLY_STATIC** (zero interpreted instructions) at last
 verification. Interactive playtest sessions are integrated through audit
-batch **x** (menus/party/ability screens; batches a–s plus t–x):
-corpus **47,874 emitted units**, walker's static reach ≈ 98.9 %,
-pointer-pool lens ≈ 90.3 % (both are proxies — the bar for a route is
+batch **y** (menus/party/ability/battle screens; batches a–s plus
+t–y): corpus **48,247 emitted units**, walker's static reach ≈ 99.1 %,
+pointer-pool lens ≈ 90.8 % (both are proxies — the bar for a route is
 FULLY_STATIC on executed paths; full table in § Verification). The attract
 regression gate hash has been stable since pinning. Remaining work: the
 save-flow divergence fix (open investigation below), continuing past the
@@ -231,13 +231,13 @@ Current snapshot (2026-10-07, strict 1200-frame run; refresh with
 | Lens | Mapped / total | % |
 |---|---|---|
 | **Executed path** (strict 1200-frame run) | everything that ran | **100 % — FULLY_STATIC, zero interpreter fallback** |
-| **Walker's static reach** (whole-ROM scan trial) | **47,677 / 48,184** emitted units | **≈ 98.9 %** |
-| **Pointer-pool reach** (speculative-harvest trial) | **47,677 / 52,787** | **≈ 90.3 %** |
+| **Walker's static reach** (whole-ROM scan trial) | **48,247 / 48,702** emitted units | **≈ 99.1 %** |
+| **Pointer-pool reach** (speculative-harvest trial) | **48,247 / 53,142** | **≈ 90.8 %** |
 
 Rows 2–3 are proxies with different denominators (no ground-truth function
 inventory exists); a route is done when its replay is FULLY_STATIC. Corpus:
-47,677 emitted units (interior split units + IWRAM code-copy included); the
-speculative-harvest trial kept 2,080 pointer candidates out of 103,500
+48,247 emitted units (interior split units + IWRAM code-copy included); the
+speculative-harvest trial kept 2,093 pointer candidates out of 103,805
 PC-relative literals (`false` in `game.toml` by policy).
 
 **Open investigation (2026-10-07):** the save **load/save flow** diverges on
