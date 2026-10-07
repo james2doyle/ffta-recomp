@@ -3688,3 +3688,78 @@ addr = 0x08123CFC
 mode = "thumb"
 note = "session-7 start; push {r4,r5,lr} @0x08123CFC after bx r1 + pool (disarm); calls 0x080C95A8; event-interpreter region; bridged x1"
 
+
+# ─── Batch l: session-8 (2026-10-07 07:17) ───
+# 31 heal-cache units; 14 verified starts cover all (incl. the 15-PC
+# 0x0811E890-0x0811E92A jump-table candidate = two functions).
+
+[[extra_func]]
+addr = 0x080D3888
+mode = "thumb"
+note = "session-8 start; push-root verified by prologue scan; bridged x77 (frag lead unit)"
+
+[[extra_func]]
+addr = 0x080D65D4
+mode = "thumb"
+note = "session-8 start; push-root verified by prologue scan"
+
+[[extra_func]]
+addr = 0x080DB00C
+mode = "thumb"
+note = "session-8 start; push-root verified by prologue scan"
+
+[[extra_func]]
+addr = 0x080E174C
+mode = "thumb"
+note = "session-8 start; push-root verified by prologue scan"
+
+[[extra_func]]
+addr = 0x080E28C4
+mode = "thumb"
+note = "session-8 start; push-root verified by prologue scan"
+
+[[extra_func]]
+addr = 0x080E3388
+mode = "thumb"
+note = "session-8 start; push-root verified by prologue scan"
+
+[[extra_func]]
+addr = 0x08105D40
+mode = "thumb"
+note = "session-8 start; push-root verified by prologue scan"
+
+[[extra_func]]
+addr = 0x0811E890
+mode = "thumb"
+note = "session-8 start; push-root verified by prologue scan; covers frag switch interiors 0x0811E8A6/B0/BC/C0/C4/C6/CC/D6 (15-PC jump-table candidate = two functions; second is 0x0811E8E0)"
+
+[[extra_func]]
+addr = 0x0811E8E0
+mode = "thumb"
+note = "session-8 start; push-root verified by prologue scan; covers frag interiors 0x0811E8F6/900/90A/914/92A"
+
+[[extra_func]]
+addr = 0x0811EA08
+mode = "thumb"
+note = "session-8 start; push-root verified by prologue scan; covers interior 0x0811EA44"
+
+[[extra_func]]
+addr = 0x0811EA68
+mode = "thumb"
+note = "session-8 start; push-root verified by prologue scan; covers interiors 0x0811EA8A/EAA2"
+
+[[extra_func]]
+addr = 0x08123968
+mode = "thumb"
+note = "session-8 start; push-root verified by prologue scan; covers interior 0x08123970; event-interpreter region"
+
+[[extra_func]]
+addr = 0x08123A08
+mode = "thumb"
+note = "session-8 start; push-root verified by prologue scan; event-interpreter region"
+
+[[extra_func]]
+addr = 0x0812B7F0
+mode = "thumb"
+note = "session-8 start; push-root verified by prologue scan"
+

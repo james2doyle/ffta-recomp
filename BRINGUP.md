@@ -1037,6 +1037,19 @@ distinct self-heal miss PCs** (`logs/playtest_misses.frag`; 484 in
   (`logs/session7_strict.log`); cycle.py PASS (attract hash unchanged);
   corpus 33,945 → 33,989; pointer-pool lens steady ≈ 65.2 %.
 
+### Session 8 (2026-10-07 07:15–07:17): main-game content continues
+- Loaded the session-7 end state (f21,467), ~2.5 min of play to ≈f26.6k,
+  clean exit; **31 heal units** — the largest wave since the 22-unit
+  new-game batch.
+- **Batch l**: 14 verified starts cover all 31 units (no direct seeds). The
+  frag's 15-entry jump-table candidate [0x0811E890, 0x0811E92A] turned out
+  to be two ordinary functions (0x0811E890 + 0x0811E8E0) whose case targets
+  are all interiors — starts + walker sufficed again. Also 0x08123968 /
+  0x08123A08 (event-interpreter) and 0x0812B7F0.
+- resolve.py = PASSED iter 0, 0 seeds; strict replay FULLY_STATIC
+  (`logs/session8_strict.log`); cycle.py PASS (attract hash unchanged);
+  corpus 33,989 → 34,362 (+373); walker ≈ 98.5 %; pool ≈ 65.5 %.
+
 ### Native-save session (2026-10-06, 17:41): Batch i — the session that produced `game.state2`
 - The user played a continuation and performed an in-game (native/flash)
   save at 17:41. The session produced the post-save savestate `game.state2`
