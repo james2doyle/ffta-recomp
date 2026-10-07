@@ -260,10 +260,13 @@ recomp-net @ c58f125.
   stale AOT at re-planted addresses; canonicalized in
   `src/ffta_ram_dispatch.h` (load repro: strict abort at `0xE25EF004` →
   FULLY_STATIC + menu renders; write repro no longer hangs — BRINGUP
-  § "Load-hang root cause & fix"). Remaining: main-game content past
-  the first non-tutorial battle (completed 2026-10-07; pure play → harvest),
-  f6000+ attract contact sheet, upstream note on the bridge stop-contract
-  runaway. Crash playbook:
+  § "Load-hang root cause & fix"). Remaining: finish the save/summon flow fix
+  (strict-replay hang variant; relocated-stub fixups in
+  `src/ffta_ram_dispatch.h`), main-game content past the first non-tutorial
+  battle (completed 2026-10-07; pure play → harvest), f6000+ attract contact
+  sheet, upstream note on the bridge stop-contract runaway, and the
+  reference-material annotation pass — see README § Roadmap for the full
+  list. Crash playbook:
   BRINGUP § "Battle-session crash" / "Crash #2" (harvest → merge → resolve
   → cycle).
 - Reference projects (mstan's Emerald/FRLG/RS/MinishCap/WWT clones) ship

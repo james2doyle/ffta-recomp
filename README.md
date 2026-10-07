@@ -304,12 +304,34 @@ Full rules live in `AGENTS.md`; the essentials:
 
 ## Roadmap
 
-1. Continue main-game content past the first non-tutorial battle (completed
+1. **Finish the save/summon flow fix** (active): relocated-stub fixups live in
+   `src/ffta_ram_dispatch.h` (sentinel-resume reconstruction + corrupted-count
+   clamp); the strict replay of the summon route still hangs on a deeper
+   variant — diagnose, fix, then merge batch ab (8 units harvested from the
+   last session), strict acceptance + cycle, and re-verify the field-menu
+   save flow.
+2. Main-game content past the first non-tutorial battle (completed
    2026-10-07; play → harvest → resolve), closing Phase 5.
-2. Long-run attract contact sheet (f6000+), upstream note on the bridge
+3. Long-run attract contact sheet (f6000+), upstream note on the bridge
    stop-contract runaway.
-3. **Android port** (research done; the app shell ships inside gbarecomp).
+4. **Reference-material annotation pass** (from the recovered DataCrystal
+   pages + BCROBERT notes, `reference/datacrystal/`):
+   - Data-region names for `symbols/ffta_data_symbols.tsv` (item/job/unit/
+     ability/mission tables; RAM fields like day/time `0x02002FBA`, mission
+     items `0x02002B08`). Names-only changes — the attract gate guards
+     behavior.
+   - Name the decompressor (`0x0801F100`) and its SWI-thunk path
+     (`0x08141868`) in notes; use as recognition aids in the battle/summon
+     hang hunts.
+   - Event-VM opcode labels (Scripting page) as a naming layer for the
+     `0x08122xxx–0x08123xxx` interpreter family.
+5. **Android port** (research done; the app shell ships inside gbarecomp).
    Note: device builds run with self-heal disabled — the static coverage this
    loop builds is its prerequisite.
-4. Future enhancement candidate: true widescreen (game-owned opt-in + scene
-   policy validation; currently clamped to the faithful 240×160).
+6. Future candidates: true widescreen (game-owned opt-in + scene policy
+   validation; currently clamped to the faithful 240×160); an optional mod
+   layer from the notes' verified hack sites (QoL/difficulty/test-speed)
+   once the core is done.
+7. Community/upstream (optional): gbarecomp issue covering the bridge
+   stop-contract and relocated-stub resume classes; share the
+   reverse-engineered save-record format when the wiki scene is reachable.
