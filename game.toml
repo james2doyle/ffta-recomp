@@ -3347,3 +3347,34 @@ addr = 0x0812395E
 mode = "thumb"
 note = "session-3 heal-cache unit 0812395E_t"
 
+
+# ─── Playtest batch g: session-4 continuation (2026-10-06) ───
+# First crash-free session (short continuation past crash-#2's point): 5 VM
+# units healed live + clean-exit .frag flushed. Union of cache filenames and
+# frag addresses, deduped against all batches.
+
+[[extra_func]]
+addr = 0x0811E7E0
+mode = "thumb"
+note = "session-4 miss unit 0811E7E0; live heal + frag proposal"
+
+[[extra_func]]
+addr = 0x0812260C
+mode = "thumb"
+note = "session-4 miss unit 0812260C; live heal + frag proposal"
+
+[[extra_func]]
+addr = 0x08122EF8
+mode = "thumb"
+note = "session-4 miss unit 08122EF8; live heal + frag proposal"
+
+[[extra_func]]
+addr = 0x08123564
+mode = "thumb"
+note = "session-4 miss unit 08123564; live heal + frag proposal"
+
+[[extra_func]]
+addr = 0x081239DC
+mode = "thumb"
+note = "session-4 miss unit 081239DC; live heal + frag proposal"
+

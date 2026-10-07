@@ -943,3 +943,22 @@ distinct self-heal miss PCs** (`logs/playtest_misses.frag`; 484 in
   inside the 0x0811xxxx VM region; each session's discovery wave moves
   deeper. The `.frag`-flush gap is covered by cache_harvest; the bridge
   stop-contract limitation stays noted for upstream.
+
+### Session 4: first crash-free continuation (2026-10-06)
+- Short continuation from session-3's final state (guest frames
+  97,209→97,618). **No crash.** play.sh's new auto-archive preserved the
+  prior session's state + trace (`saves/game_prev_20261006_171723.state` /
+  `trace_prev_20261006_171723.csv`) — exact files used for the acceptance
+  replay below.
+- The `.frag` **flushed on clean exit** (first in-the-wild confirmation of
+  the exit-only flush policy).
+- Harvest: 5 VM units (0x0811E7E0, 0x0812260C, 0x08122EF8, 0x08123564,
+  0x081239DC) — heal cache and frag agree exactly (first dual-source
+  cross-validation). Merged as **batch g**.
+- **Acceptance: strict replay of the exact session** (load the archived
+  start state + session-4 trace, 99k-frame bound) = **FULLY_STATIC**,
+  0 misses (`logs/session4_strict.log`); attract gate unchanged.
+- play.sh fix: per-slot archive names (`state1_prev_`/`state2_prev_`) —
+  the first version collided both slots onto one filename.
+- Frontier trend (miss units per session): 901 → 168 → 61 → 5. The
+  discovery wave is closing as the VM region converges.

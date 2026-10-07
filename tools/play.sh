@@ -29,7 +29,8 @@ mkdir -p logs saves
 # evidence for the last session's route).
 ts=$(date +%Y%m%d_%H%M%S)
 for slot in game.state1 game.state2; do
-  [ -f "$slot" ] && cp "$slot" "saves/${slot%.*}_prev_${ts}.state" || true
+  n="${slot#game.state}"
+  [ -f "$slot" ] && cp "$slot" "saves/state${n}_prev_${ts}.state" || true
 done
 [ -f logs/playthrough.csv ] && cp logs/playthrough.csv "saves/trace_prev_${ts}.csv" || true
 exec env -u GBARECOMP_STRICT_STATIC \
