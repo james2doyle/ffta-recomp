@@ -1755,3 +1755,16 @@ PASSED end-to-end, 0 seeds, FULLY_STATIC**. Cold cycle: regen OK
 (discovered **47,874** functions — single-seed cascade +197), dispatch sanity
 OK, attract gate PASS (sha256 `1EF4C118…`, unchanged). `cycle: PASS`. Heal
 cache fully merged (78/78 units).
+
+### 2026-10-07 (cont.) — Batch y: multi-session wave (14:13–14:17) — ACCEPTED
+
+51 heal-cache units across ~5 sessions (four quick runs + one main session;
+frag 12,336 B). Dense switch clusters in `0x080E3xxx` (11-run) and
+`0x08107xxx` (10-run), plus `0x080EE2F4`/`0x080EED88`/`0x080EEF6C`/
+`0x080F7720`/`0x08146BB0` families and two interiors of starts outside the
+frag (`0x08131EC0` ← `0x08131E90`; `0x0813254C` ← `0x08132520`); start +
+split-interior seeds, prologue scans verified. Acceptance: resolve (main
+session trace, f9000) — **iter 0 STRICT replay PASSED end-to-end, 0 seeds,
+FULLY_STATIC**. Cold cycle: regen OK (discovered **48,247** — +373 cascade),
+dispatch sanity OK, attract gate PASS (`1EF4C118…` unchanged). `cycle: PASS`.
+Heal cache fully merged.
