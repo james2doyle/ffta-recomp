@@ -233,8 +233,8 @@ recomp-net @ c58f125.
   (oracle/framediff/dualrun/attract gate/misspack/cycle/coverage_report/
   ringscan) plus playtest tooling (`play.sh`, `cache_harvest.py`,
   `resolve.py`). Five interactive sessions integrated (batches a–h2):
-  corpus 23.4k → ~30k emitted units; walker's reach ≈ 99.2 %; pointer-pool
-  lens ≈ 59 % (proxy, not a goal — the bar is FULLY_STATIC on executed
+  corpus 23.4k → 30,554 emitted units; walker's reach ≈ 99.2 %; pointer-pool
+  lens ≈ 59.8 % (proxy, not a goal — the bar is FULLY_STATIC on executed
   paths). Every executed path is FULLY_STATIC (strict replays: boot→newgame
   6000 f; state2 battle 60k f; session-5 112k f) and the attract hash is
   unchanged since pinning. Remaining: finish the tutorial battle +

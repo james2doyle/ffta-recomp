@@ -15,10 +15,12 @@ precise miss count).
 title, new game, intro, and into the first battle — with **every executed path
 FULLY_STATIC** (zero interpreted instructions) at last verification. Five
 interactive playtest sessions have been integrated (audit batches a–h2):
-corpus ≈ 30k emitted units, walker's static reach ≈ 99.2 %, pointer-pool lens
-≈ 59 %. The attract regression gate hash has been stable since pinning.
-Remaining work: finishing the tutorial battle + post-battle content, a
-long-run attract contact sheet, and one upstream note — see Roadmap.
+corpus **30,554 emitted units**, walker's static reach ≈ 99.2 %, pointer-pool
+lens ≈ 59.8 % (both are proxies — the bar for a route is FULLY_STATIC on
+executed paths; full table in § Verification). The attract regression gate
+hash has been stable since pinning. Remaining work: finishing the tutorial
+battle + post-battle content, a long-run attract contact sheet, and one
+upstream note — see Roadmap.
 
 > **You must own the game and BIOS.** Both are user-supplied, hash-verified at
 > launch, and **never committed** (no ROM-derived bytes in git history, ever —
@@ -175,6 +177,21 @@ GBARECOMP_INPUT_REPLAY=logs/playthrough.csv ./build/FFTARecomp ...` — expect
   (ground truth), walker's static reach, and pointer-pool reach (a proxy —
   not a goal; FFTA needs FULLY_STATIC on executed paths, not 100 % of a
   proxy). `--json` for machine-readable output.
+
+Current snapshot (2026-10-06, strict 1200-frame run; refresh with
+`.venv/bin/python tools/coverage_report.py`):
+
+| Lens | Mapped / total | % |
+|---|---|---|
+| **Executed path** (strict 1200-frame run) | everything that ran | **100 % — FULLY_STATIC, zero interpreter fallback** |
+| **Walker's static reach** (whole-ROM scan trial) | **30,554 / 30,802** emitted units | **≈ 99.2 %** |
+| **Pointer-pool reach** (speculative-harvest trial) | **30,554 / 51,109** | **≈ 59.8 %** |
+
+Rows 2–3 are proxies with different denominators (no ground-truth function
+inventory exists); a route is done when its replay is FULLY_STATIC. Corpus:
+30,554 emitted units (interior split units + IWRAM code-copy included); the
+speculative-harvest trial kept 2,042 pointer candidates out of 102,596
+PC-relative literals (`false` in `game.toml` by policy).
 - **Oracle frame-diff:** `tools/framediff.py --lo 4 --hi 300` (native vs the
   framework's mGBA oracle; bounded band diffs on animated content are
   expected and documented in BRINGUP § "park-phase semantics") and
