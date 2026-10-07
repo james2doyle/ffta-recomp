@@ -1652,3 +1652,38 @@ driver-call sequence (pc 0x08141BA0; args + caller LR) on both engines
 (1700→2040), dump-diff the first divergent frame, then capture the
 validator's memcmp/checksum calls (0x0813B634 / 0x0813B650) on both engines
 to isolate the branch that diverges.
+
+### 2026-10-07 (cont.) — Batch v merge; save-flow stall now blocks replays; runaway stack-growth leak
+
+**Batch v merged** (`game.toml`): 50 heal-cache units from the user's two
+play sessions (13:19 + 13:22, frags `saves/frag_prev_20261007_132226.frag` +
+`logs/playtest_misses.frag`, no overlap; cache harvest matches exactly). The
+three "JUMP-TABLE CANDIDATE" blocks were over-cautious: disarm shows they are
+start roots containing branch-target interiors (e.g. `0x0812803C`'s cluster;
+it `bl`s `0x0800DB0C` @0x08128430) — seeded as start + split-interior entries.
+**Acceptance deferred**: the session-A strict replay does NOT converge — it
+hits the open save-flow divergence (below) and sits in the runaway (strict
+mode cannot heal it). Trace A enters the runaway at vblank≈1954 (verified
+with `GBARECOMP_ABORT_ON_MEM_WRITE_ADDR`). Re-run the A/B resolves after the
+save-flow fix lands.
+
+**Runaway memory leak — root-caused (was: "system memory climbing" 33 MB/s).**
+Measured with an `LD_PRELOAD` malloc interposer + `/proc/PID/smaps` diff:
+the growth is the **main-thread stack** (top mapping grew 240→637 MB in
+12 s), not the heap (no malloc growth, mapping count constant). `gdb`
+(parent-launched; attach is blocked by yama=1) caught the stack: unbounded
+C++ recursion of **`gf_afunc_03000FCC`** — a unit inside the runtime copy of
+the **ROM IRQ dispatcher** (`[[code_copy]]` span `0x03000F10..0x03001070` ←
+ROM `0x080000FC`). When the runaway's copy sweep (dest ascending through
+IWRAM low) overwrites that dispatcher copy, each VBlank re-enters the
+dispatcher unit with corrupted registers/LR and return-to-self loops: every
+hop re-dispatches **recursively** (+1 C++ frame, each doing
+`bus_read_u8 → runtime_mmio_catch_up → tick_timers`), so the stack grows
+~33 MB/s + CPU pegged. Downstream of the root scan/validate divergence; the
+process frees everything on exit. Mitigations in use: probes stop via
+abort-on-write (seconds); do not leave a stalled session open.
+
+**Tooling**: `tools/resolve.py` now stops with a clear message when the
+"miss" PC is outside addressable code (`>=0x09000000` or 0x04–0x08 range) —
+that PC class means the replay diverged (behavioral bug), not a coverage gap,
+and must never be seeded into the overlay.

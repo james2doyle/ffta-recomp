@@ -4246,3 +4246,260 @@ addr = 0x08055F10
 mode = "thumb"
 note = "resolve addendum (session-11:46): push {r4,r5,r6,r7,lr}+mov r7,sb/r6,r8+sub sp,#0x20 at pc (disarm); strict-replay frontier miss"
 
+
+# ─── Batch v: two play sessions (2026-10-07 13:19 + 13:22, menus/party/engine-hacks) ───
+# 50 heal-cache units (35 session-A + 15 session-B, no overlap; cache harvest matches frags
+# exactly). Prologue scans verified containment; dispatched interiors seeded directly
+# (split-unit pattern — dispatch lands at runtime multi-entry points, not walk-covered).
+# Source frags: saves/frag_prev_20261007_132226.frag + logs/playtest_misses.frag.
+
+[[extra_func]]
+addr = 0x0800A490
+mode = "thumb"
+note = "batch v (A): start; push {r4,r5,r6,lr}; prologue scan + disarm"
+
+[[extra_func]]
+addr = 0x0800DB0C
+mode = "thumb"
+note = "batch v (A): start; push {r4-r7,lr}; called via bl @0x08128430; covers interiors 0x0800DB4E/0x0800DB6A; prologue scan + disarm"
+
+[[extra_func]]
+addr = 0x0800DB4E
+mode = "thumb"
+note = "batch v (A): interior of 0x0800DB0C (runtime-dispatched unit; split-interior seed)"
+
+[[extra_func]]
+addr = 0x0800DB6A
+mode = "thumb"
+note = "batch v (A): interior of 0x0800DB0C (runtime-dispatched unit; split-interior seed)"
+
+[[extra_func]]
+addr = 0x0800DEC0
+mode = "thumb"
+note = "batch v (A): start; push {lr}; covers interior 0x0800DEC8; prologue scan + disarm"
+
+[[extra_func]]
+addr = 0x0800DEC8
+mode = "thumb"
+note = "batch v (A): interior of 0x0800DEC0 (runtime-dispatched unit; split-interior seed)"
+
+[[extra_func]]
+addr = 0x080189A0
+mode = "thumb"
+note = "batch v (B): start; push {r4,r5,r6,lr}; covers interiors 0x080189AE/0x080189FE; prologue scan + disarm"
+
+[[extra_func]]
+addr = 0x080189AE
+mode = "thumb"
+note = "batch v (B): interior of 0x080189A0 (runtime-dispatched unit; split-interior seed)"
+
+[[extra_func]]
+addr = 0x080189FE
+mode = "thumb"
+note = "batch v (B): interior of 0x080189A0 (runtime-dispatched unit; split-interior seed)"
+
+[[extra_func]]
+addr = 0x08018A0C
+mode = "thumb"
+note = "batch v (B): start; push {lr}; covers interior 0x08018A18; prologue scan + disarm"
+
+[[extra_func]]
+addr = 0x08018A18
+mode = "thumb"
+note = "batch v (B): interior of 0x08018A0C (runtime-dispatched unit; split-interior seed)"
+
+[[extra_func]]
+addr = 0x0802F254
+mode = "thumb"
+note = "batch v (A): start; push {lr}; covers interior 0x0802F262; prologue scan + disarm"
+
+[[extra_func]]
+addr = 0x0802F262
+mode = "thumb"
+note = "batch v (A): interior of 0x0802F254 (runtime-dispatched unit; split-interior seed)"
+
+[[extra_func]]
+addr = 0x0802F268
+mode = "thumb"
+note = "batch v (A): start; push {lr}; covers interior 0x0802F276; prologue scan + disarm"
+
+[[extra_func]]
+addr = 0x0802F276
+mode = "thumb"
+note = "batch v (A): interior of 0x0802F268 (runtime-dispatched unit; split-interior seed)"
+
+[[extra_func]]
+addr = 0x0803172C
+mode = "thumb"
+note = "batch v (B): start; push {r4,r5,r6,lr}; covers interior 0x08031878; prologue scan + disarm"
+
+[[extra_func]]
+addr = 0x08031878
+mode = "thumb"
+note = "batch v (B): interior of 0x0803172C (runtime-dispatched unit; split-interior seed)"
+
+[[extra_func]]
+addr = 0x0804CAE4
+mode = "thumb"
+note = "batch v (B): start; push {r4,r5,lr}; prologue scan + disarm"
+
+[[extra_func]]
+addr = 0x0804D86C
+mode = "thumb"
+note = "batch v (B): start; push {r4,lr}; prologue scan + disarm"
+
+[[extra_func]]
+addr = 0x0804E05C
+mode = "thumb"
+note = "batch v (B): start; push {r4-r7,lr}; prologue scan + disarm"
+
+[[extra_func]]
+addr = 0x0804E9F0
+mode = "thumb"
+note = "batch v (B): start; push {r4-r7,lr}; prologue scan + disarm"
+
+[[extra_func]]
+addr = 0x0804ED44
+mode = "thumb"
+note = "batch v (B): start; push {lr}; covers interior 0x0804ED54; prologue scan + disarm"
+
+[[extra_func]]
+addr = 0x0804ED54
+mode = "thumb"
+note = "batch v (B): interior of 0x0804ED44 (runtime-dispatched unit; split-interior seed)"
+
+[[extra_func]]
+addr = 0x0804F938
+mode = "thumb"
+note = "batch v (B): start; push {lr}; covers interior 0x0804F940; prologue scan + disarm"
+
+[[extra_func]]
+addr = 0x0804F940
+mode = "thumb"
+note = "batch v (B): interior of 0x0804F938 (runtime-dispatched unit; split-interior seed)"
+
+[[extra_func]]
+addr = 0x08123834
+mode = "thumb"
+note = "batch v (A): start; push {lr}; prologue scan + disarm"
+
+[[extra_func]]
+addr = 0x0812803C
+mode = "thumb"
+note = "batch v (A): start; push {r4-r7,lr}+hi-save+sub sp,#0x10 (disarm @0x0812803C); large multi-entry body; calls 0x0800DB0C @0x08128430; 22 dispatched interiors seeded below; prologue scan + disarm"
+
+[[extra_func]]
+addr = 0x0812807C
+mode = "thumb"
+note = "batch v (A): interior of 0x0812803C (runtime-dispatched unit; split-interior seed)"
+
+[[extra_func]]
+addr = 0x08128088
+mode = "thumb"
+note = "batch v (A): interior of 0x0812803C (runtime-dispatched unit; split-interior seed)"
+
+[[extra_func]]
+addr = 0x08128094
+mode = "thumb"
+note = "batch v (A): interior of 0x0812803C (runtime-dispatched unit; split-interior seed)"
+
+[[extra_func]]
+addr = 0x081280F8
+mode = "thumb"
+note = "batch v (A): interior of 0x0812803C (runtime-dispatched unit; split-interior seed)"
+
+[[extra_func]]
+addr = 0x08128100
+mode = "thumb"
+note = "batch v (A): interior of 0x0812803C (runtime-dispatched unit; split-interior seed)"
+
+[[extra_func]]
+addr = 0x0812810C
+mode = "thumb"
+note = "batch v (A): interior of 0x0812803C (runtime-dispatched unit; split-interior seed)"
+
+[[extra_func]]
+addr = 0x08128128
+mode = "thumb"
+note = "batch v (A): interior of 0x0812803C (runtime-dispatched unit; split-interior seed)"
+
+[[extra_func]]
+addr = 0x081283EC
+mode = "thumb"
+note = "batch v (A): interior of 0x0812803C (runtime-dispatched unit; split-interior seed)"
+
+[[extra_func]]
+addr = 0x08128410
+mode = "thumb"
+note = "batch v (A): interior of 0x0812803C (runtime-dispatched unit; split-interior seed)"
+
+[[extra_func]]
+addr = 0x08128416
+mode = "thumb"
+note = "batch v (A): interior of 0x0812803C (runtime-dispatched unit; split-interior seed)"
+
+[[extra_func]]
+addr = 0x08128434
+mode = "thumb"
+note = "batch v (A): interior of 0x0812803C (runtime-dispatched unit; split-interior seed)"
+
+[[extra_func]]
+addr = 0x08128458
+mode = "thumb"
+note = "batch v (A): interior of 0x0812803C (runtime-dispatched unit; split-interior seed)"
+
+[[extra_func]]
+addr = 0x0812849C
+mode = "thumb"
+note = "batch v (A): interior of 0x0812803C (runtime-dispatched unit; split-interior seed)"
+
+[[extra_func]]
+addr = 0x081284A6
+mode = "thumb"
+note = "batch v (A): interior of 0x0812803C (runtime-dispatched unit; split-interior seed)"
+
+[[extra_func]]
+addr = 0x081284BA
+mode = "thumb"
+note = "batch v (A): interior of 0x0812803C (runtime-dispatched unit; split-interior seed)"
+
+[[extra_func]]
+addr = 0x081284CC
+mode = "thumb"
+note = "batch v (A): interior of 0x0812803C (runtime-dispatched unit; split-interior seed)"
+
+[[extra_func]]
+addr = 0x08128538
+mode = "thumb"
+note = "batch v (A): interior of 0x0812803C (runtime-dispatched unit; split-interior seed)"
+
+[[extra_func]]
+addr = 0x08128560
+mode = "thumb"
+note = "batch v (A): interior of 0x0812803C (runtime-dispatched unit; split-interior seed)"
+
+[[extra_func]]
+addr = 0x08128570
+mode = "thumb"
+note = "batch v (A): interior of 0x0812803C (runtime-dispatched unit; split-interior seed)"
+
+[[extra_func]]
+addr = 0x08128576
+mode = "thumb"
+note = "batch v (A): interior of 0x0812803C (runtime-dispatched unit; split-interior seed)"
+
+[[extra_func]]
+addr = 0x08128594
+mode = "thumb"
+note = "batch v (A): interior of 0x0812803C (runtime-dispatched unit; split-interior seed)"
+
+[[extra_func]]
+addr = 0x0812859C
+mode = "thumb"
+note = "batch v (A): interior of 0x0812803C (runtime-dispatched unit; split-interior seed)"
+
+[[extra_func]]
+addr = 0x081285B6
+mode = "thumb"
+note = "batch v (A): interior of 0x0812803C (runtime-dispatched unit; split-interior seed)"
+

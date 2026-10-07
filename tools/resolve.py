@@ -110,6 +110,11 @@ def main():
         if pc == "unknown":
             result = "unknown-failure"
             break
+        if pc >= 0x09000000 or 0x04000000 <= pc < 0x08000000:
+            print(f"iter {it}: FATAL miss pc={pc:#x} outside addressable code — "
+                  "replay diverged (behavioral bug, not a coverage gap); stopping")
+            result = "diverged"
+            break
         if pc in seen:
             if pc in direct:
                 print(f"iter {it}: repeat miss {pc:#x} after direct seed — stopping")
