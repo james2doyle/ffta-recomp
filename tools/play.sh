@@ -20,7 +20,11 @@
 #              branch returns before window init) — never combine it with a
 #              window.
 #          tools/play.sh --launcher       run the settings UI first
-#          tools/play.sh --view-width 720 wider window
+#          tools/play.sh --scale 8        bigger window: Nx240 x Nx160
+#              pixels (scale 1-8; 8 = 1920x1280 on a 4K-class display)
+#          tools/play.sh --fullscreen     borderless desktop fullscreen
+#              NOTE: --view-width is the widescreen *view* feature, NOT
+#              window size; FFTA is unsupported there (clamps to 240).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 mkdir -p logs saves

@@ -257,6 +257,12 @@ recomp-net @ c58f125.
   game window. Use a letter-only map (`build/keybinds.ini`; example:
   `tools/playtest_keybinds.ini.example`) and verify presses with
   `GBARECOMP_INPUT_RECORD` or `tools/keyprobe.py`.
+- Window size: `--scale N` (1–8; window = N×240 × N×160; `--scale 8` =
+  1920×1280, the max). `--view-width` is the *widescreen view* feature, not
+  window size — unsupported games (FFTA) clamp it to 240 and it does
+  nothing. `--fullscreen` = borderless desktop fullscreen. Live
+  fullscreen/window-size keys are system hotkeys bound in `config.ini`
+  `[KeyMap]` (rebindable in the launcher).
 
 - BIOS recompile must run with cwd = `gbarecomp/` (or output lands in the
   wrong `src/runtime/generated_bios/`); after generating, **re-run CMake
