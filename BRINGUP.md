@@ -1456,3 +1456,23 @@ against mGBA instead of guessing from one side. Tooling built + findings:
 6. Housekeeping: `gbarecomp` submodule working tree has the oracle patch
    applied (uncommitted; patch exported to `tools/patches/`). Re-apply after
    submodule updates.
+
+### 2026-10-07 (cont.) — f1750 runaway = a bad 4KB clear/copy over IWRAM bottom
+- Abort-on-write at the sweep's low end (headless repro, save loaded,
+  `GBARECOMP_ABORT_ON_MEM_WRITE_ADDR=0x03000800 MIN_FRAME=1000`) confirms the
+  event: the planted memcpy loop (`0x03007D72`, `lr=0x08141BA5`) writes `0x00`
+  byte-by-byte with dest=**r1 ascending through 0x030007F2..0x030008D8+**,
+  `r2=0x1000` (count 4KB), source read from `r4=0x01004B50↑` (unmapped → open
+  bus = 0x00), and the loop guard `r3=0x0200B225↓` — a ~33.6M-iteration loop
+  (`while (--r3 != r2)`), i.e. the runaway that zeroes IWRAM (incl. the IRQ
+  handler table at 0x030008D0) and cascades into the 0xE25EF004 dispatch.
+- The (r3,r4) pair is locked: `r3 + r4 = 0x0300FD75` const. The values are of
+  the same "mangled high-byte" family as the earlier write-hang's 0x2201D008
+  (`0x0E…`-family addresses with wrong high bytes) — re-derive on the loaded
+  path before quoting as fact.
+- Next probes queued: (1) abort lower (0x03000700/0x03000600) to find the true
+  sweep start and catch the call/entry context in the ring; (2) capture the
+  caller chain of the copy invocation at the load flow; (3) diff the oracle
+  at the same logical step (its save-processing completes; the same read's
+  registers on the oracle = the intended values — mirrored from the boot-scan
+  probe pattern in § "Save/load flow: oracle save autoload…").
