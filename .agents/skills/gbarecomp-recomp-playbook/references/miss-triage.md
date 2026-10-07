@@ -24,8 +24,9 @@ no start found.
   base, stride, count and address format from the compare bound and the
   table bytes. Watch for the table sitting inside a literal pool.
 - If no start is found within a sane window (leaf functions can lack a
-  classic push-root), **seed the PC itself.** An interior entry point is a
-  legal, honest entry; inventing a boundary is not.
+  classic push-root), **seed the PC itself.** Interior entry points are
+  legal and honest — shared epilogue blocks reached by a forward branch and
+  switch case bodies are common examples; inventing a boundary is not.
 - RAM-resident (IWRAM-style) code: map the copied span so the decoder
   decodes it, and register runtime entry PCs inside the span separately.
   Derive the copy destination from live memory dumps and verify by byte

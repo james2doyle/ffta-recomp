@@ -1067,6 +1067,17 @@ distinct self-heal miss PCs** (`logs/playtest_misses.frag`; 484 in
   cycle.py PASS (attract hash unchanged). Corpus 34,362 → **39,027** (+4,665
   — the 0x08031xxx walk-out); walker ≈ 98.7 %; **pointer-pool 65.5 % → 74.3 %**.
 
+### Session 10 (2026-10-07 07:44): region sweep in a short session
+- Loaded the session-9 end state (f30,634), ~20 s of play to ≈f31.9k, clean
+  exit; 9 heal units (frag+cache agree, 5th validation) across 0x0803xxxx,
+  0x0804xxxx, 0x0805Cxxx and 0x0806xxxx.
+- **Batch n**: 6 verified starts + 1 direct epilogue entry (0x08044D72 — a
+  shared epilogue block reached via `bls` @0x08044D68). Strict acceptance
+  caught 1 extra start (0x0806094C, `push {r4-r7,lr}`); merged.
+- Strict replay FULLY_STATIC (`logs/session10_strict.log`); cycle.py PASS
+  (attract hash unchanged). Corpus 39,027 → **40,518** (+1,491); walker
+  ≈ 98.8 %; **pointer-pool 74.3 % → 77.2 %**.
+
 ### Native-save session (2026-10-06, 17:41): Batch i — the session that produced `game.state2`
 - The user played a continuation and performed an in-game (native/flash)
   save at 17:41. The session produced the post-save savestate `game.state2`

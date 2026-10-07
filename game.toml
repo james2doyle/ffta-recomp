@@ -3823,3 +3823,47 @@ note = "resolve-added seed (session-9 strict acceptance); frag/cache did not cov
 addr = 0x080318DC
 mode = "thumb"
 note = "resolve-added seed (session-9 strict acceptance)"
+
+# ─── Batch n: session-10 (2026-10-07 07:44) ───
+# 9 heal-cache units; 6 starts + 1 epilogue direct-entry cover all.
+
+[[extra_func]]
+addr = 0x08038028
+mode = "thumb"
+note = "session-10 start; push-root verified by prologue scan"
+
+[[extra_func]]
+addr = 0x08038238
+mode = "thumb"
+note = "session-10 start; push-root verified by prologue scan"
+
+[[extra_func]]
+addr = 0x080447B4
+mode = "thumb"
+note = "session-10 start; push-root verified by prologue scan; covers interior 0x080447CA"
+
+[[extra_func]]
+addr = 0x08044D72
+mode = "thumb"
+note = "session-10 direct entry; shared epilogue block (add sp,#0x48 / pop {r3-r5} / mov r8-r11 / pop / bx) reached via bls @0x08044D68 (disarm); no prologue"
+
+[[extra_func]]
+addr = 0x0805CF5C
+mode = "thumb"
+note = "session-10 start; push-root verified by prologue scan"
+
+[[extra_func]]
+addr = 0x0805D0E0
+mode = "thumb"
+note = "session-10 start; push-root verified by prologue scan"
+
+[[extra_func]]
+addr = 0x080603F4
+mode = "thumb"
+note = "session-10 start; push-root verified by prologue scan; covers interior 0x080603FC"
+
+
+[[extra_func]]
+addr = 0x0806094C
+mode = "thumb"
+note = "resolve-added seed (session-10 strict acceptance); frag/cache did not cover this pc"
