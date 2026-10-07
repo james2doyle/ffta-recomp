@@ -108,6 +108,10 @@ tools/play.sh --tcp-observe 19850 # window + live debug port (tools/keyprobe.py 
   `game.state1..9` next to the ROM; per-session copies are archived under
   `saves/` by play.sh at launch.
 - **Battery save:** Flash 64 KB at `saves/playtest.sav` (via play.sh).
+- **External saves:** any raw 64 KiB flash image (e.g. another emulator's
+  `.sav`, or a community container unpacked to raw) can be played by passing
+  it last — `tools/play.sh --save-path saves/<file>.sav` (last-wins over
+  play.sh's default). Work on a copy: in-game saves rewrite the file.
 - **Window size:** `--scale N` (1–8). `--view-width` is NOT a window-size
   flag — it is the widescreen *view* feature and FFTA clamps it to 240 by
   design.
@@ -231,15 +235,17 @@ Current snapshot (2026-10-06, strict 1200-frame run; refresh with
 
 Rows 2–3 are proxies with different denominators (no ground-truth function
 inventory exists); a route is done when its replay is FULLY_STATIC. Corpus:
-45,559 emitted units (interior split units + IWRAM code-copy included); the
+46,383 emitted units (interior split units + IWRAM code-copy included); the
 speculative-harvest trial kept 2,078 pointer candidates out of 103,391
 PC-relative literals (`false` in `game.toml` by policy).
 
-**Known open issue (2026-10-07):** field-menu native (flash) saves complete
-but then hang in the save driver's runtime code-relocation path (the battery
-save is written correctly; savestates are unaffected; the pre-hang state and
-the deterministic repro are archived — see BRINGUP § "Native-save hang #2";
-root cause in progress).
+**Open investigation (2026-10-07):** the save-record **scan/validate** path
+(`0x0813B57C`, checksum `0x0813ADF0`) diverges on certain save contents — two
+observed stalls (a found/downloaded save's load; the playtest save's in-game
+save) both end in a runaway copy called with `source = ~count`. The oracle
+mGBA completes both flows; the files themselves are validated healthy. A
+deterministic repro + tooling (`tools/readseq_probe.py`) are in place — see
+BRINGUP § "Save-record scan/validate divergence"; root cause in progress.
 - **Oracle frame-diff:** `tools/framediff.py --lo 4 --hi 300` (native vs the
   framework's mGBA oracle; bounded band diffs on animated content are
   expected and documented in BRINGUP § "park-phase semantics") and

@@ -333,6 +333,14 @@ recomp-net @ c58f125.
   generated body. When a new copied-routine family shows up, add its template
   there — don't register only a fixed address (BRINGUP § "Load-hang root
   cause & fix").
+- Battery-save flows still hide divergences: the record scan/validate loop
+  (`0x0813B57C` + checksum `0x0813ADF0`) mishandles some save contents — both
+  observed stalls end in a byte-copy called with `source = ~count` (a
+  garbage-descriptor signature; hunt the record decode, not the copier).
+  Repro + tooling: `tools/readseq_probe.py` (driver-call sequences on both
+  engines), deterministic strict repro in BRINGUP § "Save-record scan/validate
+  divergence". Validate any external save structurally first (README §
+  external saves).
 - Run examples: smoke `GBARECOMP_STRICT_STATIC=1 ./build/FFTARecomp --bios
   gbarecomp/bios/gba_bios.bin --rom game.gba --frames 2400 --no-window`;
   session replays via `tools/resolve.py`; coverage via

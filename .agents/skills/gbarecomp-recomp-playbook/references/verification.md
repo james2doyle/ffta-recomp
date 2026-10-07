@@ -94,3 +94,21 @@ Pair the runner against a real emulator fed the same input script.
   completed frames often still compare at the same index even when the
   CPU-side offset exists).
 - Writes are the ground truth to diff; the screen is a symptom.
+
+## External saves as verification material
+
+Before using a found/downloaded save as a repro or regression fixture:
+
+1. **Shape**: file size equals the chip size (e.g. 64 KiB flash); the
+   redundant record copies differ only in counters/stamps/checksums.
+2. **Container**: if it came packed (community format), unpack, check the
+   container's CRC/sizes, and prefer a raw export when one is available —
+   byte-compare the two when both exist.
+3. **Acceptance**: the emulator's game itself must accept it (slot list
+   renders, load completes). That is stronger evidence than any checksum
+   you reverse-engineer — but if the emulator rejects it, stop: you are
+   debugging a corrupt file, not a recomp divergence.
+4. Then diff *both engines* on the same save + trace: any behavioral
+   difference is by definition a divergence (the file is identical), and a
+   valid-but-unusual save exercises scan/validate paths your own playthrough
+   never reached.

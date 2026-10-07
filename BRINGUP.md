@@ -1588,3 +1588,67 @@ headless/`--tcp` runs so lockstep probes can compare pixels directly.
 - **Coverage (post-batch)**: executed 100 % (strict 1200); walker's static
   reach ≈ 98.9 %; pointer-pool lens **86.6 % → 88.1 %** (2,078 literal seeds
   from 103,418 scanned).
+
+### 2026-10-07 (cont.) — Save-record scan/validate divergence (found-save + playtest-save stalls)
+
+**External save provenance/format.** `saves/found_save.sav` (online source) is
+a **Retro5.net "RTN5" container**: 24-byte header (u32 magic `0x354E5452`,
+u16 fmtVer=1, u16 flags&1=zlib, u32 origSize=0x10000, u32 packedSize,
+u32 dataOffset=24, u32 CRC32 of the *uncompressed* data) + zlib payload =
+raw 64 KiB flash image. Verified: CRC matches; decompressed bytes are
+byte-identical (0 diffs) to the user's second export,
+`saves/found_save.mGBA.sav` (raw, SHA-1 `b64ed938…`). Use the raw file
+directly with `--save-path` (last-wins over play.sh's default).
+
+**Save-record format (from the two files + the validator disassembly).**
+64 KiB flash, 16×4 KiB sectors; records live in 4-sector groups (observed
+groups {0..3} and {11..14}) ending in a header sector starting with
+`FFTEX000`. Header fields: +0x08 u32 save counter (found 0x3D8/0x3D9, our
+playtest 1), +0x0C u32 checksum, +0x10..+0x11 flags, +0x12..+0x15 a 4-byte
+descending stamp (found-A `03 02 01 00`, found-B `0e 0d 0c 0b`, playtest
+`07 06 05 04`), +0x16.. zeros. Validator loop at **0x0813B57C** (disarm):
+reads each group via the flash driver (0x08141B14), memcmp 8-byte magic
+(0x081443B0), then **zeroes +0xC and +0x12..+0x16 in the RAM copy** and
+recomputes the checksum (bl 0x0813ADF0) to compare with the stored value.
+Found save health: passes the game's own validation on the oracle (slots
+render identically — the odd name "ZWZVXWYVP" is its own content — and the
+load completes); its two redundant copies differ in only 12 bytes
+(consecutive counters + matching checksums + stamps). **Not corrupt.**
+
+**Two stalls, one signature.**
+1. Found save: stalls at "Loading…" after selecting the file (f~1080+;
+   EWRAM fills with `0xC002E55E`-pattern garbage; the oracle reads 12 sectors
+   — scan f864 {3,2,1,0}+{E,D,C,B}, load f1043 {E,D,C,B} — and says "Load
+   complete" by f1100 while our buffer keeps the un-blanked stamp bytes the
+   oracle zeroed).
+2. Playtest save + `saves/trace_prev_20261007_114607.csv` (the 11:42
+   session): stalls in the in-game save flow (headless: between f2000 and
+   f2400; TCP-driven lockstep: stopped ~f1732 under CPU contention — rerun
+   in progress); the save file is NOT rewritten (dies before the program
+   step).
+Both end in the same runaway: the driver's byte-copy is called with
+**`source = ~count`** (found `0x00FEFEF0 = ~0xFF01010F`; pt `0x00FF3180 =
+~0xFF00CE7F`) → 4-billion-iteration copy sweeping IWRAM → the `0xE25EF004`
+cascade abort (strict) / spin (non-strict).
+
+**Bisect**: the pt stall reproduces identically on the pre-batch-u regen
+(45,559 functions) — **not** a batch-u regression; the trigger is the
+current `playtest.sav` content (written by the 11:46 session's menu save).
+I.e. a data-dependent divergence in the scan/validate path; the oracle
+completes both flows.
+
+**Deterministic repro (in use)**: strict + boot +
+`saves/trace_prev_20261007_114607.csv` + `--save-path <copy of current
+saves/playtest.sav>` + `--frames 2400` → abort `0xE25EF004` (this replay
+passed earlier the same day, before the 11:47 save write).
+
+**Tooling**: `tools/readseq_probe.py` — captures the flash read/copy
+driver-call sequence (pc 0x08141BA0; args + caller LR) on both engines
+(native breakpoint + oracle `emu_run_until_pc` variants). TCP gotcha:
+`set_break_pc` is a yield predicate — on hit: clear (value 0) → `step_inst`
+→ re-arm, else identical fake repeats.
+
+**Status**: open. Next: clean oracle lockstep on the pt repro checkpoints
+(1700→2040), dump-diff the first divergent frame, then capture the
+validator's memcmp/checksum calls (0x0813B634 / 0x0813B650) on both engines
+to isolate the branch that diverges.

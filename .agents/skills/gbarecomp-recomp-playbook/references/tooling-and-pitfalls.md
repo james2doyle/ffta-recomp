@@ -74,3 +74,20 @@ Run this after every play session; it is the whole loop in order.
   evidence) so stale folklore does not survive in the docs.
 - Commit after every milestone; a clean tree with a dated log beats a
   perfect memory.
+- **Breakpoint commands over a debug socket are usually yield predicates,
+  not one-shot traps.** After a hit you must *clear the break, step one
+  instruction, then re-arm*; stepping (or re-arming) without clearing looks
+  like an infinite loop of identical fake hits parked on the same PC.
+- **Keep the machine idle during lockstep/timing probes.** A concurrent
+  build or regeneration slows both engines and can trip the tool's command
+  timeout — which then looks exactly like the stall you are hunting. Check
+  for stray compiler jobs before trusting a "timed out" verdict.
+- **External saves:** emulator-native raw images for the same chip type are
+  interchangeable; community formats are often compressed containers
+  (header + size fields + CRC + packed payload). Unpack to the raw chip
+  size, verify the container's own CRC, and byte-compare against any second
+  export of the same save before trusting the conversion.
+- **Loading a non-default battery save into an instrumented launcher:**
+  pass the save argument *last* so it wins over the launcher's built-in
+  default (verify by the runner's "save loaded" log line), and always work
+  on a copy — save flows rewrite the file.

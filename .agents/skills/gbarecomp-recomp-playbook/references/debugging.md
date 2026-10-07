@@ -44,6 +44,38 @@ emulator.
 - Preserve the repro state immediately — play sessions overwrite slots.
   Archive copies before running anything that could overwrite.
 
+## Battery-save flows (scan / validate / write)
+
+Save subsystems are a top divergence habitat — they mix I/O, checksums, and
+multi-record state, and their failures cascade into RAM corruption:
+
+- The game usually keeps **redundant records** (mirrored copies, monotonic
+  counters, per-record checksums). It scans them, validates (magic compare,
+  then checksum-field blanking + checksum recompute over the record), picks
+  the newest, and only then acts. A divergence anywhere in that scan turns
+  record fields into garbage descriptors, and a bulk copy called with a
+  nonsense length becomes a multi-gigabyte runaway that sweeps RAM.
+- **Signature to recognize**: a move/copy routine invoked with `source` equal
+  to the bitwise complement of `count` (or any swapped/complemented argument
+  pair) means the caller consumed garbage record fields — hunt the record
+  decode, not the copier. Also watch for "mangled high-byte" pointer families
+  (a plausible low half, corrupt region bits).
+- **How to compare**: capture the flash read/move driver's call sequence at
+  its common call site on both engines, replaying the same trace. Park on the
+  call PC and log the argument registers plus LR — at the park, LR is still
+  the driver's *caller*, which identifies the flow stage. Diff the sequences:
+  the first mismatching call localizes the divergence stage.
+- **In-place validation evidence**: on the reference emulator, watch the
+  record buffer over the validation window — the game typically blanks the
+  checksum and stamp bytes in its working copy before recomputing. If your
+  engine's copy still holds the un-blanked bytes later, validation diverged
+  inside that window.
+- A **foreign-but-valid save** (another region's release, a save-tool file)
+  is a free stress test of the scan path: verify its structure first
+  (redundant copies nearly identical modulo counters/stamps; the emulator's
+  game accepts it), then use it as an oracle-compared repro.
+- Keep a pristine copy of any test save; these flows rewrite the file.
+
 ## Crash classes worth naming in your docs
 
 | Symptom | Meaning |
@@ -52,6 +84,7 @@ emulator.
 | Bridge/watchdog abort with instruction count | Bridge stop-contract limitation; harvest cache, seed the path static, retry |
 | Interpreter NotImplemented/Undefined at a PC | Lowering gap in the framework itself; report upstream |
 | Static code spinning (no abort) | Divergence class; oracle-compare, don't add coverage |
+| Copy/move loop with an enormous count, RAM swept | Upstream computed garbage (often save-record decode); oracle-compare the scan/validate path |
 
 ## Evidence discipline
 
