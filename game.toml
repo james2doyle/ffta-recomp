@@ -4074,3 +4074,91 @@ note = "session-15 start; push-root verified by prologue scan; covers interior 0
 addr = 0x0806D2B4
 mode = "thumb"
 note = "resolve-added seed (session-15 strict acceptance); start"
+
+# ─── Batch t: native-save hang fix (2026-10-07 09:20 session) ───
+# 9 heal units in 0x08141xxx (save-flow region, never statically covered).
+# Strict repro: first miss = 0x08141E30. Non-strict repro hung deterministically.
+
+[[extra_func]]
+addr = 0x08141E30
+mode = "thumb"
+note = "save-flow start; push-root scan + strict hang-repro first miss (2026-10-07 09:20 native-save hang); covers sub-units 0x08141E34/48/4A/4C/84"
+
+[[extra_func]]
+addr = 0x081419C0
+mode = "thumb"
+note = "save-flow start; push-root scan; covers 0x081419E8/9F4; healed during the hung session (bridged)"
+
+
+# Batch t (cont.) — save-flow getter at 0x03007D48 (native-save hang repro,
+# 2026-10-07). Strict replay aborts on the first dispatch miss here; live
+# dump (GBARECOMP_MISS_IWRAM_DUMP at the miss) shows `00 78 70 47` =
+# `ldrb r0,[r0]; bx lr` at 0x03007D48 + zeros after — the same
+# runtime-planted getter pattern as the 0x03007E60 flash getter above
+# (planted by the save/flash driver, called via the bx r5 veneer @0x08142258;
+# address is computed, not a pool word — no ROM reference exists). Decode
+# source = ROM 0x08141AAC, the identical 4 bytes used for the 7E60 getter.
+[[code_copy]]
+runtime_start = 0x03007D48
+source_start = 0x08141AAC
+size = 0x00000004
+name = "iwram_save_getter_7d48"
+note = "4-byte runtime-planted getter; live miss dump (2026-10-07 09:32) == ROM 0x08141AAC bytes (00 78 70 47)"
+
+[[extra_func]]
+addr = 0x03007D48
+mode = "thumb"
+source_addr = 0x08141AAC
+note = "cold-run miss x1 in the strict save-flow repro (state2_prev_092041 + session trace); dump bytes 00787047 at 0x03007D48"
+
+[[code_copy]]
+runtime_start = 0x03007D9C
+source_start = 0x08141AAC
+size = 0x00000004
+name = "iwram_save_getter_7d9c"
+note = "4-byte runtime-planted getter; live miss dump (2026-10-07, save-flow repro) == ROM 0x08141AAC bytes (00 78 70 47)"
+
+[[extra_func]]
+addr = 0x03007D9C
+mode = "thumb"
+source_addr = 0x08141AAC
+note = "cold-run miss x1 in the strict save-flow repro (state2_prev_092041 + session trace); dump bytes 00787047 at 0x03007D9C (second getter of the driver's plant-and-call sequence)"
+
+[[code_copy]]
+runtime_start = 0x03007CE4
+source_start = 0x08141BB0
+size = 0x0000002E
+name = "iwram_byte_compare"
+note = "copied byte-compare routine; live miss dump (2026-10-07 save-flow repro) == ROM [0x08141BB0,0x08141BDE) verbatim (push {r4,r5,lr}; compare loop; pop {r4,r5}; pop {r1}; bx r1)"
+
+[[extra_func]]
+addr = 0x03007CE4
+mode = "thumb"
+source_addr = 0x08141BB0
+note = "cold-run miss x1 in the strict save-flow repro (state2_prev_092041 + session trace); dump bytes 30b5051c0b1c... == ROM 0x08141BB0 (clean prologue, 0x2E-byte function)"
+
+[[code_copy]]
+runtime_start = 0x03007CA2
+source_start = 0x08141AEE
+size = 0x00000026
+name = "iwram_byte_copy_7ca2"
+note = "byte-copy loop re-planted at an unaligned scratch slot; live miss dump (2026-10-07 save-flow repro) == ROM [0x08141AEE,0x08141B14) verbatim; entry 0x03007CA4 <- ROM 0x08141AF0 (2-byte offset)"
+
+[[extra_func]]
+addr = 0x03007CA4
+mode = "thumb"
+source_addr = 0x08141AF0
+note = "cold-run miss x1 in the strict save-flow repro; dump @0x03007CA4 = 10b5041c... = push {r4,lr} + forward byte-copy loop (same routine as the 0x03007D64 copy, different scratch destination)"
+
+[[code_copy]]
+runtime_start = 0x03007E00
+source_start = 0x08141AAC
+size = 0x00000004
+name = "iwram_save_getter_7e00"
+note = "4-byte runtime-planted getter; live miss dump (2026-10-07 save-flow repro) == ROM 0x08141AAC bytes (00 78 70 47)"
+
+[[extra_func]]
+addr = 0x03007E00
+mode = "thumb"
+source_addr = 0x08141AAC
+note = "cold-run miss x1 (or dump-observed sibling) in the strict save-flow repro; planted getter sequence of the save/flash driver"

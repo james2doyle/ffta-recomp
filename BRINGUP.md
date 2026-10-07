@@ -1139,6 +1139,46 @@ distinct self-heal miss PCs** (`logs/playtest_misses.frag`; 484 in
   hash unchanged). Corpus 45,122 → **45,537** (+415); walker ≈ 98.9 %;
   **pointer-pool 85.8 % → 86.6 %**.
 
+### Native-save hang #2 (2026-10-07 09:20) — reproducible; root-cause in progress
+- **Symptom**: field-menu native (flash) save — the save WRITES successfully
+  (`saves/playtest.sav`, 09:20:57) and the game then hangs forever (hot spin,
+  99.8 % CPU; live process SIGABRT-captured to `/tmp/ffta_hang.core`).
+- **Capture/stacks**: main thread spinning with alternating
+  `0x08141B74`/`0x08141B80` frames + nested `runtime_irq`/IWRAM frames;
+  guest pc at kill was in IWRAM, sp=0x03007FF0. Matching binary preserved at
+  `/tmp/FFTARecomp_at_hang`; post-hang save copy `/tmp/playtest_at_hang_0921.sav`.
+- **Deterministic repro (preserved)**: `--load-state
+  saves/state2_prev_20261007_092041.state` + `GBARECOMP_INPUT_REPLAY=
+  logs/playthrough.csv` + `--frames 2756` → non-strict hangs (timeout);
+  strict aborts at the coverage frontier below.
+- **Fixed (batch t)**: the save path was never statically covered (it only
+  runs on save). Merged: starts 0x081419C0, 0x08141E30 (strict repro's first
+  miss); planted-IWRAM getters 0x03007D48/0x03007D9C/0x03007E00 (`ldrb
+  r0,[r0]; bx lr`, dump-verified, same plant mechanism as the 0x03007E60
+  getter); copied byte-compare 0x03007CE4 ← ROM 0x08141BB0 (0x2E B, verbatim
+  dump match); byte-copy loop re-planted unaligned at 0x03007CA2 (entry
+  0x03007CA4 ← ROM 0x08141AEE/0x08141AF0, dump-verified 0x26 B).
+- **Frontier (open)**: with those merged, the strict repro advances into the
+  save driver's runtime **code-relocation machinery**: the driver assembles
+  a helper on its stack (sp=0x03007D08), calls it through the `bx r5` veneer
+  @0x08142250 (r5=sp|1), and then executes/copies targeting **0x2201D008**
+  (trace ring, `GBARECOMP_RUNTIME_TRACE=1`: final events r0=0x03007D09,
+  r1=0x2201D008, r2=0x80, ARM mode; then a bridged fetch at 0xE25EF004 =
+  garbage). 0x22xxxxxx is outside every decode region (gbarecomp: OpenBus;
+  no EWRAM mirror above 0x02FFFFFF) → garbage execution → hang. **Open
+  question**: is 0x2201D008 a game constant read from its EWRAM structures
+  (→ model it), or a value corrupted earlier in our run (→ first-divergence
+  hunt before the save call)? Key evidence already local: final trace-ring
+  dump (see /tmp/repro_ns3.log), driver tail disasm 0x08141B86..BA2, core.
+- **Not crashes**: cores 123841/124227/128372 (08:56/08:58/09:13) are
+  resolve-iteration strict aborts (expected mode of the resolve loop).
+
+### Batch t status (needed by the strict frontier)
+- The nine healed units of the hung session are fully merged via the entries
+  above; strict acceptance of the repro trace still stops at the open
+  frontier (0x2201D008), so batch t is **partially** accepted: attract gate
+  PASS, coverage corpus 45,537 → 45,559, walker ≈ 98.9 %, pool ≈ 86.6 %.
+
 ### Native-save session (2026-10-06, 17:41): Batch i — the session that produced `game.state2`
 - The user played a continuation and performed an in-game (native/flash)
   save at 17:41. The session produced the post-save savestate `game.state2`

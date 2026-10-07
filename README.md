@@ -16,7 +16,8 @@ title, new game, intro, and battles — the first non-tutorial battle was
 completed 2026-10-07 (first event-interpreter seeds merged) — with **every
 executed path FULLY_STATIC** (zero interpreted instructions) at last
 verification. Fifteen interactive playtest sessions are integrated (audit
-batches a–s): corpus **45,537 emitted units**, walker's static reach ≈ 98.9 %,
+batches a–s), plus the native-save-path batch t (2026-10-07): corpus **45,559
+emitted units**, walker's static reach ≈ 98.9 %,
 pointer-pool lens ≈ 86.6 % (both are proxies — the bar for a route is
 FULLY_STATIC on executed paths; full table in § Verification). The attract
 regression gate hash has been stable since pinning. Remaining work:
@@ -225,14 +226,20 @@ Current snapshot (2026-10-06, strict 1200-frame run; refresh with
 | Lens | Mapped / total | % |
 |---|---|---|
 | **Executed path** (strict 1200-frame run) | everything that ran | **100 % — FULLY_STATIC, zero interpreter fallback** |
-| **Walker's static reach** (whole-ROM scan trial) | **45,537 / 46,044** emitted units | **≈ 98.9 %** |
-| **Pointer-pool reach** (speculative-harvest trial) | **45,537 / 52,584** | **≈ 86.6 %** |
+| **Walker's static reach** (whole-ROM scan trial) | **45,559 / 46,066** emitted units | **≈ 98.9 %** |
+| **Pointer-pool reach** (speculative-harvest trial) | **45,559 / 52,606** | **≈ 86.6 %** |
 
 Rows 2–3 are proxies with different denominators (no ground-truth function
 inventory exists); a route is done when its replay is FULLY_STATIC. Corpus:
-45,537 emitted units (interior split units + IWRAM code-copy included); the
-speculative-harvest trial kept 2,078 pointer candidates out of 103,371
+45,559 emitted units (interior split units + IWRAM code-copy included); the
+speculative-harvest trial kept 2,078 pointer candidates out of 103,391
 PC-relative literals (`false` in `game.toml` by policy).
+
+**Known open issue (2026-10-07):** field-menu native (flash) saves complete
+but then hang in the save driver's runtime code-relocation path (the battery
+save is written correctly; savestates are unaffected; the pre-hang state and
+the deterministic repro are archived — see BRINGUP § "Native-save hang #2";
+root cause in progress).
 - **Oracle frame-diff:** `tools/framediff.py --lo 4 --hi 300` (native vs the
   framework's mGBA oracle; bounded band diffs on animated content are
   expected and documented in BRINGUP § "park-phase semantics") and
