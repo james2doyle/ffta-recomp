@@ -3444,3 +3444,17 @@ addr = 0x08019480
 mode = "thumb"
 note = "session-5 resolve: covers miss 0x8019480; push @0x08019480"
 
+
+# ─── Batch i: native-save session units (2026-10-06) ───
+# Live-healed during the user's in-game save (17:41). Both prologues verified.
+
+[[extra_func]]
+addr = 0x080191B0
+mode = "thumb"
+note = "push {r4,lr} @0x080191B0 (disarm); heal-cache unit from the native-save playtest session (17:41)"
+
+[[extra_func]]
+addr = 0x08142160
+mode = "thumb"
+note = "push {r4-r7,lr}; sub sp,#0x40 @0x08142160 (disarm); heal-cache unit from the native-save playtest session (17:41)"
+

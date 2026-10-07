@@ -994,6 +994,26 @@ distinct self-heal miss PCs** (`logs/playtest_misses.frag`; 484 in
   (temp overlay + proposal file; never writes game.toml). Next session
   closes with: cache_harvest → merge → `resolve.py` → cycle → commit.
 
+### Native-save session (2026-10-06, 17:41): Batch i — the session that produced `game.state2`
+- The user played a continuation and performed an in-game (native/flash)
+  save at 17:41. The session produced the post-save savestate `game.state2`
+  (frame 115,148) and the battery save `saves/playtest.sav` (its SAV0 chunk
+  parses clean — verified during the session-6 hang investigation below).
+- Self-heal live-healed 2 units while the save ran; both landed in the repo
+  heal cache (17:41). Prologues re-verified by disarm at commit time:
+  `push {r4,lr}` @0x080191B0; `push {r4-r7,lr}; sub sp,#0x40` @0x08142160.
+- **Batch i**: both merged into `game.toml` as `[[extra_func]]` seeds
+  (they sat uncommitted until now).
+- **Validation at commit** (`tools/cycle.py --frames 1200`, cold regen):
+  regen OK (30,554 units emitted — the README snapshot's 30,554 already
+  includes Batch i), dispatch sanity OK, build OK, **attract gate PASS**
+  (golden sha256 `1EF4C118…EF321C1` unchanged — the seeds alter no
+  behavior).
+- Cross-reference: Batch i is **unrelated** to the session-6 hang — the
+  hang investigation confirmed the wedged runs never bridged any unmapped
+  PC (heal caches stayed empty through every repro); these two units only
+  execute inside the save flow itself.
+
 ### Session 6 hang (2026-10-06, user report "still got a hang"): reproduced + root-caused to a nestable-VBlank × non-reentrant-SoundMain race — TIMING bug, not coverage
 - **User report**: interactive playthrough froze; the user pinned the repro
   himself: load `game.state2` (the post-native-save savestate, frame
