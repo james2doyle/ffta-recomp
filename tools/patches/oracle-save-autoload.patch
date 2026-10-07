@@ -1,0 +1,35 @@
+oracle/main.cpp --- C++
+253             }                        253             }
+254         }                            254         }
+255         if (rom_path && *rom_path)   255         if (rom_path && *rom_path) 
+... {                                    ... {
+256             VFile* vf = VFileOpen(r  256             // mCoreLoadFile derive
+... om_path, O_RDONLY);                  ... s the directory set from the ROM pa
+...                                      ... th
+...                                      257             // (baseName/dirs.save)
+...                                      ... , then we autoload "<rom>.sav" with
+...                                      ...  the
+...                                      258             // standard mGBA helper
+...                                      ...  (frontends do this; a raw loadROM 
+...                                      ... call
+...                                      259             // does neither). Neede
+...                                      ... d for save/load-flow comparisons.
+257             if (!vf) {               260             if (!mCoreLoadFile(core
+...                                      ... , rom_path)) {
+258                 std::fprintf(stderr  261                 std::fprintf(stderr
+... , "oracle: open ROM %s failed\n", r  ... , "oracle: loadROM %s failed\n", ro
+... om_path);                            ... m_path);
+259                 return false;        262                 return false;
+260             }                        263             }
+261             if (!core->loadROM(core  264             if (!mCoreAutoloadSave(
+... , vf)) {                             ... core)) {
+262                 std::fprintf(stderr  265                 std::fprintf(stderr
+... , "oracle: loadROM failed\n");       ... ,
+263                 return false;        266                     "oracle: no sav
+...                                      ... e autoloaded for %s (continuing)\n"
+...                                      ... ,
+...                                      267                     rom_path);
+264             }                        268             }
+265         }                            269         }
+266                                      270 
+

@@ -19,6 +19,9 @@ Commands (run from anywhere; .venv has capstone but this tool needs no deps):
       [--every 2] [--shifts] [--save-worst /tmp/dr]
   .venv/bin/python tools/dualrun.py probe cells --lo 300 --hi 330 \
       --addrs 0x030034B0,0x03000088
+  .venv/bin/python tools/dualrun.py probe saveflow \
+      --trace logs/playthrough.csv --save saves/playtest.sav \
+      --checkpoints 400,600,900,1200,1500,1700 --dump-dir /tmp/sf
 
 PNG artifacts are ROM-derived: write them to /tmp or logs/ (gitignored),
 never into the repo tree.
@@ -28,10 +31,12 @@ from __future__ import annotations
 import argparse
 import os
 import pathlib
+import shutil
 import socket
 import struct
 import subprocess
 import sys
+import tempfile
 import zlib
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
@@ -59,7 +64,8 @@ class Dual:
     """Lockstep pair of engine TCP clients (use as a context manager)."""
 
     def __init__(self, strict: bool = True, env_extra: dict | None = None,
-                 timeout: float = 30.0):
+                 timeout: float = 30.0, trace: str | None = None,
+                 save: str | None = None):
         self.nat_port = free_port()
         self.orc_port = free_port()
         env = {k: v for k, v in os.environ.items()
@@ -68,13 +74,36 @@ class Dual:
             env["GBARECOMP_STRICT_STATIC"] = "1"
         if env_extra:
             env.update(env_extra)
+        self.trace: dict[int, int] = {}
+        if trace:
+            for ln in pathlib.Path(trace).read_text().splitlines():
+                ln = ln.strip()
+                if not ln or ln.startswith("#"):
+                    continue
+                f, v = ln.split(",", 1)
+                self.trace[int(f)] = int(v.strip(), 16)
+        self.frame = 0
+        nat_argv = [str(NATIVE), "--bios", str(BIOS), "--rom", str(ROM),
+                    "--tcp", str(self.nat_port)]
+        if save:
+            nat_argv += ["--save-path", str(save)]
         self.nat = subprocess.Popen(
-            [str(NATIVE), "--bios", str(BIOS), "--rom", str(ROM),
-             "--tcp", str(self.nat_port)],
-            cwd=str(REPO), stdout=subprocess.DEVNULL,
+            nat_argv, cwd=str(REPO), stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL, env=env)
+        orc_rom = str(ROM)
+        self._tmpdirs: list[str] = []
+        if save:
+            # Give the oracle a save file via its standard "<rom>.sav"
+            # autoload (oracle supports it since the 2026-10-07 rebuild):
+            # symlink the ROM + copy the battery save into a temp dir.
+            tmp = tempfile.mkdtemp(prefix="dualrun_save_")
+            self._tmpdirs.append(tmp)
+            t = pathlib.Path(tmp)
+            (t / "game.gba").symlink_to(ROM)
+            shutil.copy(str(save), str(t / "game.sav"))
+            orc_rom = str(t / "game.gba")
         self.orc = subprocess.Popen(
-            [str(ORACLE), "--bios", str(BIOS), "--rom", str(ROM),
+            [str(ORACLE), "--bios", str(BIOS), "--rom", orc_rom,
              "--port", str(self.orc_port)],
             cwd=str(REPO / "gbarecomp"), stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL)
@@ -97,6 +126,20 @@ class Dual:
         self.n.call(cmd="run_frames", n=count)
         for _ in range(count):
             self.o.call(cmd="emu_step")
+        self.frame += count
+
+    def step_traced(self, target: int) -> None:
+        """Step frame-by-frame to absolute frame `target`, applying input
+        events from the trace just before the frame they belong to."""
+        while self.frame < target:
+            f = self.frame + 1
+            if f in self.trace:
+                v = self.trace[f]
+                self.n.call(cmd="set_keyinput", value=v)
+                self.o.call(cmd="emu_set_keys", keys=(~v) & 0x03FF)
+            self.n.call(cmd="run_frames", n=1)
+            self.o.call(cmd="emu_step")
+            self.frame = f
 
     def read(self, region: str, addr: int | None = None, ln: int | None = None):
         ncmd, ocmd, base, default_len = REGIONS[region]
@@ -123,6 +166,8 @@ class Dual:
                 p.wait(timeout=5)
             except subprocess.TimeoutExpired:
                 p.kill()
+        for tmp in getattr(self, "_tmpdirs", []) or []:
+            shutil.rmtree(tmp, ignore_errors=True)
 
 
 def write_png(path: pathlib.Path, w: int, h: int, rgb: bytes) -> None:
@@ -267,6 +312,46 @@ def cmd_cells(args) -> int:
     return 0
 
 
+def cmd_saveflow(args) -> int:
+    env_extra = dict(kv.split("=", 1) for kv in args.env)
+    d = Dual(strict=not args.no_strict, env_extra=env_extra,
+             timeout=args.timeout, trace=args.trace, save=args.save)
+    dumpdir = pathlib.Path(args.dump_dir) if args.dump_dir else None
+    if (dumpdir or args.png_at):
+        dumpdir = dumpdir or pathlib.Path("/tmp/dualrun_saveflow")
+        dumpdir.mkdir(parents=True, exist_ok=True)
+    pngs = {int(x) for x in (args.png_at or "").split(",") if x}
+    checks = [int(x) for x in args.checkpoints.split(",") if x]
+    rc = 0
+    try:
+        for ck in checks:
+            d.step_traced(ck)
+            if ck in pngs and dumpdir:
+                nr, orr = d.screenshot()
+                write_png(dumpdir / f"native_f{ck}.png", 240, 160, nr)
+                write_png(dumpdir / f"oracle_f{ck}.png", 240, 160, orr)
+            parts = [f"f{ck}"]
+            for name in args.regions.split(","):
+                nb, ob = d.read(name)
+                dd = diff_count(nb, ob)
+                parts.append(f"{name}:diff={dd}")
+                if dd:
+                    fd = [hex(REGIONS[name][2] + i)
+                          for i in first_diffs(nb, ob)]
+                    parts.append("first=" + "+".join(fd))
+                    if dumpdir:
+                        tag = f"f{ck}_{name}"
+                        (dumpdir / f"native_{tag}.bin").write_bytes(nb)
+                        (dumpdir / f"oracle_{tag}.bin").write_bytes(ob)
+            print(" ".join(parts), flush=True)
+    except Exception as e:
+        print(f"saveflow stopped at f~{d.frame}: {e}", flush=True)
+        rc = 1
+    finally:
+        d.close()
+    return rc
+
+
 def main() -> int:
     std = argparse.ArgumentParser(add_help=False)
     std.add_argument("--no-strict", action="store_true",
@@ -309,6 +394,22 @@ def main() -> int:
     c.add_argument("--addrs", required=True,
                    help="comma-separated hex addresses (IWRAM/EWRAM)")
     c.set_defaults(fn=cmd_cells)
+
+    sf = psub.add_parser("saveflow",
+                         help="region diff across an input trace, "
+                              "optionally with a battery save")
+    sf.add_argument("--trace", required=True, help="input trace CSV")
+    sf.add_argument("--save", default=None,
+                    help="battery save for the native side; a copy is "
+                         "placed next to a symlinked ROM for the oracle")
+    sf.add_argument("--checkpoints", required=True,
+                    help="comma-separated absolute frame numbers")
+    sf.add_argument("--regions", default="iwram,ewram,io")
+    sf.add_argument("--dump-dir", default=None,
+                    help="write region dumps (and PNGs) here")
+    sf.add_argument("--png-at", default=None,
+                    help="comma-separated frames to also save a PNG pair")
+    sf.set_defaults(fn=cmd_saveflow)
 
     args = ap.parse_args()
     return args.fn(args)

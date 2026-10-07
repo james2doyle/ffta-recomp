@@ -1408,3 +1408,51 @@ distinct self-heal miss PCs** (`logs/playtest_misses.frag`; 484 in
   cell; the two cores above for before/after snapshots.
 - **Batch t status unchanged**: save-path coverage merged; strict acceptance
   of both repros still stops at the relocation/IRQ frontier above.
+
+### 2026-10-07 — Save/load flow: oracle save autoload, serve-mode gap, boot-scan decode
+Goal of this pass: pin the first divergence of the native's save/load flows
+against mGBA instead of guessing from one side. Tooling built + findings:
+
+1. **Oracle now autoloads battery saves** (`tools/patches/oracle-save-autoload.patch`,
+   applied in the gbarecomp working tree; rebuild: `cmake --build gbarecomp/build
+   --target gbarecomp_oracle`). Root cause of the old behaviour: the oracle
+   wrapper used a raw `core->loadROM()` and never `mCoreLoadFile()` +
+   `mCoreAutoloadSave()`, so the oracle always ran without any .sav. With the
+   patch, `<rom>.sav` next to the ROM autoloads (verified: the oracle reads
+   0xFF for erased sectors and scans sectors 0..15 of saves/playtest.sav).
+2. **`tools/dualrun.py` extended**: `probe saveflow --trace <csv> --save <sav>
+   --checkpoints <frames> [--dump-dir] [--png-at]` — lockstep native-vs-oracle
+   with per-frame input injection (set_keyinput / emu_set_keys), a save copy
+   staged next to a symlinked ROM for the oracle, per-checkpoint region diffs
+   and raw dumps. First use: honest but confounded — see (3).
+3. **Found: the interactive `--tcp` serve mode does NOT load the battery save.**
+   Clean-exit logs of `--tcp` runs (with `--save-path ... --frames 0` style)
+   contain neither `rom_loaded`/`bios_loaded` nor `save_loaded`; the flash
+   array stays zero-initialised. All TCP-driven register probes therefore ran
+   on an unloaded flash: the game's boot save-scan (`0x0813AE30`) reads zeros,
+   `buf[0x10]==sector` spuriously matches, and the scan re-issues the same
+   sector-0 read every frame (observed at f282..f289+; buffer = 0x00 vs the
+   oracle's 0xFF). **Consequence: do not use the interactive `--tcp` path for
+   save/load comparisons until it honours `--save-path` like the normal run
+   path does; normal `--frames`/windowed runs do load it (`save_loaded` prints,
+   verified).**
+4. **Boot save-scan decoded** (ROM-verified, `tools/disarm.py`):
+   `0x0813AE30` scans 16 sectors (3 passes): `bl 0x08141B14` (flash read via
+   `0x08141BA0` → `bx`-trampoline `0x08142250` → the memcpy the driver copies
+   onto its stack at `sp`, loop head at `sp+0x0E`), then `memcmp(buf, magic, 8)`
+   (`bl 0x081443B0`) and a `buf[0x10] == pass` check; found sectors are
+   recorded and processed afterwards. The oracle's call-site registers for a
+   read are (r0=flash addr, r1=dest, r2=count, r3=sp|1, r4=sector<<12).
+5. **Next steps (in order):**
+   a. Make the serve mode load the save (same stanza as `run_game`'s normal
+      path) — small framework edit, export as a patch like (1).
+   b. Re-run the register capture at `0x08141BA0` + `probe saveflow` on the
+      save-loading path vs the oracle; first real divergence should now be
+      measurable in the load flow (the f~1750 runaway repro: boot +
+      `logs/playthrough.csv` + `saves/playtest.sav`).
+   c. Then fix the actual runaway (source addr garbage family
+      `0x01004Bxx`/`0x0200B1xx` seen in unloaded runs — re-derive on the
+      loaded path before trusting those values).
+6. Housekeeping: `gbarecomp` submodule working tree has the oracle patch
+   applied (uncommitted; patch exported to `tools/patches/`). Re-apply after
+   submodule updates.
