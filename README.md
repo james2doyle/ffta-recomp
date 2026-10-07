@@ -170,7 +170,7 @@ instruments everything:
 | Artifact | What it is |
 |---|---|
 | `logs/playthrough.csv` | your exact input trace — replayable (`GBARECOMP_INPUT_REPLAY`) |
-| `logs/playtest_misses.frag` | TOML proposals (`.frag` flushes **only on clean exit**) |
+| `logs/playtest_misses.frag` | TOML proposals (`.frag` flushes **only on clean exit**; overwritten per clean session — play.sh archives the previous one as `saves/frag_prev_*.frag`) |
 | `recomp_cache/<sha>/gcc/<plat>/<abi>/` | completed heals: `<PC>_<hash>_<t\|a>.{c,dll,log}` |
 | `saves/` | archived previous-session savestates + traces, battery save |
 

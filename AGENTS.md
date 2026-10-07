@@ -111,9 +111,10 @@ Interactive playtest (the healing loop's front end — README § "The playtest
 → healing loop"): `tools/play.sh [--scale N | --fullscreen | --tcp-observe
 PORT]`. Letter-key keymap in `build/keybinds.ini` (example:
 `tools/playtest_keybinds.ini.example`); records `logs/playthrough.csv`,
-proposes to `logs/playtest_misses.frag` (clean-exit flush only), archives the
-previous session's savestates/traces under `saves/`, battery save at
-`saves/playtest.sav`.
+proposes to `logs/playtest_misses.frag` (clean-exit flush only; overwritten by
+the next clean session — play.sh archives the previous one under `saves/`),
+archives the previous session's savestates/traces under `saves/`, battery save
+at `saves/playtest.sav`.
 
 Coverage report (three lenses — executed path / walker's static reach /
 pointer-pool reach): `.venv/bin/python tools/coverage_report.py` (defaults
