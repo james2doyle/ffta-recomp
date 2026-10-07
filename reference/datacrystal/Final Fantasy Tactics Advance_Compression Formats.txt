@@ -1,0 +1,171 @@
+ 
+ Final Fantasy Tactics Advance:Compression Formats - Data Crystal 
+ 34 captures 22 May 2011 - 5 Dec 2021 
+ Dec 
+ DEC 
+ Jan 
+ 05 
+ 2020 
+ 2021 
+ 2022 
+ success 
+ fail 
+ About this capture 
+ TIMESTAMPS 
+ The Wayback Machine - https://web.archive.org/web/20211205115133/http://datacrystal.romhacking.net/wiki/Final_Fantasy_Tactics_Advance:Compression_Formats 
+ Final Fantasy Tactics Advance:Compression Formats 
+ From Data Crystal 
+ Jump to: navigation , search 
+ This is a sub-page for Final Fantasy Tactics Advance . Final Fantasy Tactics Advance employs several compression formats. Several have been reverse engineered, and information is below:
+ Contents  [ hide ]  
+ 1 Main compression methods 
+ 1.1 Mode 0x11 
+ 2 LZSS 
+ 2.1 C# LZSS Decompression Function 
+ Main compression methods 
+ Starting around 0x0801F100 in the code is a routine for decompressing some data. The first byte seems to indicate type. Bytes checked for are, in order:
+ 0x10 
+ 0x01 
+ 0x11 
+ If none of these are matched, it prepares three arguments and then branches with link to 0x08141868.
+ Mode 0x11 
+ In mode 0x11, the first three bytes after the identifier are compared against the value at 0x0801F26C (0x00FFFFFF in the original ROM).
+If the bytes match, it jumps to 0x0801F274.
+The destination is then filled with 0x1000 words of value 0.
+The following bytes are GBA LZ77 format.
+ LZSS 
+ Several places in the FFTA ROM, a derivative of the LZSS compression scheme is used. In this format, literals (uncompressed data) and compressed data is mixed. The compressed data comes in several forms, and is identified by the highest bit that is set. Upon reading one compressed byte (and additionally however more are specified by that form), the next byte is read as compressed as well. Bytes are only read as uncompressed when specified by a special byte. The following is the list of all of the compressed data forms:
+ Bit 7 set: 0b1XXXXYYY 0bYYYYYYYY 
+ Track back Y bytes from outputted data and copy X + 3 bytes. 
+ Bit 6 set: 0b01XXXXXX 
+ The next compressed byte is in X + 1 bytes 
+ Bit 5 set: 0b001XXXXX 
+ Output X + 2 zeros 
+ Bit 4 set: 0b0001XXXX 0bYYZZZZZZ 0bZZZZZZZZ 
+ Track back Z bytes from outputted data and copy 4 + 0b00YYXXXX bytes. 
+ Bit 3 set: 0b00001??? 
+ Ignored. 
+ Bit 2 set: 0b000001?? 
+ Ignored. 
+ Bit 1 set: 0b00000010 0bXXXXXXXX 
+ Output 0x00 byte X + 3 times. 
+ Bit 0 set: 0b00000001 0bXXXXXXXX 
+ Output 0xFF byte X + 3 times. 
+ No bits set: 0b00000000 0bXXXXXXXX 0bYYYYYYYY 0xZZZZZZZZ 
+ Track back 0bYYYYYYYYZZZZZZZZ bytes from outputted data and copy X + 5 bytes. 
+ C# LZSS Decompression Function 
+ public int LZSSDecompress(byte[] source, ref byte[] dest)
+ {
+ int retlen = source[3] | (source[2] << 0x08) | (source[1] << 0x10) | (source[0] << 0x18);
+ int xIn = 4;
+ int xOut = 0;
+ int tmp = 0;
+ int i = 0;
+ int j = 0;
+ while (xOut < retlen)
+ {
+ if ((source[xIn] & 0x80) == 0x80)
+ {
+ tmp = (xOut - ((source[xIn] & 0x07) << 8)) - source[xIn + 1] - 1;
+ for (i = ((source[xIn] >> 3) & 0x0F) + 3; i > 0; i--)
+ {
+ dest[xOut] = dest[tmp];
+ xOut++;
+ tmp++;
+ }
+ xIn++;
+ }
+ else if ((source[xIn] & 0x40) == 0x40)
+ {
+ for (i = (source[xIn] & 0x3F) + 1; i > 0; i--)
+ {
+ xIn++;
+ dest[xOut] = source[xIn];
+ xOut++;
+ }
+ }
+ else if ((source[xIn] & 0x20) == 0x20)
+ {
+ for (i = (source[xIn] & 0x1F) + 2; i > 0; i--)
+ {
+ dest[xOut] = 0x00;
+ xOut++;
+ }
+ }
+ else if ((source[xIn] & 0x10) == 0x10)
+ {
+ j = ((source[xIn + 1] & 0x3F) << 8) | source[xIn + 2];
+ tmp = (xOut - j) - 1;
+ if (tmp < 0) tmp = 0;
+ for (i = (((source[xIn + 1] >> 2) & 0x30) | (source[xIn] & 0x0F)) + 4; i > 0; i--)
+ {
+ dest[xOut] = dest[tmp];
+ tmp++;
+ xOut++;
+ }
+ xIn += 2;
+ }
+ else if (source[xIn] == 0x01)
+ {
+ for (i = source[xIn + 1] + 3; i > 0; i--)
+ {
+ dest[xOut] = 0xFF;
+ xOut++;
+ }
+ xIn += 1;
+ }
+ else if (source[xIn] == 0x02)
+ {
+ for (i = source[xIn + 1] + 3; i > 0; i--)
+ {
+ dest[xOut] = 0x00;
+ xOut++;
+ }
+ xIn += 1;
+ }
+ else if (source[xIn] == 0x00)
+ {
+ j = source[xIn + 3] | (source[xIn + 2] << 0x08);
+ tmp = xOut - j - 1;
+ if (tmp < 0) tmp = 0;
+ for (i = source[xIn + 1] + 5; i > 0; i--)
+ {
+ dest[xOut] = dest[tmp];
+ xOut++;
+ tmp++;
+ }
+ xIn += 3;
+ }
+ xIn++;
+ }
+ return retlen;
+ }
+ Retrieved from " http://datacrystal.romhacking.net/wikid/index.php?title=Final_Fantasy_Tactics_Advance:Compression_Formats&oldid=36481 " 
+ Category : Subpages 
+ Navigation menu 
+ Personal tools 
+ Log in 
+ Namespaces 
+ Page 
+ Discussion 
+ Variants 
+ Views 
+ Read 
+ View source 
+ View history 
+ More 
+ Search 
+ Navigation 
+ Data Crystal Main Page RHDN Home Recent changes Random page Help 
+ Games 
+ RHDN Games List Translation Request List NES SNES GB/GBC GBA NDS NGP/NGC WonderSwan GEN N64 PSX PS2 PSP GCN TG16 SMS 
+ Community History 
+ Fan Translation Community History 
+ Tools 
+ What links here Related changes Special pages Printable version Permanent link Page information 
+ This page was last edited on 5 June 2016, at 00:00. 
+ Content is available under GNU Free Documentation License 1.2 unless otherwise noted. 
+ Privacy policy 
+ About Data Crystal 
+ Disclaimers 
+ 

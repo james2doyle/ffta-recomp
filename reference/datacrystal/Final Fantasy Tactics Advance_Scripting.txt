@@ -1,0 +1,506 @@
+ 
+ Final Fantasy Tactics Advance:Scripting - Data Crystal 
+ 11 captures 22 May 2011 - 5 Dec 2021 
+ Dec 
+ DEC 
+ Jan 
+ 05 
+ 2019 
+ 2021 
+ 2022 
+ success 
+ fail 
+ About this capture 
+ TIMESTAMPS 
+ The Wayback Machine - https://web.archive.org/web/20211205114756/http://datacrystal.romhacking.net/wiki/Final_Fantasy_Tactics_Advance:Scripting 
+ Final Fantasy Tactics Advance:Scripting 
+ From Data Crystal 
+ Jump to: navigation , search 
+ This is a sub-page for Final Fantasy Tactics Advance . 
+ Script format 
+ Opcode list All values are little-endian, unless otherwise stated 
+ Opcode
+ Instruction length
+ Description
+ Operands
+ 0x01
+ 3
+ Execute callback [need verification] 
+ 0xXXXX: The callback number 
+ 0x02
+ 1
+ Delimiter [need verification] 
+ None
+ 0x03
+ 2
+ Observed 
+ 0xXX: Unknown 
+ 0x01: Observed 
+ 0x04
+ 1
+ Observed 
+ None
+ 0x05
+ 1
+ Not observed 
+ None
+ 0x06
+ 4
+ Fade scene
+ 0xXX: Unknown (possibly a bitfield) 
+ 0x23: Fade in from white 
+ 0x13: Fade in from black 
+ 0x21: Fade out to white [need verification] 
+ 0x31: Fade out to black 
+ 0xYY: Time to take for fade, Y/10 seconds 
+ 0xZZ: Final visibility 
+ Capped at 0x64 (100) [need verification] 
+ 0x07
+ 1
+ Not observed 
+ None
+ 0x08
+ 1
+ Not observed 
+ None
+ 0x09
+ 1
+ Not observed 
+ None
+ 0x0A
+ 3
+ Not observed 
+ Unknown 
+ 0x0B
+ 4
+ Not observed 
+ Unknown 
+ 0x0C
+ 2
+ Set map
+ Note: This opcode will cause the background to glitch for a second 
+ 0xXX: Which map to use
+ 0x0D
+ 1
+ Observed 
+ None
+ 0x0E
+ 2
+ Observed 
+ 0x089A744E 
+ 0xXX: Unknown 
+ 0x00: Observed 
+ 0x01: Observed 
+ 0x0F
+ 4
+ Show message box
+ 0xXX: The number of the message in the array of messages for this scene 
+ 0xYY: The number of the character whose portrait to use 
+ 0xZZ: Options (seems to be a bitfield [need verification] ) 
+ Default: Top left 
+ Bit 0: Horizontal middle [need verification] 
+ Bit 1: Right 
+ Bit 3: Vertical middle 
+ Bit 4: Bottom 
+ 0x80: Observed 
+ 0x82: Observed 
+ 0xA4: Observed , guess position [need verification] 
+ 0x10
+ 3
+ Not observed 
+ Unknown 
+ 0x11
+ 2
+ Display centered, transparent message
+ 0xXX: Which message to display 
+ 0x12
+ 2
+ Display notice
+ 0xXX: Which notice to display (distinct from messages) 
+ 0x13
+ ?
+ Unknown, can trigger failsafe 
+ Unknown 
+ 0x15
+ 2
+ Scripted delay
+ 0xXX: The length of the delay, in X/100 seconds 
+ 0x16
+ 1
+ Unknown 
+ None
+ 0x17
+ 2
+ Observed 
+ 0xXX: Unknown 
+ 0x00: Observed 
+ 0x02: Fade in from clip 
+ 0x04: Begin intro fight 
+ 0x05: Enter world map for the first time [need verification] 
+ 0x18
+ 2
+ Predefined event
+ 0xXX: Unknown 
+ 0x01: Place units [need verification] 
+ Crashes when map type is cutscene 
+ 0x03: Place units [need verification] 
+ 0x0A: Set Marche's name 
+ 0x0B: Set clan name 
+ 0x0E: Save game [need verification] 
+ 0x19
+ 3
+ Observed 
+ 0xXX: Unknown 
+ 0x19: Observed 
+ 0xYY: Unknown 
+ 0x00: Observed 
+ 0x1A
+ 4
+ Observed 
+ 0xXXXX [need verification] : Unknown 
+ 0x0200: Observed 
+ 0xYY [need verification] : Unknown 
+ 0x1B
+ 4
+ Not observed 
+ Unknown 
+ 0x1C
+ 3
+ Observed, 0x089A6FFF 
+ 0xXXXX: Unknown 
+ 0x0004: Observed 
+ 0x1D
+ 2
+ Not observed 
+ Unknown 
+ 0x1E
+ 2
+ Not observed 
+ Unknown 
+ 0x1F
+ 6
+ Place character
+ 0xXX: Which character to place 
+ 0xYZ: Where to place the character. X is the NE-SW position and Y is the NW-SE position 
+ 0xWW: The facing direction 
+ 0xVVVV: Unknown, Set to 0x20 0x00 
+ 0x20
+ 5
+ Place character
+ 0xXX: Which character to place 
+ 0xYZ: Where to place the character. X is the NE-SW position and Y is the NW-SE position 
+ 0xWW: The facing direction 
+ 0xVV: Unknown 
+ 0x00: Observed 
+ 0x21
+ 3
+ Not observed 
+ Unknown 
+ 0x22
+ 2
+ Observed 
+ 0xXX: Unknown 
+ 0x00: Clear character positions 
+ 0x4E: Reset all character animations [need verification] 
+ 0x23
+ 2
+ Enable character [need verification] 
+ 0xXX: Which character to enable 
+ 0x24
+ 2 [need verification] 
+ Observed 
+ 0xYY: Unknown 
+ 0x00: Observed 
+ 0x25
+ 4
+ Change facing direction
+ 0xXX: Which character should look. 
+ 0xYY: New facing direction 
+ 0xZZ: Unknown 
+ 0x01: Observed 
+ 0x26
+ 3
+ Look at character
+ 0xXX: Which character should look. Values less than 0x0F crash the game in the intro scene 
+ 0xYY: Which character to look at 
+ 0x27
+ 5
+ Set character's sprite
+ 0xXX: Which character to set the sprite for 
+ 0xYY: Which sprite to use 
+ 0xZZ [need verification] : Unknown 
+ 0x00: Observed 
+ 0xWW [need verification] : Unknown 
+ 0x00: Observed 
+ 0x04: Observed 
+ 0x28
+ 2
+ Reset animation
+ 0xXX: Which character's anim to stop 
+ 0x29
+ 3
+ Observed 
+ 0xXX: Which character to affect 
+ 0xYY: Facing direction [need verification] 
+ 0x2B
+ 9
+ Observed 
+ Parameters unknown 
+ 0x2C
+ 4
+ Not observed 
+ Unknown 
+ 0x2D
+ 4
+ Not observed 
+ Unknown 
+ 0x2E
+ 7
+ Observed 
+ 0xXX: Which character to affect 
+ 0xYYYY [need verification] : Unknown 
+ 0x0000: Observed 
+ 0xZZZZ [need verification] : Unknown 
+ 0xFFF0: Observed 
+ 0xFFF4: Observed 
+ 0xFFF8: Observed 
+ 0xWWWW [need verification] : Unknown 
+ 0x0000: Observed 
+ 0x2F
+ 4
+ Teleport character (absolute)
+ 0xXX: Which character to move 
+ 0xYY: The new NW-SE position (tile units) 
+ 0xZZ: The new NE-SW position (tile units) 
+ 0x30
+ 4
+ Observed 
+ 0xXX: Which character to affect 
+ 0xYY: Unknown 
+ 0x00: Observed 
+ 0xZZ: Unknown 
+ 0x00: Observed 
+ 0x01: Observed 
+ 0x31
+ 5
+ Set character's sprite
+ 0xXX: Which character to set the sprite for 
+ 0xYY: Which sprite to use 
+ 0xZZ [need verification] : Unknown 
+ 0x00: Observed 
+ 0xWW [need verification] : Unknown 
+ 0x00: Observed 
+ 0x36
+ ?
+ Character join request
+ [Parameters unknown] 
+ 0x38
+ 7
+ Affect sprite positioning
+ 0xXX: Which character's sprite to affect 
+ 0xYY: Unknown 
+ 0xZZ: Unknown 
+ OxWW: Unknown 
+ 0x01: Observed 
+ 0xVV: Affects timing 
+ 0xUU: Unknown 
+ Ox00: Observed 
+ 0x39
+ 9
+ Move character (relative, subunits)
+ 0xXX: Which character to affect 
+ 0xYYYY: The NW-SE distance 
+ 0xZZZZ: The NE-SW distance 
+ 0xWW [need verification] : Affects timing 
+ 0xVV [need verification] : Affects timing 
+ 0xUU [need verification] : Affects timing 
+ 0x3A
+ 7
+ Move character (absolute, tile units)
+ 0xXX: Which character to move 
+ 0xYY: The new NW-SE position 
+ 0xZZ: The new NE-SW position 
+ 0xWW [need verification] : Unknown 
+ 0x00: Observed 
+ 0xVV [need verification] : Unknown 
+ 0x01: Observed 
+ 0xUU: Unknown 
+ 0x00: Observed 
+ 0x3C
+ 2
+ Observed 
+ 0xXX: Unknown 
+ 0x64: Observed, 0x089A5EC5 
+ 0x3D
+ 10 [need verification] 
+ Move character (relative, subunits)
+ 0xXX: Which character to move 
+ 0xYYYY: The NW-SE distance 
+ 0xZZZZ: The NE-SW distance 
+ 0xWW: Facing direction during walking 
+ 0xVV: Time to take (units unknown) 
+ 0x3E
+ 8
+ Move character (absolute, units)
+ 0xXX: Which character to move 
+ 0xYY: The new NW-SE position 
+ 0xZZ: The new NE-SW position 
+ 0xWW [need verification] : Unknown 
+ 0x00: Observed 
+ 0xVV [need verification] : Unknown 
+ 0x01: Observed 
+ 0xUUUU: Time to take (units unknown) 
+ 0x3F
+ 4
+ Observed 
+ Affects state 
+ 0xXX: Unknown 
+ 0xYY: Unknown 
+ 0xZZ: Unknown , seems to be incremental 
+ 0x41
+ 4
+ Run character script [need verification] 
+ 0xXX: Which character to move 
+ 0xYY [need verification] : Unknown 
+ 0x20: Observed 
+ 0xZZ [need verification] : Unknown 
+ 0x00: Observed 
+ 0x42
+ 4 [need verification] 
+ Observed, 0x089A7398 
+ Parameters unknown 
+ 0x44
+ 5
+ Move character in direction
+ 0xXX: Which character to move 
+ 0xYY: Unknown (seems to be a bitfield) 
+ 0x3C: Observed 
+ 0xZZ: Unknown 
+ 0x00: Observed 
+ 0xWW: Affects timing 
+ 0x01: Observed 
+ 0x46
+ 4
+ Center camera on character [need verification] 
+ 0xXX: Character to center on [need verification] if Y = 0x00. Values less than 0x0F are invalid in the intro scene 
+ 0xYY: 
+ 0x00: Center on character [need verification] , observed 
+ 0xZZ: Unknown (possibly bitfield) 
+ 0x00: Fast [need verification] 
+ 0x02: Slow [need verification] , observed 
+ 0x47
+ 7
+ Center camera
+ 0xXXXX: The new x center (pixels [need verification] ) 
+ 0xYYYY: The new y center (pixels [need verification] ) 
+ 0xZZ [need verification] : Affects speed (possibly a bitfield) 
+ 0xWW [need verification] : Affects speed 
+ 0x48
+ 2
+ Set map type
+ 0xXX: Unknown 
+ 0x00: Cutscene [need verification] , observed 
+ 0x01: Battle [need verification] , observed 
+ 0x02: Pub [need verification] 
+ 0x03: "Monster farm" [need verification] 
+ 0x49
+ 2
+ Observed 
+ 0xXX: Unknown 
+ 0x01 Observed 
+ 0x4A
+ 1
+ Show battle sprites [need verification] 
+ None
+ 0x4B
+ 2
+ Set background music
+ 0xXX: Which BGM to play 
+ 0x4C
+ 4
+ Play sound effect
+ 0xXXXX: Which sound effect to play 
+ 0xYY: Unknown 
+ 0xFF: Observed 
+ 0x4D
+ 5
+ Fade background music
+ 0xXX: Final volume 
+ 0xYY: Time to take 
+ 0xZZ: Unknown 
+ 0x00: Observed 
+ 0xWW: Unknown 
+ 0x01: Observed 
+ 0x4E
+ 1
+ Observed 
+ None
+ 0x53
+ 3
+ Observed 
+ 0xXXXX [need verification] : Unknown 
+ 0x0001: Observed 
+ 0x54
+ 2
+ Set weather effect
+ 0xXX: Unknown 
+ 0x00: None [need verification] 
+ 0x01: Rain 
+ 0x02: Snow 
+ 0x57
+ 1
+ Unknown 
+ None
+ 0x58
+ 1
+ Unknown 
+ None
+ 0x5A
+ 2
+ Show clip
+ Must between 0x57 and 0x58 
+ 0xXX: Which clip [need verification] 
+ 0x33: "Final Fantasy" book clip 
+ 0x25: Dissolve map 
+ 0x5B
+ 1
+ End clip [need verification] 
+ None
+ 0x65
+ 2
+ Observed 
+ 0xXX: Unknown 
+ 0x44: Observed 
+ 0x8C
+ Observed 
+ 0xYY: Unknown 
+ 0x0A: Observed 
+ Retrieved from " http://datacrystal.romhacking.net/wikid/index.php?title=Final_Fantasy_Tactics_Advance:Scripting&oldid=36482 " 
+ Category : Subpages 
+ Navigation menu 
+ Personal tools 
+ Log in 
+ Namespaces 
+ Page 
+ Discussion 
+ Variants 
+ Views 
+ Read 
+ View source 
+ View history 
+ More 
+ Search 
+ Navigation 
+ Data Crystal Main Page RHDN Home Recent changes Random page Help 
+ Games 
+ RHDN Games List Translation Request List NES SNES GB/GBC GBA NDS NGP/NGC WonderSwan GEN N64 PSX PS2 PSP GCN TG16 SMS 
+ Community History 
+ Fan Translation Community History 
+ Tools 
+ What links here Related changes Special pages Printable version Permanent link Page information 
+ This page was last edited on 5 June 2016, at 00:00. 
+ Content is available under GNU Free Documentation License 1.2 unless otherwise noted. 
+ Privacy policy 
+ About Data Crystal 
+ Disclaimers 
+ 

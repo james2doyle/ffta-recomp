@@ -1819,3 +1819,24 @@ the pt repro. Ring capacity note: `GBARECOMP_TRACE_DUMP_DEPTH` clamps at
 4096 events. Next: compare the handoff state (`0x03007E08`/`0x02003CB0`
 structures) native-vs-oracle in the mid-session read window; trace events
 around f18,3xx listed above.
+
+### 2026-10-07 (cont.) — Community references: DataCrystal FFTA pages recovered
+
+User recovered the old DataCrystal FFTA wiki pages (Wayback 2021-06-14) to
+`/tmp/datacrystal-ffta`; text extractions committed under
+`reference/datacrystal/` (GFDL 1.2, attribution in its README). Standouts:
+- **Scripting page** = event-VM opcode table (execute callback / fade /
+  set map / message box / …) — the documentation layer for the
+  `0x08122xxx–0x08123xxx` interpreter family.
+- **Compression Formats** = decompressor entry ≈`0x0801F100` (type byte
+  0x10/0x01/0x11; unmatched path does `bl 0x08141868` — **the SWI-thunk
+  bank adjacent to session-F's crash address `0x0814186E`**, i.e. the
+  battle/effect path runs this decompression + copy machinery family); LZSS
+  derivative with track-back copies + `0x1000`-word zero fills.
+- RAM map (sparse: day/time `0x02002FBA..BF`; mission items `0x02002B08`,
+  64×4B), ROM map, Maps, Jobs, Abilities, String Tables — annotation
+  material for `symbols/ffta_data_symbols.tsv`.
+Nothing on save internals or the relocation/two-phase handoff (as before —
+those remain our own reverse-engineering). Also verified BCROBERT's notes
+pack landmarks (`0x0812E368` speed formula, `0x0812D3D4` Parley formula)
+match the disassembly bit-for-bit.

@@ -1,0 +1,214 @@
+ 
+ Final Fantasy Tactics Advance:Maps - Data Crystal 
+ 11 captures 22 May 2011 - 5 Dec 2021 
+ Dec 
+ DEC 
+ Jan 
+ 05 
+ 2019 
+ 2021 
+ 2022 
+ success 
+ fail 
+ About this capture 
+ TIMESTAMPS 
+ The Wayback Machine - https://web.archive.org/web/20211205101421/http://datacrystal.romhacking.net/wiki/Final_Fantasy_Tactics_Advance:Maps 
+ Final Fantasy Tactics Advance:Maps 
+ From Data Crystal 
+ Jump to: navigation , search 
+ This is a sub-page for Final Fantasy Tactics Advance . 
+ Contents  [ hide ]  
+ 1 Map Information 
+ 1.1 Data structures 
+ 1.1.1 struct FFTA_map 
+ 1.1.2 struct FFTA_map_tile 
+ 1.2 Data layout 
+ 1.2.1 In RAM 
+ 1.2.2 In ROM 
+ 1.3 Default locations of map data 
+ Map Information 
+ Data structures 
+ struct FFTA_map 
+ 0x58 bytes 
+ Member name
+ Length
+ Offset
+ Type
+ Maximum value
+ Description
+ Graphics Data
+ 4
+ 0x00
+ Pointer
+ N/A
+ A pointer diff pointing to the beginning of the map tile graphics data.
+ Arrangement Data
+ 4
+ 0x04
+ Pointer
+ N/A
+ A pointer diff pointing to the beginning of the data that arranges the tiles.
+ Unknown 
+ 4
+ 0x08
+ Pointer
+ N/A
+ A pointer diff pointing to something that has to do with clipping.
+ Palette Data
+ 4
+ 0x0C
+ Pointer
+ N/A
+ A pointer diff pointing to the beginning of the palette data.
+ Height-Map Data
+ 4
+ 0x10
+ Pointer
+ N/A
+ A pointer diff pointing to the beginning of the height-map data.
+ Animation Data
+ 4
+ 0x14
+ Pointer
+ N/A
+ A pointer diff pointing to the beginning of the animation data.
+ Animation Graphics Data
+ 4
+ 0x18
+ Pointer
+ N/A
+ A pointer diff pointing to the beginning of the raw animation tile data.
+ Animation Destination
+ 4
+ 0x1C
+ Pointer
+ N/A
+ A pointer to where the Animation Data should be stored in the RAM.
+ Usually 0x06000020 
+ Further Animation Data
+ 0x10
+ 0x20
+ 4 Pointers
+ N/A
+ An array of 4 pointer diffs pointing to the beginning of extra animation data.
+ Further Animation Graphics Data
+ 0x10
+ 0x30
+ 4 Pointers
+ N/A
+ An array of 4 pointer diffs pointing to the beginning of extra animation tile data.
+ Further Animation Destinations
+ 0x10
+ 0x40
+ 4 Pointers
+ N/A
+ An array of 4 pointers to where the Animation Data should be stored in the RAM.
+ Usually 0x06000020 
+ Unknown 
+ 4
+ 0x50
+ 32-bit Int
+ N/A
+ Unknown . Never appears to be used.
+ Unknown 
+ 1
+ 0x54
+ Byte
+ N/A
+ Unknown . 0b??????PP
+ P Values:
+ 0x00 - Use Palette Data Pointer from this structure. If the first byte at this data is 0x10, the Palette Data is compressed with LZ77, otherwise it's uncompressed. 
+ 0x01 - Load the half-word at (0x08427A04 + <Palette Index>) and add it 0x08427A04. The data at this location is LZSS compressed. 
+ Else - Load the half-word at (0x0842CC80 + <Palette Index>) and add it 0x0842CC80. The data at this location is LZSS compressed. 
+ Unknown 
+ 1
+ 0x55
+ Byte
+ N/A
+ Unknown . Appears to mostly be a copy of the previous byte + 0x10.
+ Palette Index
+ 1
+ 0x56
+ Byte
+ N/A
+ This is the index to be used if the Palette Data bits indicate it is required. (From byte 0x54)
+ Buffer
+ 1
+ 0x57
+ Byte
+ 0x00
+ Never used.
+ All pointer diffs in this structure are against 0x08569104.
+ struct FFTA_map_tile 
+ struct FFTA_map_tile {
+ uint8 Height;
+ int8 Permissions;
+};
+ Height: The height of the tile. There is no offset from what is displayed. Setting to higher than 99 (0x63) causes graphical glitches, but no crashing. Setting to 0 makes the tile invalid, such that it can't be selected. This value is unsigned. 
+ Permissions: 
+ Values:
+ 0x00 - Normal. Can be walked on. 
+ 0x01 - Impassable. Can not be walked on. 
+ 0x02 - Water. Can be walked on. 
+ Else - Non-selectable. Can not be walked on or selected. 
+ Data layout 
+ In RAM 
+ Each block of map data starts at the top corner, and goes toward the right corner. The end of a row seems to be padded such that the last couple of bytes, until 0xXF, are zero. Unknown what happens if modified.
+ 0x02007CB0 (block of FFTA_map_tile): Beginning of map data in RAM
+ ...
+ 0x02007F14 (void*): Pointer to 0x02007CB0. If changed, map data changes to correspond to the new pointer.
+ ...
+ 0x02007F1D (u?int8): NW-SE dimension of the map.
+ 0x02007F1E (u?int8): Unknown. Set to 0x0C.
+ 0x02007F1F (u?int8): NE-SW dimension of the map.
+ In ROM 
+ 0x08019E7C (4 bytes): 0x02007CB0 - Address to start reading map height data from in scenes
+ 0x0801F0DC (4 bytes): 0x02007CB0 - Address to write map height data to
+ 0x08569104 - 0x0856915B : Map data pointers for map 0
+ 0x08569104 (Pointer): Pointer to map tile graphics data in map 0
+ 0x08569108 (Pointer): Pointer to map tile arrangement data in map 0
+ 0x0856910C (Pointer): Pointer to unknown data in map 0
+ 0x08569110 (Pointer): Pointer to palette data in map 0
+ 0x08569114 (Pointer): Pointer to map height data in map 0
+ Default locations of map data 
+ Tile graphics data
+ Tile arrangement data
+ Unknown data
+ Palette data
+ Map height data
+ Map 0
+ 0x0856C8B4
+ 0x0856F528
+ 0x0856FEF8
+ 0x0856F4A8
+ 0x085704C8
+ There are 163 maps, indexed from 0x00 to 0xA2. Most maps have a night version (palette shift), too. 
+ Retrieved from " http://datacrystal.romhacking.net/wikid/index.php?title=Final_Fantasy_Tactics_Advance:Maps&oldid=36479 " 
+ Category : Subpages 
+ Navigation menu 
+ Personal tools 
+ Log in 
+ Namespaces 
+ Page 
+ Discussion 
+ Variants 
+ Views 
+ Read 
+ View source 
+ View history 
+ More 
+ Search 
+ Navigation 
+ Data Crystal Main Page RHDN Home Recent changes Random page Help 
+ Games 
+ RHDN Games List Translation Request List NES SNES GB/GBC GBA NDS NGP/NGC WonderSwan GEN N64 PSX PS2 PSP GCN TG16 SMS 
+ Community History 
+ Fan Translation Community History 
+ Tools 
+ What links here Related changes Special pages Printable version Permanent link Page information 
+ This page was last edited on 4 June 2016, at 23:59. 
+ Content is available under GNU Free Documentation License 1.2 unless otherwise noted. 
+ Privacy policy 
+ About Data Crystal 
+ Disclaimers 
+ 

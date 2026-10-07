@@ -1,0 +1,2923 @@
+ 
+ Final Fantasy Tactics Advance:Abilities - Data Crystal 
+ 11 captures 22 May 2011 - 5 Mar 2021 
+ Dec 
+ MAR 
+ Apr 
+ 05 
+ 2019 
+ 2021 
+ 2022 
+ success 
+ fail 
+ About this capture 
+ TIMESTAMPS 
+ The Wayback Machine - https://web.archive.org/web/20210305003251/http://datacrystal.romhacking.net/wiki/Final_Fantasy_Tactics_Advance:Abilities 
+ Final Fantasy Tactics Advance:Abilities 
+ From Data Crystal 
+ Jump to: navigation , search 
+ This is a sub-page for Final Fantasy Tactics Advance . 
+ Information 
+ Obviously this isn't complete yet, but I thought I may as well put it here now. 
+ The item names are from the Universal String Table . 
+ Ability data starts at 0x0055187C in the ROM. 
+ Ability Data Structure 
+ The Ability Data Structure is 0x1C bytes long. 
+ Name
+ Length
+ Offset
+ Type
+ Max Value
+ Description
+ Name ID 
+ 2 
+ 0x00 
+ uint16 
+ 0x2FE 
+ The name ID of the ability
+ Element 
+ 1 
+ 0x02 
+ uint8 
+ 8 
+ Elemental Damage.
+ Values:
+ 0x00 - None 
+ 0x01 - Fire 
+ 0x02 - Wind 
+ 0x03 - Earth 
+ 0x04 - Water 
+ 0x05 - Ice 
+ 0x06 - Lightning 
+ 0x07 - Holy 
+ 0x08 - Dark 
+ AP 
+ 1 
+ 0x03 
+ uint8{{User: 
+ 100 
+ AP in game = This * 10
+ Values 0x64 and above display as "999" in game.
+ MP cost 
+ 1 
+ 0x04 
+ uint8 
+ 255 
+ How much MP is used.
+ Weapon Required 
+ 1 
+ 0x05 
+ uint8 
+ 3 
+ This seems to determine whether or not the held weapon is "used" for the ability.
+ Values:
+ 0x00 - Not Required 
+ 0x01 - Required 
+ 0x02 - Spear Required (Jump) 
+ 0x03 - Bow Required (Doom Archer) 
+ A check is made at 08026EC6 to see if the Ability is Jump or Doom Archer, values 0x02 and 0x03 are not checked otherwise.
+ Horizontal Range 
+ 1 
+ 0x06 
+ uint8 
+ 0x80 
+ Range
+ Values:
+ 0x40 - Line (used for breath moves and full line moves (like Chocobo Rush) 
+ 0x80 - Weapon Range 
+ Vertical Range 
+ 1 
+ 0x07 
+ uint8 
+ 255 
+ Allowed difference in height between the unit using the ability and the targeted panel.
+ A value of 0 allows the unit to ignore height difference when choosing a target panel. 
+ Targeting 
+ 1 
+ 0x08 
+ uint8 
+ 7 
+ This byte determines how units are targeted.
+ Values:
+ 0x00 - No Targeting 
+ 0x01 - Cursor Selection 
+ 0x02 - Auto-Select with no Help Text 
+ 0x03 - Auto-Select with Help Text 
+ 0x04 - Directional 
+ 0x05 - Peirce 
+ 0x06 - Infront of Caster 
+ 0x07 - Infront and Behind Caster 
+ Horizontal Area of Effect 
+ 1 
+ 0x09 
+ uint8 
+ 0x80 
+ The AoE of the move. Used with Range.
+ Values observed:
+ 0x01 - Single target 
+ 0x02 - Spear(?) 
+ 0x04 - Breath (Bangaa Cry) 
+ 0x05 - Normal aura (Cure, Fire, etc) 
+ 0x0D - Big aura (Summons) 
+ 0x40 - Full map (Range = 0) 
+ 0x80 - Full line. 
+ Vertical Area of Effect 
+ 1 
+ 0x0A 
+ uint8 
+ 255 
+ Allowed difference in height between the targeted panel and the affected units.
+ A value of 0 makes the ability affect units regardless of height difference. 
+ Power 
+ 1 
+ 0x0B 
+ uint8 
+ 255 
+ The power of the move.
+ Effects 
+ 4 
+ 0x0C 
+ 4 * uint8 
+ 0xD0 
+ An index number of the effects of the ability.
+ Values observed:
+ 0x00 - None 
+ 0x01 - None 
+ 0x02 - Gadget Defense Up 
+ 0x03 - Gadget Protect 
+ 0x04 - Resonance 
+ 0x05 - Gadget Shell 
+ 0x06 - Gadget Blind 
+ 0x07 - Gadget Heal 
+ 0x08 - Gadget Sleep 
+ 0x09 - Gadget Haste 
+ 0x0A - Gadget Dispel 
+ 0x0B - Gadget Poison 
+ 0x0C - Gadget Resistance Up 
+ 0x0D - Gadget Doom 
+ 0x0E - 100% HP Revival 
+ 0x0F - 25% HP Revival 
+ 0x10 - Self: Speed Down 
+ 0x11 - Draw Weapon 
+ 0x12 - 25% Recoil Damage 
+ 0x13 - Kill Self 
+ 0x14 - Self: Caster's HP Damage 
+ 0x15 - If Effect 1 Hits, 25% Recoil Damage 
+ 0x16 - Self: Speed Down 
+ 0x17 - Self: 1x Damage 
+ 0x18 - Drain 
+ 0x19 - Self: 1x Healing 
+ 0x1A - Lose 30 Gil 
+ 0x1B - If Effect 1 Hits, Delay Enemy 
+ 0x1C - AType, Default, Delay Unit 
+ 0x1D - Add: Quick 
+ 0x1E - Add: Attack Up, Def Up, Pow Up, Res Up 
+ 0x1F - Doom Archer 
+ 0x20 - Matra Magic 
+ 0x21 - 90% of Current HP Damage 
+ 0x22 - Steal 2 JP 
+ 0x23 - 1x MP Damage, Capped at Max MP 
+ 0x24 - Heal 80 MP 
+ 0x25 - Add: Astra 
+ 0x26 - Cancel: Debuffs 
+ 0x27 - If Effect 1 Hits: Add: Frog 
+ 0x28 - Add: Frog 
+ 0x29 - Cancel: Frog 
+ 0x2A - Add: Cover 
+ 0x2B - Aim: Wallet 
+ 0x2C - Add: Advice 
+ 0x2D - Add: Shell 
+ 0x2E - Elementalshift 
+ 0x2F - If Effect 1 Hits: Add: Stop 
+ 0x30 - Add: Stop 
+ 0x31 - Add: Speed Down 
+ 0x32 - 4x Damage 
+ 0x33 - Targets Kills * 10 Damage 
+ 0x34 - 1x Damage, 100% Hit 
+ 0x35 - 1x Damage, 100% Hit 
+ 0x36 - 999 Damage 
+ 0x37 - Limit Glove 
+ 0x38 - 30 Damage 
+ 0x39 - 50% of Current HP Damage 
+ 0x3A - 25% of Current HP Damage 
+ 0x3B - Mutilate 
+ 0x3C - Goblin Punch 
+ 0x3D - Deal Between 2-12 Damage 
+ 0x3E - Non-Undead, Damage Equal to Lost HP 
+ 0x3F - 1x Damage 
+ 0x40 - 1x Damage, Capped to Max HP 
+ 0x41 - 0.5x Damage, 2x Hit 
+ 0x42 - 2x Damage, 0.5x Hit 
+ 0x43 - Throw 
+ 0x44 - If Effect 1 Hits: Add: Disable 
+ 0x45 - Add: Disable 
+ 0x46 - Cancel: Disable 
+ 0x47 - Add: Immobilize 
+ 0x48 - If Effect 1 Hits: Add: Immobilize 
+ 0x49 - Add: Immobilize 
+ 0x4A - Cancel: Immobilize 
+ 0x4B - If Effect 1 Hits: Knockback 
+ 0x4C - If Effect 1 Hits: Add: Berserk 
+ 0x4D - Add: Berserk 
+ 0x4E - Add: Protect 
+ 0x4F - Hastebreak 
+ 0x50 - Aim: Vitals 
+ 0x51 - Acid 
+ 0x52 - Add: Reflect 
+ 0x53 - Sensor 
+ 0x54 - Add: Blind 
+ 0x55 - SType, Default, Eff1Dep: Inflict Blind 
+ 0x56 - Eyesight: Add: Blind 
+ 0x57 - Add: Blind 
+ 0x58 - Cancel: Blind 
+ 0x59 - Fully Heal HP 
+ 0x5A - Heal Equal to Current HP 
+ 0x5B - 1x Healing 
+ 0x5C - Add: Confuse 
+ 0x5D - If Effect 1 Hits: Add: Confuse 
+ 0x5E - Eyesight: Add: Confuse 
+ 0x5F - Add: Confuse 
+ 0x60 - Bad Breath 
+ 0x61 - Add: Sleep 
+ 0x62 - Add: Petrify 
+ 0x63 - Cancel: Petrify 
+ 0x64 - Add: Defense Down, Resistance Down 
+ 0x65 - Break Armor 
+ 0x66 - Add: Slow 
+ 0x67 - If Effect 1 Hits: Add: Slow 
+ 0x68 - Add: Slow 
+ 0x69 - Add: Haste 
+ 0x6A - Cancel: Buffs 
+ 0x6B - Soundwave 
+ 0x6C - Add: Expert Guard 
+ 0x6D - Add: Silence 
+ 0x6E - If Effect 1 Hits: Add: Silence 
+ 0x6F - Add: Silence 
+ 0x70 - Cancel: Silence 
+ 0x71 - Hibernate 
+ 0x72 - Enemy: Steal JP 
+ 0x73 - Enemy: Steal Gil 
+ 0x74 - Enemy: Steal EXP 
+ 0x75 - Enemy: Steal Accessory 
+ 0x76 - Enemy: Steal Armor 
+ 0x77 - Enemy: Steal Helmet 
+ 0x78 - Enemy: Steal Shield 
+ 0x79 - Enemy: Steal Weapon 
+ 0x7A - Enemy, 0.25x Hit: Steal Ability 
+ 0x7B - Add: Vanish 
+ 0x7C - If Effect 1 Hits: Add: Poison 
+ 0x7D - Add: Poison 
+ 0x7E - Cancel: Poison 
+ 0x7F - Add: Undead 
+ 0x80 - Cancel: Undead 
+ 0x81 - Break Weapon 
+ 0x82 - Add: Attack Down 
+ 0x83 - Add: Boost 
+ 0x84 - Add: Addle 
+ 0x85 - Add: Defense Up 
+ 0x86 - Hurl 
+ 0x87 - Add: Defending 
+ 0x88 - If Effect 1 Hits: Add: Magic Down 
+ 0x89 - Add: Magic Down 
+ 0x8A - Add: Resistance Up 
+ 0x8B - Cureall 
+ 0x8C - Enemy, If Effect 1 Hits: Add: Charm 
+ 0x8D - Add: Charm 
+ 0x8E - Enemy: Add: Charm 
+ 0x8F - Lawshift 
+ 0x90 - Non-Undead, Lv=Digit: 1x Damage 
+ 0x91 - Undead, Lv=Digit: 1x Healing 
+ 0x92 - Lv/3: Add: Defense Down 
+ 0x93 - Lv/3: Add: Resistance Down 
+ 0x94 - Non-Undead, Lv/5: Add: Death 
+ 0x95 - Undead, Lv/5: Fully Heal HP 
+ 0x96 - Lv=Day: 1x Damage 
+ 0x97 - Enemy, 100% Hit, 1x MP Damage 
+ 0x98 - Enemy, If Effect 1 Hits: 1x Damage 
+ 0x99 - Enemy: 100% Hit, 1x Damage 
+ 0x9A - Enemy: 1x Damage 
+ 0x9B - Enemy: Add: Berserk 
+ 0x9C - Enemy: Disarm 
+ 0x9D - Parley 
+ 0x9E - Heal 80 MP 
+ 0x9F - Non-Self, Damage Equal to HP 
+ 0xA0 - Non-Self, 1x Damage 
+ 0xA1 - Non-Self, Add: Sleep 
+ 0xA2 - Non-Undead, Fully Heal MP 
+ 0xA3 - Non-Undead, Cancel: Debuffs 
+ 0xA4 - Non-Undead, 1x Damage 
+ 0xA5 - Non-Undead, Add: Regen 
+ 0xA6 - Non-Undead, Add: Reraise 
+ 0xA7 - Non-Undead, Fully Heal HP 
+ 0xA8 - Non-Undead, 1x Healing 
+ 0xA9 - Non-Undead, If Effect 2 Hits, Add: Confuse 
+ 0xAA - Non-Undead, Add: Doom 
+ 0xAB - Non-Undead: If Effect 1 Hits, Add: Doom 
+ 0xAC - 100% Add: Death 
+ 0xAD - Non-Undead, Add: Death 
+ 0xAE - Non-Undead, Add: Charm 
+ 0xAF - Non-Monster: 1x Damage 
+ 0xB0 - Break Weapon 
+ 0xB1 - Non-Dragon, 1x Damage 
+ 0xB2 - Undead: Damage Equal to Max HP 
+ 0xB3 - Undead: Damage Equal to Max HP 
+ 0xB4 - Undead: 1x Damage 
+ 0xB5 - Undead: Heal to Full HP 
+ 0xB6 - Undead: 1x Healing 
+ 0xB7 - Exorcise 
+ 0xB8 - Undead: Add: Charm 
+ 0xB9 - Monster: 1x Damage 
+ 0xBA - Monster: 2x Damage 
+ 0xBB - Monster: Parley 
+ 0xBC - Monster: Addle 
+ 0xBD - Capture 
+ 0xBE - Dragon: 2x Damage 
+ 0xBF - Dragon: Parley 
+ 0xC0 - Mug 
+ 0xC1 - Control 
+ 0xC2 - Friend 
+ 0xC3 - Add: Regen 
+ 0xC4 - Heal Undead Equal to Caster's Lost HP 
+ 0xC5 - 2x Damage 
+ 0xC6 - 0.5x Damage 
+ 0xC7 - 3x Damage 
+ 0xC8 - Morph 
+ 0xC9 - Enemy, Add: Sleep 
+ 0xCA - 100% Accuracy, 0.5x Damage 
+ 0xCB - Add: Stop on Judge 
+ 0xCC - Add: Immobilize, Disable 
+ 0xCD - Give JP 
+ 0xCE - Remove Yellow Card 
+ 0xCF - Add Yellow Card 
+ 0xD0 - If Effect 1 Hits, Steal 2 JP 
+ Properties 
+ 4 
+ 0x10 
+ uint32 
+ 0xFFFFFFFF 
+ The properties (in binary flags) that the ability has.
+ Values observed
+ 0x00000001 - Self-Targetable 
+ 0x00000002 - Unknown 
+ 0x00000004 - Unknown 
+ 0x00000008 - Unknown 
+ 0x00000010 - Unknown 
+ 0x00000020 - Offensive 
+ 0x00000040 - Ignore Reaction 
+ 0x00000080 - Reflectable 
+ 0x00000100 - Double Cast 
+ 0x00000200 - Ignore Silence 
+ 0x00000400 - Enable Beastmaster 
+ 0x00000800 - Trigger Learning 
+ 0x00001000 - Blocked by Cover 
+ 0x00002000 - Unknown 
+ 0x00004000 - Stealable 
+ 0x00008000 - Return Magic 
+ 0x00010000 - Throw/Hurl 
+ 0x00020000 - Trigger Absorb-MP 
+ 0x00040000 - Physical 
+ 0x00080000 - Enable Morpher 
+ 0x00100000 - Unknown 
+ 0x00200000 - Unknown 
+ 0x00400000 - Unknown 
+ 0x00800000 - Unknown 
+ 0x01000000 - Unknown 
+ 0x02000000 - Unknown 
+ 0x04000000 - Unknown 
+ 0x08000000 - Unknown 
+ 0x10000000 - Unknown 
+ 0x20000000 - Unknown 
+ 0x40000000 - Unknown 
+ 0x80000000 - Unknown 
+ Animation ID 
+ 2 
+ 0x14 
+ uint16 
+ unknown 
+ The animation that the ability uses.
+ Description ID 
+ 2 
+ 0x16 
+ uint16 
+ unknown 
+ The description text that the ability uses.
+ AI Condition 
+ 1 
+ 0x18 
+ uint8 
+ unknown 
+ Special AI conditions.
+ Values observed:
+ 0x00 - Normal 
+ 0x01 - Judge/Judge Sword 
+ 0x02 - Mug 
+ 0x03 - Sensor/Mog Peek 
+ 0x04 - Remove From Battle 
+ 0x05 - Steal: Item/Ability 
+ 0x06 - Steal: Gil 
+ 0x07 - Steal: EXP 
+ 0x08 - Steal: JP 
+ 0x09 - Hunting 
+ 0x0A - Capture 
+ 0x0B - Morph 
+ 0x0C - Gil Toss 
+ 0x0D - Aim: Item 
+ 0x0E - Aim: Wallet 
+ 0x0F - Draw Weapon 
+ 0x10 - Lawshift/Blank Card 
+ 0x11 - Matra Magic 
+ ...
+ 0x13 - Zombify 
+ ...
+ 0x33 - JP Gift 
+ 0x34 - Yellow Clip 
+ 0x35 - Yellow Card 
+ AI Behavior 
+ 1 
+ 0x19 
+ uint8 
+ 0x3 
+ When the ability should be used.
+ 0x0 - Unknown 
+ 0x1 - Prioritize Low HP 
+ 0x2 - Prioritize Healthy 
+ 0x3 - Last Resort 
+ AI Priority 
+ 1 
+ 0x1A 
+ uint8 
+ 100 
+ High values are less likely.
+ Buffer 
+ 1 
+ 0x1B 
+ uint8 
+ 0 
+ Alignment byte.
+ List of abilities 
+ This is the order in which the abilities are stored within the game. 
+ Index
+ Name
+ Element
+ MP
+ Power
+ Range (Aura)
+ AP
+ 0x000 
+ - 
+ None 
+ 0 
+ 0 
+ 0 (0) 
+ 10
+ 0x001 
+ Cure 
+ Holy 
+ 6 
+ 40 
+ 4 (5) 
+ 100
+ 0x002 
+ Cura 
+ Holy 
+ 10 
+ 60 
+ 4 (5) 
+ 200
+ 0x003 
+ Curaga 
+ Holy 
+ 16 
+ 80 
+ 4 (5) 
+ 300
+ 0x004 
+ Esuna 
+ None 
+ 18 
+ 0 
+ 4 (5) 
+ 200
+ 0x005 
+ Life 
+ Holy 
+ 10 
+ 90 
+ 4 (1) 
+ 200
+ 0x006 
+ Full-Life 
+ Holy 
+ 20 
+ 100 
+ 4 (1) 
+ 300
+ 0x007 
+ Auto-Life 
+ Holy 
+ 16 
+ 0 
+ 4 (1) 
+ 200
+ 0x008 
+ Shell 
+ None 
+ 6 
+ 0 
+ 4 (5) 
+ 100
+ 0x009 
+ Protect 
+ None 
+ 6 
+ 0 
+ 4 (5) 
+ 100
+ 0x00A 
+ Dispel 
+ None 
+ 12 
+ 0 
+ 3 (5) 
+ 200
+ 0x00B 
+ Holy 
+ Holy 
+ 32 
+ 50 
+ 3 (5) 
+ 300
+ 0x00C 
+ Barrier 
+ None 
+ 10 
+ 0 
+ 3 (1) 
+ 300
+ 0x00D 
+ Judge 
+ None 
+ 6 
+ 0 
+ 3 (1) 
+ 300
+ 0x00E 
+ Break 
+ None 
+ 20 
+ 0 
+ 3 (1) 
+ 200
+ 0x00F 
+ Water 
+ Water 
+ 12 
+ 34 
+ 3 (5) 
+ 200
+ 0x010 
+ Aero 
+ Wind 
+ 12 
+ 34 
+ 3 (5) 
+ 200
+ 0x011 
+ Drain 
+ None 
+ 12 
+ 30 
+ 4 (1) 
+ 100
+ 0x012 
+ Blind 
+ None 
+ 12 
+ 0 
+ 4 (1) 
+ 100
+ 0x013 
+ Raise 
+ Holy 
+ 22 
+ 45 
+ 4 (5) 
+ 300
+ 0x014 
+ Giga Flare 
+ None 
+ 40 
+ 65 
+ 3 (5) 
+ 300
+ 0x015 
+ Bio 
+ None 
+ 12 
+ 45 
+ 3 (5) 
+ 300
+ 0x016 
+ Ultima Blow 
+ None 
+ 60 
+ 0 
+ Weapon (1) 
+ 999
+ 0x017 
+ Fire 
+ Fire 
+ 6 
+ 30 
+ 4 (5) 
+ 100
+ 0x018 
+ Fira 
+ Fire 
+ 12 
+ 40 
+ 4 (5) 
+ 200
+ 0x019 
+ Firaga 
+ Fire 
+ 24 
+ 50 
+ 4 (5) 
+ 300
+ 0x01A 
+ Thunder 
+ Lightning 
+ 6 
+ 30 
+ 4 (5) 
+ 100
+ 0x01B 
+ Thundara 
+ Lightning 
+ 12 
+ 40 
+ 4 (5) 
+ 200
+ 0x01C 
+ Thundaga 
+ Lightning 
+ 24 
+ 50 
+ 4 (5) 
+ 300
+ 0x01D 
+ Blizzard 
+ Ice 
+ 6 
+ 30 
+ 4 (5) 
+ 100
+ 0x01E 
+ Blizzara 
+ Ice 
+ 12 
+ 40 
+ 4 (5) 
+ 200
+ 0x01F 
+ Blizzaga 
+ Ice 
+ 24 
+ 50 
+ 4 (5) 
+ 300
+ 0x020 
+ Sleep 
+ None 
+ 10 
+ 0 
+ 4 (5) 
+ 200
+ 0x021 
+ Doublecast 
+ None 
+ 0 
+ 0 
+ 0 (0) 
+ 999
+ 0x022 
+ Quicken 
+ None 
+ 24 
+ 0 
+ 3 (1) 
+ 300
+ 0x023 
+ Slow 
+ None 
+ 12 
+ 0 
+ 3 (5) 
+ 200
+ 0x024 
+ Reflect 
+ None 
+ 8 
+ 0 
+ 3 (1) 
+ 300
+ 0x025 
+ - 
+ None 
+ 0 
+ 0 
+ 0 (1) 
+ 100
+ 0x026 
+ Stop 
+ None 
+ 24 
+ 0 
+ 3 (5) 
+ 300
+ 0x027 
+ Quarter 
+ None 
+ 10 
+ 0 
+ 3 (1) 
+ 200
+ 0x028 
+ Demi 
+ None 
+ 24 
+ 0 
+ 3 (1) 
+ 300
+ 0x029 
+ Silence 
+ None 
+ 8 
+ 0 
+ 3 (5) 
+ 200
+ 0x02A 
+ Haste 
+ None 
+ 24 
+ 0 
+ 3 (1) 
+ 200
+ 0x02B 
+ Prominence 
+ Fire 
+ 32 
+ 20 
+ 0 (64) 
+ 100
+ 0x02C 
+ Tempest 
+ Lightning 
+ 32 
+ 17 
+ 0 (64) 
+ 100
+ 0x02D 
+ Freezeblink 
+ Ice 
+ 32 
+ 20 
+ 0 (64) 
+ 100
+ 0x02E 
+ Star Cross 
+ Holy 
+ 32 
+ 17 
+ 0 (64) 
+ 300
+ 0x02F 
+ Stardust 
+ None 
+ 32 
+ 20 
+ 0 (64) 
+ 300
+ 0x030 
+ Deluge 
+ Water 
+ 32 
+ 17 
+ 0 (64) 
+ 200
+ 0x031 
+ Soil Evidence 
+ Earth 
+ 32 
+ 17 
+ 0 (64) 
+ 200
+ 0x032 
+ Wild Tornado 
+ Wind 
+ 32 
+ 17 
+ 0 (64) 
+ 200
+ 0x033 
+ Fire Whip 
+ Fire 
+ 12 
+ 30 
+ 4 (1) 
+ 100
+ 0x034 
+ Earth Heal 
+ Earth 
+ 12 
+ 40 
+ 4 (1) 
+ 200
+ 0x035 
+ White Flame 
+ Fire 
+ 24 
+ 40 
+ 3 (5) 
+ 100
+ 0x036 
+ Shining Air 
+ Wind 
+ 12 
+ 30 
+ 4 (1) 
+ 200
+ 0x037 
+ Evil Gaze 
+ Dark 
+ 12 
+ 30 
+ 4 (1) 
+ 300
+ 0x038 
+ Heavy Dust 
+ Earth 
+ 12 
+ 30 
+ 4 (1) 
+ 200
+ 0x039 
+ Sliprain 
+ Water 
+ 12 
+ 30 
+ 4 (1) 
+ 200
+ 0x03A 
+ Elementalshift 
+ None 
+ 6 
+ 0 
+ 4 (1) 
+ 300
+ 0x03B 
+ Astra 
+ None 
+ 8 
+ 0 
+ 4 (5) 
+ 200
+ 0x03C 
+ Rasp 
+ None 
+ 24 
+ 60 
+ 3 (5) 
+ 100
+ 0x03D 
+ Death 
+ Dark 
+ 36 
+ 0 
+ 3 (1) 
+ 200
+ 0x03E 
+ Meteor 
+ None 
+ 40 
+ 50 
+ 3 (5) 
+ 300
+ 0x03F 
+ Flare 
+ None 
+ 36 
+ 65 
+ 3 (1) 
+ 300
+ 0x040 
+ Poison 
+ Dark 
+ 10 
+ 0 
+ 4 (5) 
+ 100
+ 0x041 
+ Toad 
+ None 
+ 36 
+ 0 
+ 3 (1) 
+ 200
+ 0x042 
+ Break 
+ None 
+ 1 
+ 0 
+ 0 (1) 
+ 300
+ 0x043 
+ Item 
+ None 
+ 0 
+ 0 
+ 0 (0) 
+ 100
+ 0x044 
+ Unicorn 
+ Holy 
+ 12 
+ 40 
+ 4 (13) 
+ 200
+ 0x045 
+ Ifrit 
+ Fire 
+ 18 
+ 40 
+ 4 (13) 
+ 200
+ 0x046 
+ Ramuh 
+ Lightning 
+ 18 
+ 40 
+ 4 (13) 
+ 200
+ 0x047 
+ Shiva 
+ Ice 
+ 18 
+ 40 
+ 4 (13) 
+ 200
+ 0x048 
+ Kirin 
+ None 
+ 24 
+ 0 
+ 4 (13) 
+ 200
+ 0x049 
+ Carbuncle 
+ None 
+ 12 
+ 0 
+ 4 (13) 
+ 300
+ 0x04A 
+ Phoenix 
+ Holy 
+ 24 
+ 0 
+ 4 (13) 
+ 300
+ 0x04B 
+ Madeen 
+ Holy 
+ 36 
+ 52 
+ 4 (13) 
+ 300
+ 0x04C 
+ First Aid 
+ None 
+ 0 
+ 25 
+ 0 (1) 
+ 100
+ 0x04D 
+ Powerbreak 
+ None 
+ 0 
+ 0 
+ Weapon (1) 
+ 200
+ 0x04E 
+ Mindbreak 
+ None 
+ 0 
+ 0 
+ Weapon (1) 
+ 200
+ 0x04F 
+ Magicbreak 
+ None 
+ 0 
+ 0 
+ Weapon (1) 
+ 200
+ 0x050 
+ Speedbreak 
+ None 
+ 0 
+ 0 
+ Weapon (1) 
+ 200
+ 0x051 
+ Mug 
+ None 
+ 0 
+ 0 
+ Weapon (1) 
+ 300
+ 0x052 
+ Provoke 
+ None 
+ 0 
+ 0 
+ 1 (1) 
+ 300
+ 0x053 
+ Sensor 
+ None 
+ 0 
+ 0 
+ 4 (1) 
+ 300
+ 0x054 
+ Body Slam 
+ None 
+ 0 
+ 45 
+ 1 (1) 
+ 300
+ 0x055 
+ Greased Bolt 
+ None 
+ 0 
+ 0 
+ Weapon (1) 
+ 300
+ 0x056 
+ Downsize 
+ None 
+ 24 
+ 0 
+ Weapon (1) 
+ 300
+ 0x057 
+ Nurse 
+ None 
+ 0 
+ 30 
+ 0 (5) 
+ 100
+ 0x058 
+ Cover 
+ None 
+ 0 
+ 0 
+ 4 (1) 
+ 200
+ 0x059 
+ - 
+ None 
+ 0 
+ 0 
+ 0 (1) 
+ 100
+ 0x05A 
+ Subdue 
+ None 
+ 0 
+ 0 
+ Weapon (1) 
+ 200
+ 0x05B 
+ Parley 
+ None 
+ 0 
+ 0 
+ 1 (1) 
+ 200
+ 0x05C 
+ Saint Cross 
+ Holy 
+ 24 
+ 35 
+ 0 (4) 
+ 300
+ 0x05D 
+ Holy Blade 
+ Holy 
+ 32 
+ 0 
+ Weapon (1) 
+ 300
+ 0x05E 
+ Defense 
+ None 
+ 0 
+ 0 
+ 0 (1) 
+ 200
+ 0x05F 
+ Drop Weapon 
+ None 
+ 0 
+ 0 
+ Weapon (1) 
+ 200
+ 0x060 
+ Tremor 
+ None 
+ 0 
+ 30 
+ 0 (4) 
+ 100
+ 0x061 
+ Hibernate 
+ None 
+ 0 
+ 0 
+ 0 (1) 
+ 100
+ 0x062 
+ Mow Down 
+ None 
+ 0 
+ 40 
+ 0 (4) 
+ 200
+ 0x063 
+ Aura 
+ None 
+ 0 
+ 0 
+ 0 (1) 
+ 300
+ 0x064 
+ Expert Guard 
+ None 
+ 0 
+ 0 
+ 0 (1) 
+ 300
+ 0x065 
+ Meltdown 
+ None 
+ 0 
+ 0 
+ 0 (4) 
+ 200
+ 0x066 
+ Whirlwind 
+ None 
+ 0 
+ 25 
+ 0 (4) 
+ 100
+ 0x067 
+ Earth Render 
+ Earth 
+ 0 
+ 34 
+ Line (128) 
+ 200
+ 0x068 
+ Chakra 
+ None 
+ 0 
+ 35 
+ 0 (1) 
+ 200
+ 0x069 
+ Revive 
+ None 
+ 0 
+ 0 
+ 1 (1) 
+ 300
+ 0x06A 
+ Exorcise 
+ Holy 
+ 0 
+ 0 
+ 1 (1) 
+ 300
+ 0x06B 
+ Holy Sign 
+ None 
+ 0 
+ 0 
+ 1 (1) 
+ 200
+ 0x06C 
+ Air Render 
+ None 
+ 0 
+ 45 
+ 3 (1) 
+ 200
+ 0x06D 
+ Far Fist 
+ None 
+ 0 
+ 35 
+ 4 (5) 
+ 200
+ 0x06E 
+ Air Blast 
+ Wind 
+ 0 
+ 35 
+ Line (4) 
+ 300
+ 0x06F 
+ Backdraft 
+ Fire 
+ 0 
+ 60 
+ 1 (1) 
+ 300
+ 0x070 
+ Rush 
+ None 
+ 0 
+ 0 
+ Weapon (1) 
+ 100
+ 0x071 
+ Wild Swing 
+ None 
+ 0 
+ 0 
+ 0 (4) 
+ 200
+ 0x072 
+ Beatdown 
+ None 
+ 0 
+ 0 
+ Weapon (1) 
+ 200
+ 0x073 
+ Blitz 
+ None 
+ 0 
+ 0 
+ Weapon (1) 
+ 200
+ 0x074 
+ Fire Sword 
+ Fire 
+ 10 
+ 54 
+ 1 (1) 
+ 200
+ 0x075 
+ Bolt Sword 
+ Lightning 
+ 10 
+ 54 
+ 1 (1) 
+ 200
+ 0x076 
+ Ice Sword 
+ Ice 
+ 10 
+ 54 
+ 1 (1) 
+ 200
+ 0x077 
+ Ultima Sword 
+ None 
+ 60 
+ 0 
+ Weapon (1) 
+ 999
+ 0x078 
+ Warcry 
+ None 
+ 0 
+ 0 
+ 0 (4) 
+ 300
+ 0x079 
+ Cheer 
+ None 
+ 0 
+ 0 
+ 0 (1) 
+ 100
+ 0x07A 
+ Soul Sphere 
+ None 
+ 0 
+ 0 
+ 4 (5) 
+ 300
+ 0x07B 
+ Lifebreak 
+ Dark 
+ 0 
+ 0 
+ Weapon (1) 
+ 300
+ 0x07C 
+ Jump 
+ None 
+ 0 
+ 0 
+ 4 (1) 
+ 100
+ 0x07D 
+ Lancet 
+ None 
+ 0 
+ 35 
+ 1 (1) 
+ 300
+ 0x07E 
+ Wyrmtamer 
+ None 
+ 0 
+ 0 
+ 1 (1) 
+ 200
+ 0x07F 
+ Fire Breath 
+ Fire 
+ 0 
+ 40 
+ Line (4) 
+ 300
+ 0x080 
+ Bolt Breath 
+ Lightning 
+ 0 
+ 40 
+ Line (4) 
+ 300
+ 0x081 
+ Ice Breath 
+ Ice 
+ 0 
+ 40 
+ Line (4) 
+ 300
+ 0x082 
+ Wyrmkiller 
+ None 
+ 0 
+ 0 
+ Weapon (1) 
+ 300
+ 0x083 
+ Bangaa Cry 
+ None 
+ 0 
+ 45 
+ Line (4) 
+ 200
+ 0x084 
+ Mog Attack 
+ None 
+ 0 
+ 0 
+ Weapon (1) 
+ 100
+ 0x085 
+ Mog Guard 
+ None 
+ 0 
+ 0 
+ 0 (1) 
+ 200
+ 0x086 
+ Mog Lance 
+ None 
+ 0 
+ 0 
+ 3 (1) 
+ 200
+ 0x087 
+ Mog Rush 
+ None 
+ 0 
+ 0 
+ Weapon (1) 
+ 200
+ 0x088 
+ Mog Shield 
+ None 
+ 0 
+ 0 
+ 4 (1) 
+ 300
+ 0x089 
+ Mog Peek 
+ None 
+ 0 
+ 0 
+ 4 (1) 
+ 300
+ 0x08A 
+ Mog Aid 
+ None 
+ 0 
+ 35 
+ 0 (1) 
+ 300
+ 0x08B 
+ Ultima Charge 
+ None 
+ 60 
+ 0 
+ Weapon (1) 
+ 999
+ 0x08C 
+ Swarmstrike 
+ None 
+ 0 
+ 0 
+ Weapon (1) 
+ 100
+ 0x08D 
+ Shadowstick 
+ None 
+ 0 
+ 0 
+ Weapon (1) 
+ 200
+ 0x08E 
+ Checkmate 
+ None 
+ 0 
+ 0 
+ Weapon (1) 
+ 300
+ 0x08F 
+ Featherblow 
+ None 
+ 0 
+ 0 
+ Weapon (1) 
+ 200
+ 0x090 
+ Swallowtail 
+ None 
+ 0 
+ 0 
+ 0 (4) 
+ 300
+ 0x091 
+ Manastrike 
+ None 
+ 0 
+ 0 
+ Weapon (1) 
+ 300
+ 0x092 
+ Piercethrough 
+ None 
+ 0 
+ 0 
+ Line (2) 
+ 200
+ 0x093 
+ Nighthawk 
+ None 
+ 0 
+ 0 
+ 4 (1) 
+ 200
+ 0x094 
+ Throw 
+ None 
+ 0 
+ 0 
+ 4 (1) 
+ 100
+ 0x095 
+ Wood Veil 
+ None 
+ 4 
+ 15 
+ 4 (1) 
+ 200
+ 0x096 
+ Fire Veil 
+ Fire 
+ 4 
+ 15 
+ 4 (1) 
+ 200
+ 0x097 
+ Earth Veil 
+ Earth 
+ 4 
+ 15 
+ 4 (1) 
+ 200
+ 0x098 
+ Metal Veil 
+ None 
+ 4 
+ 15 
+ 4 (1) 
+ 200
+ 0x099 
+ Water Veil 
+ Water 
+ 4 
+ 15 
+ 4 (1) 
+ 200
+ 0x09A 
+ Unspell 
+ None 
+ 4 
+ 0 
+ 1 (1) 
+ 300
+ 0x09B 
+ Oblivion 
+ None 
+ 24 
+ 0 
+ 1 (1) 
+ 300
+ 0x09C 
+ Shadowbind 
+ None 
+ 12 
+ 0 
+ 1 (1) 
+ 200
+ 0x09D 
+ Last Breath 
+ Dark 
+ 32 
+ 0 
+ 1 (1) 
+ 300
+ 0x09E 
+ Aphonia 
+ None 
+ 12 
+ 0 
+ 1 (1) 
+ 200
+ 0x09F 
+ Nightmare 
+ None 
+ 18 
+ 0 
+ 1 (1) 
+ 300
+ 0x0A0 
+ Ague 
+ None 
+ 12 
+ 0 
+ 1 (1) 
+ 200
+ 0x0A1 
+ Rockseal 
+ None 
+ 32 
+ 0 
+ 1 (1) 
+ 300
+ 0x0A2 
+ Ultima Masher 
+ None 
+ 60 
+ 0 
+ Weapon (1) 
+ 999
+ 0x0A3 
+ Steal: Armor 
+ None 
+ 0 
+ 0 
+ 1 (1) 
+ 300
+ 0x0A4 
+ Steal: Shield 
+ None 
+ 0 
+ 0 
+ 1 (1) 
+ 200
+ 0x0A5 
+ Steal: Access. 
+ None 
+ 0 
+ 0 
+ 1 (1) 
+ 300
+ 0x0A6 
+ Steal: Helm 
+ None 
+ 0 
+ 0 
+ 1 (1) 
+ 300
+ 0x0A7 
+ Steal: Weapon 
+ None 
+ 0 
+ 0 
+ 1 (1) 
+ 300
+ 0x0A8 
+ Steal: Gil 
+ None 
+ 0 
+ 0 
+ 1 (1) 
+ 100
+ 0x0A9 
+ Steal: EXP 
+ None 
+ 0 
+ 0 
+ 1 (1) 
+ 100
+ 0x0AA 
+ Steal: JP 
+ None 
+ 0 
+ 0 
+ 1 (1) 
+ 200
+ 0x0AB 
+ Steal: Ability 
+ None 
+ 0 
+ 0 
+ 1 (1) 
+ 300
+ 0x0AC 
+ Boost 
+ None 
+ 0 
+ 0 
+ 0 (1) 
+ 100
+ 0x0AD 
+ Aim: Legs 
+ None 
+ 0 
+ 0 
+ Weapon (1) 
+ 200
+ 0x0AE 
+ Aim: Arm 
+ None 
+ 0 
+ 0 
+ Weapon (1) 
+ 200
+ 0x0AF 
+ Cupid 
+ None 
+ 0 
+ 0 
+ Weapon (1) 
+ 200
+ 0x0B0 
+ Burial 
+ None 
+ 0 
+ 0 
+ Weapon (1) 
+ 300
+ 0x0B1 
+ Take Aim 
+ None 
+ 0 
+ 0 
+ Weapon (1) 
+ 300
+ 0x0B2 
+ Faster 
+ None 
+ 0 
+ 0 
+ Weapon (1) 
+ 300
+ 0x0B3 
+ Blackout 
+ None 
+ 0 
+ 0 
+ Weapon (1) 
+ 200
+ 0x0B4 
+ Sonic Boom 
+ None 
+ 0 
+ 0 
+ 4 (5) 
+ 200
+ 0x0B5 
+ Oust 
+ None 
+ 0 
+ 0 
+ Weapon (1) 
+ 200
+ 0x0B6 
+ Advice 
+ None 
+ 0 
+ 0 
+ 1 (1) 
+ 100
+ 0x0B7 
+ Aim: Vitals 
+ None 
+ 0 
+ 0 
+ Weapon (1) 
+ 300
+ 0x0B8 
+ Hunting 
+ None 
+ 0 
+ 0 
+ Weapon (1) 
+ 300
+ 0x0B9 
+ Addle 
+ None 
+ 0 
+ 0 
+ Weapon (1) 
+ 200
+ 0x0BA 
+ Ultima Shot 
+ None 
+ 60 
+ 0 
+ Weapon (1) 
+ 999
+ 0x0BB 
+ Sidewinder 
+ None 
+ 0 
+ 0 
+ Weapon (1) 
+ 300
+ 0x0BC 
+ Capture 
+ None 
+ 0 
+ 0 
+ Weapon (1) 
+ 200
+ 0x0BD 
+ Goblin 
+ None 
+ 0 
+ 0 
+ 4 (1) 
+ 200
+ 0x0BE 
+ Flan 
+ None 
+ 0 
+ 0 
+ 4 (1) 
+ 200
+ 0x0BF 
+ Bomb 
+ None 
+ 0 
+ 0 
+ 4 (1) 
+ 200
+ 0x0C0 
+ Dragon 
+ None 
+ 0 
+ 0 
+ 4 (1) 
+ 200
+ 0x0C1 
+ Lamia 
+ None 
+ 0 
+ 0 
+ 4 (1) 
+ 200
+ 0x0C2 
+ Bug 
+ None 
+ 0 
+ 0 
+ 4 (1) 
+ 200
+ 0x0C3 
+ Tonberry 
+ None 
+ 0 
+ 0 
+ 4 (1) 
+ 200
+ 0x0C4 
+ Panther 
+ None 
+ 0 
+ 0 
+ 4 (1) 
+ 200
+ 0x0C5 
+ Malboro 
+ None 
+ 0 
+ 0 
+ 4 (1) 
+ 200
+ 0x0C6 
+ Floateye 
+ None 
+ 0 
+ 0 
+ 4 (1) 
+ 200
+ 0x0C7 
+ Undead 
+ None 
+ 0 
+ 0 
+ 4 (1) 
+ 200
+ 0x0C8 
+ Fairy 
+ None 
+ 0 
+ 0 
+ 4 (1) 
+ 200
+ 0x0C9 
+ Rockbeast 
+ None 
+ 0 
+ 0 
+ 4 (1) 
+ 200
+ 0x0CA 
+ Goblin 
+ None 
+ 0 
+ 0 
+ 0 (1) 
+ 200
+ 0x0CB 
+ Flan 
+ None 
+ 0 
+ 0 
+ 0 (1) 
+ 200
+ 0x0CC 
+ Bomb 
+ None 
+ 0 
+ 0 
+ 0 (1) 
+ 200
+ 0x0CD 
+ Dragon 
+ None 
+ 0 
+ 0 
+ 0 (1) 
+ 200
+ 0x0CE 
+ Lamia 
+ None 
+ 0 
+ 0 
+ 0 (1) 
+ 200
+ 0x0CF 
+ Bug 
+ None 
+ 0 
+ 0 
+ 0 (1) 
+ 200
+ 0x0D0 
+ Panther 
+ None 
+ 0 
+ 0 
+ 0 (1) 
+ 200
+ 0x0D1 
+ Malboro 
+ None 
+ 0 
+ 0 
+ 0 (1) 
+ 200
+ 0x0D2 
+ Floateye 
+ None 
+ 0 
+ 0 
+ 0 (1) 
+ 200
+ 0x0D3 
+ Hurl 
+ None 
+ 0 
+ 0 
+ 4 (1) 
+ 100
+ 0x0D4 
+ Ring 
+ None 
+ 0 
+ 0 
+ 4 (1) 
+ 200
+ 0x0D5 
+ Firebomb 
+ Fire 
+ 0 
+ 30 
+ 4 (1) 
+ 300
+ 0x0D6 
+ Ball 
+ None 
+ 0 
+ 0 
+ 4 (1) 
+ 200
+ 0x0D7 
+ Dagger 
+ None 
+ 0 
+ 35 
+ 4 (1) 
+ 300
+ 0x0D8 
+ Smile 
+ None 
+ 0 
+ 0 
+ 4 (1) 
+ 300
+ 0x0D9 
+ Gil Toss 
+ None 
+ 0 
+ 0 
+ 4 (1) 
+ 100
+ 0x0DA 
+ Mythril 
+ None 
+ 0 
+ 0 
+ 0 (1) 
+ 200
+ 0x0DB 
+ Beso Toxico 
+ None 
+ 0 
+ 0 
+ Weapon (1) 
+ 200
+ 0x0DC 
+ Death Sickle 
+ None 
+ 0 
+ 0 
+ Weapon (1) 
+ 300
+ 0x0DD 
+ Conceal 
+ None 
+ 0 
+ 0 
+ 0 (1) 
+ 100
+ 0x0DE 
+ Doom Archer 
+ None 
+ 0 
+ 0 
+ Weapon (1) 
+ 300
+ 0x0DF 
+ Doubleshot 
+ None 
+ 0 
+ 0 
+ Weapon (1) 
+ 300
+ 0x0E0 
+ Aim: Armor 
+ None 
+ 0 
+ 0 
+ Weapon (1) 
+ 300
+ 0x0E1 
+ Aim: Weapon 
+ None 
+ 0 
+ 0 
+ Weapon (1) 
+ 300
+ 0x0E2 
+ Aim: Wallet 
+ None 
+ 0 
+ 0 
+ Weapon (1) 
+ 200
+ 0x0E3 
+ Sheep Count 
+ None 
+ 8 
+ 0 
+ 4 (5) 
+ 100
+ 0x0E4 
+ 100% Wool 
+ None 
+ 8 
+ 0 
+ 0 (1) 
+ 200
+ 0x0E5 
+ Cuisine 
+ None 
+ 32 
+ 0 
+ 1 (1) 
+ 300
+ 0x0E6 
+ Tail Wag 
+ None 
+ 8 
+ 0 
+ 1 (1) 
+ 200
+ 0x0E7 
+ Chocobo Rush 
+ None 
+ 12 
+ 45 
+ Line (128) 
+ 300
+ 0x0E8 
+ Frogsong 
+ None 
+ 18 
+ 0 
+ 4 (1) 
+ 200
+ 0x0E9 
+ Friend 
+ None 
+ 12 
+ 0 
+ 4 (13) 
+ 300
+ 0x0EA 
+ Catnip 
+ None 
+ 12 
+ 0 
+ 1 (1) 
+ 100
+ 0x0EB 
+ Fireshot 
+ Fire 
+ 0 
+ 0 
+ Weapon (1) 
+ 100
+ 0x0EC 
+ Boltshot 
+ Lightning 
+ 0 
+ 0 
+ Weapon (1) 
+ 100
+ 0x0ED 
+ Iceshot 
+ Ice 
+ 0 
+ 0 
+ Weapon (1) 
+ 100
+ 0x0EE 
+ Confushot 
+ None 
+ 0 
+ 0 
+ Weapon (1) 
+ 200
+ 0x0EF 
+ Charmshot 
+ None 
+ 0 
+ 0 
+ Weapon (1) 
+ 300
+ 0x0F0 
+ Blindshot 
+ None 
+ 0 
+ 0 
+ Weapon (1) 
+ 100
+ 0x0F1 
+ Silenshot 
+ None 
+ 0 
+ 0 
+ Weapon (1) 
+ 200
+ 0x0F2 
+ Stopshot 
+ None 
+ 0 
+ 0 
+ Weapon (1) 
+ 300
+ 0x0F3 
+ Red Spring 
+ None 
+ 12 
+ 0 
+ 0 (64) 
+ 200
+ 0x0F4 
+ Blue Screw 
+ None 
+ 12 
+ 0 
+ 0 (64) 
+ 200
+ 0x0F5 
+ Green Gear 
+ None 
+ 12 
+ 0 
+ 0 (64) 
+ 200
+ 0x0F6 
+ Silver Disc 
+ None 
+ 12 
+ 0 
+ 0 (64) 
+ 200
+ 0x0F7 
+ Gold Battery 
+ None 
+ 12 
+ 40 
+ 0 (64) 
+ 200
+ 0x0F8 
+ Black Ingot 
+ None 
+ 12 
+ 0 
+ 0 (64) 
+ 200
+ 0x0F9 
+ Chroma Gem 
+ None 
+ 12 
+ 0 
+ 0 (64) 
+ 200
+ 0x0FA 
+ Yellow Spring 
+ None 
+ 12 
+ 0 
+ 0 (64) 
+ 200
+ 0x0FB 
+ Potion 
+ Holy 
+ 0 
+ 40 
+ 1 (1) 
+ 100
+ 0x0FC 
+ Hi-Potion 
+ Holy 
+ 0 
+ 60 
+ 1 (1) 
+ 100
+ 0x0FD 
+ X-Potion 
+ Holy 
+ 0 
+ 80 
+ 1 (1) 
+ 100
+ 0x0FE 
+ Ether 
+ None 
+ 0 
+ 0 
+ 1 (1) 
+ 100
+ 0x0FF 
+ Elixir 
+ Holy 
+ 0 
+ 100 
+ 1 (1) 
+ 100
+ 0x100 
+ Phoenix Down 
+ Holy 
+ 0 
+ 90 
+ 1 (1) 
+ 100
+ 0x101 
+ Echo Screen 
+ None 
+ 0 
+ 0 
+ 1 (1) 
+ 100
+ 0x102 
+ Maiden Kiss 
+ None 
+ 0 
+ 0 
+ 1 (1) 
+ 100
+ 0x103 
+ Soft 
+ None 
+ 0 
+ 0 
+ 1 (1) 
+ 100
+ 0x104 
+ Holy Water 
+ None 
+ 0 
+ 0 
+ 1 (1) 
+ 100
+ 0x105 
+ Antidote 
+ None 
+ 0 
+ 0 
+ 1 (1) 
+ 100
+ 0x106 
+ Eye Drops 
+ None 
+ 0 
+ 0 
+ 1 (1) 
+ 100
+ 0x107 
+ Bandage 
+ None 
+ 0 
+ 0 
+ 1 (1) 
+ 100
+ 0x108 
+ Cureall 
+ None 
+ 0 
+ 0 
+ 1 (1) 
+ 100
+ 0x109 
+ Draw Weapon 
+ None 
+ 0 
+ 0 
+ 0 (1) 
+ 100
+ 0x10A 
+ Goblin Punch 
+ None 
+ 8 
+ 30 
+ 1 (1) 
+ 100
+ 0x10B 
+ Magic Hammer 
+ None 
+ 8 
+ 38 
+ 3 (1) 
+ 100
+ 0x10C 
+ Mutilate 
+ None 
+ 18 
+ 0 
+ 1 (1) 
+ 100
+ 0x10D 
+ Acid 
+ None 
+ 12 
+ 0 
+ 3 (1) 
+ 100
+ 0x10E 
+ Sacrifice 
+ None 
+ 0 
+ 0 
+ 1 (1) 
+ 100
+ 0x10F 
+ Blowup 
+ None 
+ 2 
+ 15 
+ 0 (4) 
+ 100
+ 0x110 
+ Flame Attack 
+ Fire 
+ 0 
+ 40 
+ 3 (1) 
+ 100
+ 0x111 
+ Chill 
+ Ice 
+ 0 
+ 40 
+ 0 (4) 
+ 100
+ 0x112 
+ Mighty Guard 
+ None 
+ 8 
+ 0 
+ 1 (1) 
+ 100
+ 0x113 
+ Guard-Off 
+ None 
+ 10 
+ 0 
+ 1 (1) 
+ 100
+ 0x114 
+ Dragon Force 
+ None 
+ 12 
+ 0 
+ 1 (1) 
+ 100
+ 0x115 
+ Night 
+ None 
+ 24 
+ 0 
+ 0 (64) 
+ 100
+ 0x116 
+ Twister 
+ None 
+ 20 
+ 0 
+ 3 (5) 
+ 100
+ 0x117 
+ Hand Slap 
+ None 
+ 0 
+ 45 
+ 1 (1) 
+ 100
+ 0x118 
+ Poison Frog 
+ None 
+ 0 
+ 0 
+ 3 (1) 
+ 100
+ 0x119 
+ Kiss 
+ None 
+ 0 
+ 0 
+ 1 (1) 
+ 100
+ 0x11A 
+ LV3 Def-less 
+ None 
+ 12 
+ 0 
+ 3 (5) 
+ 100
+ 0x11B 
+ Sandstorm 
+ Earth 
+ 0 
+ 40 
+ 0 (4) 
+ 100
+ 0x11C 
+ LV5 Death 
+ Dark 
+ 24 
+ 0 
+ 3 (5) 
+ 100
+ 0x11D 
+ Suffocate 
+ None 
+ 0 
+ 0 
+ 1 (1) 
+ 100
+ 0x11E 
+ Resonate 
+ None 
+ 20 
+ 0 
+ 0 (64) 
+ 100
+ 0x11F 
+ Limit Glove 
+ None 
+ 4 
+ 0 
+ 1 (1) 
+ 100
+ 0x120 
+ Matra Magic 
+ None 
+ 24 
+ 0 
+ 3 (1) 
+ 100
+ 0x121 
+ Munch 
+ None 
+ 0 
+ 47 
+ 1 (1) 
+ 100
+ 0x122 
+ Knife 
+ None 
+ 8 
+ 0 
+ 1 (1) 
+ 100
+ 0x123 
+ Karma 
+ None 
+ 0 
+ 0 
+ 1 (1) 
+ 100
+ 0x124 
+ Voodoo 
+ None 
+ 0 
+ 0 
+ 1 (1) 
+ 100
+ 0x125 
+ Poison Claw 
+ None 
+ 8 
+ 30 
+ 1 (1) 
+ 100
+ 0x126 
+ Hastebreak 
+ None 
+ 12 
+ 0 
+ 1 (1) 
+ 100
+ 0x127 
+ Rend 
+ None 
+ 0 
+ 35 
+ 1 (1) 
+ 100
+ 0x128 
+ Blaster 
+ None 
+ 0 
+ 0 
+ 3 (1) 
+ 100
+ 0x129 
+ Bad Breath 
+ None 
+ 20 
+ 0 
+ 1 (1) 
+ 100
+ 0x12A 
+ Goo 
+ None 
+ 0 
+ 0 
+ 1 (1) 
+ 100
+ 0x12B 
+ Soundwave 
+ None 
+ 0 
+ 0 
+ 3 (5) 
+ 100
+ 0x12C 
+ Stare 
+ None 
+ 12 
+ 0 
+ Line (4) 
+ 100
+ 0x12D 
+ Roulette 
+ Dark 
+ 20 
+ 0 
+ 0 (64) 
+ 100
+ 0x12E 
+ Devil Gaze 
+ None 
+ 0 
+ 0 
+ Line (4) 
+ 100
+ 0x12F 
+ Circle 
+ None 
+ 0 
+ 0 
+ 3 (1) 
+ 100
+ 0x130 
+ Drain Touch 
+ None 
+ 10 
+ 20 
+ 1 (1) 
+ 100
+ 0x131 
+ LV? S-Flare 
+ Dark 
+ 30 
+ 55 
+ 0 (64) 
+ 100
+ 0x132 
+ Miasma 
+ None 
+ 0 
+ 20 
+ 3 (5) 
+ 100
+ 0x133 
+ Zombify 
+ Dark 
+ 0 
+ 45 
+ 1 (1) 
+ 100
+ 0x134 
+ White Wind 
+ None 
+ 12 
+ 0 
+ 3 (5) 
+ 100
+ 0x135 
+ Angel Whisper 
+ Holy 
+ 24 
+ 30 
+ 3 (1) 
+ 100
+ 0x136 
+ Meteorite 
+ None 
+ 22 
+ 50 
+ 3 (1) 
+ 100
+ 0x137 
+ LV?D Holy 
+ Holy 
+ 32 
+ 65 
+ 0 (64) 
+ 100
+ 0x138 
+ Adrammalech 
+ None 
+ 0 
+ 85 
+ 0 (64) 
+ 100
+ 0x139 
+ Mateus 
+ None 
+ 0 
+ 85 
+ 0 (64) 
+ 100
+ 0x13A 
+ Ultima 
+ None 
+ 0 
+ 85 
+ 0 (64) 
+ 100
+ 0x13B 
+ Exodus 
+ None 
+ 0 
+ 85 
+ 0 (64) 
+ 100
+ 0x13C 
+ Famfrit 
+ None 
+ 0 
+ 85 
+ 0 (64) 
+ 100
+ 0x13D 
+ Explode 
+ Fire 
+ 24 
+ 40 
+ 3 (5) 
+ 300
+ 0x13E 
+ Stillness 
+ None 
+ 24 
+ 0 
+ 3 (5) 
+ 300
+ 0x13F 
+ Azoth 
+ None 
+ 12 
+ 0 
+ 0 (64) 
+ 100
+ 0x140 
+ Omega 
+ None 
+ 10 
+ 0 
+ Weapon (1) 
+ 300
+ 0x141 
+ Abyss 
+ None 
+ 12 
+ 48 
+ 3 (5) 
+ 300
+ 0x142 
+ Life Render 
+ None 
+ 0 
+ 0 
+ Weapon (1) 
+ 300
+ 0x143 
+ Heart Render 
+ None 
+ 0 
+ 0 
+ Weapon (1) 
+ 300
+ 0x144 
+ Ripcircle 
+ None 
+ 0 
+ 45 
+ 0 (4) 
+ 300
+ 0x145 
+ Furycircle 
+ None 
+ 0 
+ 50 
+ 0 (4) 
+ 100
+ 0x146 
+ Lawshift 
+ None 
+ 0 
+ 0 
+ 0 (64) 
+ 300
+ 0x147 
+ Amber Gleam 
+ None 
+ 0 
+ 0 
+ 0 (64) 
+ 200
+ 0x148 
+ Alpha 
+ None 
+ 0 
+ 99 
+ 4 (5) 
+ 300
+ 0x149 
+ Descent 
+ None 
+ 0 
+ 0 
+ 0 (64) 
+ 100
+ 0x14A 
+ Magi 
+ None 
+ 0 
+ 50 
+ 0 (64) 
+ 100
+ 0x14B 
+ Spellbind 
+ None 
+ 0 
+ 50 
+ 4 (1) 
+ 200
+ 0x14C 
+ Breath of God 
+ None 
+ 0 
+ 40 
+ 4 (5) 
+ 200
+ 0x14D 
+ Lightspeed 
+ None 
+ 0 
+ 45 
+ 1 (1) 
+ 300
+ 0x14E 
+ Firestream 
+ Fire 
+ 0 
+ 35 
+ Line (128) 
+ 200
+ 0x14F 
+ Howl of Rage 
+ None 
+ 0 
+ 0 
+ 0 (4) 
+ 300
+ 0x150 
+ Presence 
+ None 
+ 0 
+ 50 
+ 1 (1) 
+ 100
+ 0x151 
+ Logos 
+ None 
+ 0 
+ 0 
+ 3 (5) 
+ 100
+ 0x152 
+ Abate 
+ None 
+ 32 
+ 0 
+ 0 (64) 
+ 999
+ 0x153 
+ Judge Sword 
+ None 
+ 0 
+ 0 
+ Weapon (1) 
+ 100
+ 0x154 
+ Bind 
+ None 
+ 16 
+ 0 
+ 3 (1) 
+ 300
+ 0x155 
+ JP Gift 
+ None 
+ 0 
+ 0 
+ 1 (1) 
+ 100
+ 0x156 
+ Yellow Clip 
+ None 
+ 8 
+ 0 
+ 1 (1) 
+ 200
+ 0x157 
+ Judge Sword 
+ None 
+ 0 
+ 0 
+ Weapon (1) 
+ 100
+ 0x158 
+ Yellow Card 
+ None 
+ 20 
+ 0 
+ 1 (1) 
+ 999
+ 0x159 
+ Palaistra 
+ None 
+ 0 
+ 0 
+ 0 (4) 
+ 200
+ 0x15A 
+ Blank Card 
+ None 
+ 0 
+ 0 
+ 0 (64) 
+ 999
+ Retrieved from " http://datacrystal.romhacking.net/wikid/index.php?title=Final_Fantasy_Tactics_Advance:Abilities&oldid=36485 " 
+ Category : Subpages 
+ Navigation menu 
+ Personal tools 
+ Log in 
+ Namespaces 
+ Page 
+ Discussion 
+ Variants 
+ Views 
+ Read 
+ View source 
+ View history 
+ More 
+ Search 
+ Navigation 
+ Data Crystal Main Page RHDN Home Recent changes Random page Help 
+ Games 
+ RHDN Games List Translation Request List NES SNES GB/GBC GBA NDS NGP/NGC WonderSwan GEN N64 PSX PS2 PSP GCN TG16 SMS 
+ Community History 
+ Fan Translation Community History 
+ Tools 
+ What links here Related changes Special pages Printable version Permanent link Page information 
+ This page was last edited on 5 June 2016, at 00:02. 
+ Content is available under GNU Free Documentation License 1.2 unless otherwise noted. 
+ Privacy policy 
+ About Data Crystal 
+ Disclaimers 
+ 

@@ -1,0 +1,219 @@
+ 
+ Final Fantasy Tactics Advance:RAM map - Data Crystal 
+ 27 captures 22 May 2011 - 14 Jun 2021 
+ Nov 
+ JUN 
+ Jul 
+ 14 
+ 2020 
+ 2021 
+ 2022 
+ success 
+ fail 
+ About this capture 
+ TIMESTAMPS 
+ The Wayback Machine - https://web.archive.org/web/20210614233647/http://datacrystal.romhacking.net/wiki/Final_Fantasy_Tactics_Advance:RAM_map 
+ Final Fantasy Tactics Advance:RAM map 
+ From Data Crystal 
+ Jump to: navigation , search 
+ The following article is a RAM map for Final Fantasy Tactics Advance . 
+ Contents  [ hide ]  
+ 1 Day/Month/Time 
+ 1.1 Month 
+ 1.2 Day/Date 
+ 1.3 Play Time 
+ 2 Mission Items 
+ 2.1 Structure 
+ 2.2 Item IDs 
+ Day/Month/Time 
+ Month 
+ The current Month is stored at 0x02002FBA in the RAM. 8-bit.
+ Values:
+ 01 = Kingmoon 
+ 02 = Madmoon 
+ 03 = Sagemoon 
+ 04 = Huntmoon 
+ 05 = Bardmoon 
+ Day/Date 
+ The current Day (1-20) is stored at 0x02002FBB in the RAM. 8-bit.
+ Play Time 
+ The Hours are stored as a 16-bit value at 0x02002FBC.
+The Minutes are stored as an 8-bit value at 0x02002FBE.
+The Seconds are stored as an 8-bit value at 0x02002FBF.
+ Mission Items 
+ Mission Items are stored at 0x02002B08 to 0x02002C04 in a 4-byte data structure. There are 64 slots.
+ Structure 
+ Name
+ Length
+ Offset
+ Item ID 
+ 1 
+ 0x00
+ Buffer 
+ 3 
+ 0x01
+ Item IDs 
+ Values:
+ 00 = <Not Shown> 
+ 01 = Magic Trophy 
+ 02 = Fight Trophy 
+ 03 = Sport Trophy 
+ 04 = Elda's Cup 
+ 05 = Ogma's Seal 
+ 06 = Gold Vessel 
+ 07 = Magic Medal 
+ 08 = Ancient Medal 
+ 09 = Coast Medal 
+ 0A = Guard Medal 
+ 0B = Friend Pin 
+ 0C = Master Brave 
+ 0D = Badge 
+ 0E = Rainbowite 
+ 0F = Delta Fang 
+ 10 = Cat's Tears 
+ 11 = Dame's Blush 
+ 12 = Thunderstone 
+ 13 = Stormstone 
+ 14 = Esteroth 
+ 15 = Ahriman Eye 
+ 16 = Wyrmstone 
+ 17 = Topaz Armring 
+ 18 = Zodiac Ore 
+ 19 = Silvril 
+ 1A = Materite 
+ 1B = Leestone 
+ 1C = Adamantite 
+ 1D = Spiritstone 
+ 1E = Amber 
+ 1F = Adaman Alloy 
+ 20 = Mysidia Alloy 
+ 21 = Crusite Alloy 
+ 22 = Lodestone 
+ 23 = Black Thread 
+ 24 = White Thread 
+ 25 = Chocobo Skin 
+ 26 = Magic Cloth 
+ 27 = Magic Cotton 
+ 28 = Blood Shawl 
+ 29 = Ahriman Wing 
+ 2A = Fairy Wing 
+ 2B = Bomb Shell 
+ 2C = Panther Hide 
+ 2D = Tiger Hide 
+ 2E = Jerky 
+ 2F = Gysahl Greens 
+ 30 = Chocobo Egg 
+ 31 = Goldcap 
+ 32 = Life Water 
+ 33 = Eldagusto 
+ 34 = Cyril Ice 
+ 35 = Choco Bread 
+ 36 = Choco Gratin 
+ 37 = Kiddy Bread 
+ 38 = Grownup Bread 
+ 39 = Malboro Wine 
+ 3A = Gedegg Soup 
+ 3B = Ancient Text 
+ 3C = Magic Vellum 
+ 3D = Justice Badge 
+ 3E = Friend Badge 
+ 3F = Runba's Tale 
+ 40 = The Hero Gaol 
+ 41 = Edaroya Tome 
+ 42 = Homework 
+ 43 = Encyclopedia 
+ 44 = Dictionary 
+ 45 = Monster Guide 
+ 46 = Secret Books 
+ 47 = Sketchbook 
+ 48 = Stuffed Bear 
+ 49 = Rat Tail 
+ 4A = Rabbit Tail 
+ 4B = Danbukwood 
+ 4C = Moonwood 
+ 4D = Stradivari 
+ 4E = Clock Post 
+ 4F = Fountain Pen 
+ 50 = Earplugs 
+ 51 = Crystal 
+ 52 = Old Statue 
+ 53 = Neighbor Pin 
+ 54 = Trichord 
+ 55 = Rusty Sword 
+ 56 = Broken Sword 
+ 57 = Bent Sword 
+ 58 = Rusty Spear 
+ 59 = Fire Sigil 
+ 5A = Water Sigil 
+ 5B = Wind Sigil 
+ 5C = Earth Sigil 
+ 5D = Mind Ceffyl 
+ 5E = Body Ceffyl 
+ 5F = Feather Badge 
+ 60 = Insignia 
+ 61 = Ally Finder 
+ 62 = Ally Finder2 
+ 63 = Tranquil Box 
+ 64 = Loaded Dice 
+ 65 = Snake Shield 
+ 66 = Stasis Rope 
+ 67 = Mythril Pick 
+ 68 = Caravan Musk 
+ 69 = Love Potion 
+ 6A = Tonberry Lamp 
+ 6B = Stilpool Scroll 
+ 6C = Flower Vase 
+ 6D = Dragon Bone 
+ 6E = Animal Bone 
+ 6F = Skull 
+ 70 = Helje Key 
+ 71 = Clock Gear 
+ 72 = Gun Gear 
+ 73 = Sprinkler 
+ 74 = Silk Bloom 
+ 75 = Moon Bloom 
+ 76 = Telaq Flower 
+ 77 = Blue Rose 
+ 78 = White Flowers 
+ 79 = Blood Apple 
+ 7A = Magic Fruit 
+ 7B = Power Fruit 
+ 7C = Vermillion 
+ 7D = Stolen Gil 
+ 7E = Ancient Bills 
+ 7F = Ancient Coins 
+ Internal Data for Final Fantasy Tactics Advance 
+ ROM Map •
+ RAM Map •
+ Text Table •
+ Notes •
+ Tutorials 
+ Retrieved from " http://datacrystal.romhacking.net/wikid/index.php?title=Final_Fantasy_Tactics_Advance:RAM_map&oldid=36489 " 
+ Category : RAM maps 
+ Navigation menu 
+ Personal tools 
+ Log in 
+ Namespaces 
+ Page 
+ Discussion 
+ Variants 
+ Views 
+ Read 
+ View source 
+ View history 
+ More 
+ Search 
+ Navigation 
+ Data Crystal Main Page RHDN Home Recent changes Random page Help 
+ Games 
+ RHDN Games List Translation Request List NES SNES GB/GBC GBA NDS NGP/NGC WonderSwan GEN N64 PSX PS2 PSP GCN TG16 SMS 
+ Community History 
+ Fan Translation Community History 
+ Tools 
+ What links here Related changes Special pages Printable version Permanent link Page information 
+ This page was last edited on 5 June 2016, at 01:04. 
+ Content is available under GNU Free Documentation License 1.2 unless otherwise noted. 
+ Privacy policy 
+ About Data Crystal 
+ Disclaimers 
+ 

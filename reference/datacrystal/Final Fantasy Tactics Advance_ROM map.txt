@@ -1,0 +1,82 @@
+ 
+ Final Fantasy Tactics Advance:ROM map - Data Crystal 
+ 20 captures 22 May 2011 - 13 Apr 2021 
+ Nov 
+ Apr 
+ May 
+ 13 
+ 2020 
+ 2021 
+ 2022 
+ success 
+ fail 
+ About this capture 
+ TIMESTAMPS 
+ The Wayback Machine - https://web.archive.org/web/20210413073918/http://datacrystal.romhacking.net/wiki/Final_Fantasy_Tactics_Advance:ROM_map 
+ Final Fantasy Tactics Advance:ROM map 
+ From Data Crystal 
+ Jump to: navigation , search 
+ The following article is a ROM map for Final Fantasy Tactics Advance . 
+ Contents  [ hide ]  
+ 1 Days per Month 
+ 2 Start-up Offsets 
+ 2.1 Square Enix logo 
+ 2.2 Title Screen 
+ 3 Data Structures 
+ Days per Month 
+ The byte at 0x036102 in the ROM limits how many days there are per month.
+ It's currently 0x13 (19), so changing it to 0x9 will make it 10 days, etc. 
+ Start-up Offsets 
+ Square Enix logo 
+ This logo is shown before anything else.
+ The pointer to the tileset is stored at 0x13BF3C. 32-bit.
+ Default: 0x089569F8 
+ The length (word count) of the tileset is stored at 0x13BF40. 32-bit.
+ Default: 0x000004D6 
+ The pointer to the tilemap is stored at 0x13BF4C. 32-bit.
+ Default: 0x089564FC 
+ More to be added...
+ Title Screen 
+ This is the "Press Start" screen shown at startup.
+ The pointer to the 256-color background tileset is stored at 0x135E3C. 32-bit.
+ Default: 0x08958dd8 
+ More to be added...
+ Data Structures 
+ Information on jobs is available on the page Final Fantasy Tactics Advance:Jobs . 
+ Information on items and equipment is available on the page Final Fantasy Tactics Advance:Items . 
+ Information on abilities is available on the page Final_Fantasy_Tactics_Advance:Abilities . 
+ Internal Data for Final Fantasy Tactics Advance 
+ ROM Map •
+ RAM Map •
+ Text Table •
+ Notes •
+ Tutorials 
+ Retrieved from " http://datacrystal.romhacking.net/wikid/index.php?title=Final_Fantasy_Tactics_Advance:ROM_map&oldid=36488 " 
+ Category : ROM maps 
+ Navigation menu 
+ Personal tools 
+ Log in 
+ Namespaces 
+ Page 
+ Discussion 
+ Variants 
+ Views 
+ Read 
+ View source 
+ View history 
+ More 
+ Search 
+ Navigation 
+ Data Crystal Main Page RHDN Home Recent changes Random page Help 
+ Games 
+ RHDN Games List Translation Request List NES SNES GB/GBC GBA NDS NGP/NGC WonderSwan GEN N64 PSX PS2 PSP GCN TG16 SMS 
+ Community History 
+ Fan Translation Community History 
+ Tools 
+ What links here Related changes Special pages Printable version Permanent link Page information 
+ This page was last edited on 5 June 2016, at 01:04. 
+ Content is available under GNU Free Documentation License 1.2 unless otherwise noted. 
+ Privacy policy 
+ About Data Crystal 
+ Disclaimers 
+ 

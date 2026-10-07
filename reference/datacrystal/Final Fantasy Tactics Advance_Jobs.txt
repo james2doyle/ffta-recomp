@@ -1,0 +1,1039 @@
+ 
+ Final Fantasy Tactics Advance:Jobs - Data Crystal 
+ 15 captures 22 May 2011 - 5 Mar 2021 
+ Dec 
+ MAR 
+ Apr 
+ 05 
+ 2019 
+ 2021 
+ 2022 
+ success 
+ fail 
+ About this capture 
+ TIMESTAMPS 
+ The Wayback Machine - https://web.archive.org/web/20210305012538/http://datacrystal.romhacking.net/wiki/Final_Fantasy_Tactics_Advance:Jobs 
+ Final Fantasy Tactics Advance:Jobs 
+ From Data Crystal 
+ Jump to: navigation , search 
+ This is a sub-page for Final Fantasy Tactics Advance . 
+ Contents  [ hide ]  
+ 1 Information 
+ 2 Job Data Structure 
+ 3 Job Requirement Data Structure 
+ 4 Default List of Jobs 
+ 5 Help, please... 
+ Information 
+ The Job data starts at 0x521A14. 
+ The Job Requirement data starts at 0x5231A4; directly after the Job data. 
+ Job names are stored in this list . 
+ There are 0x73 (115) jobs, including monster class, specials, ect. 
+ Job Data Structure 
+ The Job Data Structure is 0x34 bytes long. 
+ Name
+ Length
+ Offset
+ Type
+ Max Value
+ Description
+ Name ID 
+ 2 
+ 0x00 
+ uint16 
+ Unknown 
+ The Name ID of the Job.
+ Buffer 
+ 2 
+ 0x02 
+ uint16 
+ Unknown 
+ Always 0x0000
+ Race 
+ 1 
+ 0x04 
+ uint8 
+ 0x17 [Verification Needed] 
+ The Race of the Job.
+ Values:
+ 0x01: Hume 
+ 0x02: Bangaa 
+ 0x03: Nou Mu 
+ 0x04: Viera 
+ 0x05: Moogle 
+ 0x06: Monster (Goblins) 
+ 0x07: Monster (Flans) 
+ 0x08: Monster (Bombs) 
+ 0x09: Monster (Dragons) 
+ 0x0A: Monster (Snake-women) 
+ 0x0B: Monster (Spiders) 
+ 0x0C: Monster (Blade Biters) 
+ 0x0D: Monster (Tonberry) 
+ 0x0E: Monster (Panthers) 
+ 0x0F: Monster (Malboro) 
+ 0x10: Monster (Ahriman) 
+ 0x11: Monster (Undead) 
+ 0x12: Monster (Fairy) 
+ 0x13: Special (Llendar) 
+ 0x14: Special (Playable) 
+ 0x15: Special (Totemas) 
+ 0x16: Special (Li-grim) 
+ 0x17: Judge 
+ Checksum? 
+ 1 
+ 0x05 
+ uint8 
+ Unknown 
+ Appears to be checked. If non-zero it branches off to another routine.
+ Unknown 
+ 1 
+ 0x06 
+ uint8 
+ Unknown 
+ Checked when entering a Pub. No clue why.
+ Sprite Index 
+ 2 
+ 0x07 
+ uint16 [Verification Needed] 
+ Unknown 
+ The index of the sprite that is used in battles/menus/etc.
+ Unknown 
+ 2 
+ 0x09 
+  ???? 
+  ???? 
+ Unknown.
+ Sprite Palette Index 
+ 1 
+ 0x0B 
+ uint8 
+ 0x22 
+ The palettes that the sprite uses.
+ XXXX YYYY (bits); where XXXX is the enemy and YYYY is the player palette.
+ Unknown 
+ 1 
+ 0x0C 
+  ???? 
+  ???? 
+ Unknown.
+ Portrait Palette Index 
+ 1 
+ 0x0D 
+ uint8 
+ Unknown 
+ Then loaded from a table??
+ Portrait Index 
+ 1 
+ 0x0E 
+ uint8 
+ Unknown 
+ Then loaded from a table??
+ Unknown 
+ 1 
+ 0x0F 
+  ???? 
+  ???? 
+ Unknown.
+ A-Ability Index 
+ 1 
+ 0x10 
+ uint8 [Verification Needed] 
+ Unknown 
+ The Index of the A-Abilities which this job uses.
+ Unknown 
+ 1 
+ 0x11 
+ uint8 [Verification Needed] 
+ Unknown 
+ No idea, but it's a byte.
+ Elements 
+ 4 
+ 0x12 
+ See description. 
+ Unknown 
+ This word controls resistances/weakness to elements. 
+ Each element is stored in three bits each: 
+ 00 000 DDD HHH LLL III WWW EEE AAA FFF 000 
+ Where each letter corresponds to an element: 
+ D = Dark 
+ H = Holy 
+ L = Lightning 
+ I = Ice 
+ W = Water 
+ E = Earth 
+ A = Wind 
+ F = Fire 
+ And each three bits mean: 
+ 000 = Weak 
+ 001 = Normal 
+ 010 = Nullify 
+ 011 = Absorb 
+ 100 = Resist 
+ Example of Jelly (Monster):
+ 0x01241258 = 00 000 001 001 001 000 001 001 001 011 000 
+Normal to Dark, Holy, Lightning, Water and Earth;
+Weak to Ice;
+and Absorbs Fire.
+ Status Defense 
+ 1 
+ 0x16 
+ uint8 [Verification Needed] 
+ Unknown 
+ Resistance against status effects. Always 50 for playable characters.
+ Base HP 
+ 1 
+ 0x17 
+ uint8 [Verification Needed] 
+ Unknown 
+ The base level of HP.
+ Base MP 
+ 1 
+ 0x18 
+ uint8 [Verification Needed] 
+ Unknown 
+ The base level of MP.
+ Base Speed 
+ 1 
+ 0x19 
+ uint8 [Verification Needed] 
+ Unknown 
+ The base level of the Speed stat.
+ Base Melee 
+ 3 
+ 0x1A 
+ See description. 
+ Unknown 
+ The base level of the Attack and the Defence stat.
+ 0x1A = AAAA BBBB (bits) 
+0x1B = XXXX ZZZZ (bits) 
+0x1C = 0000 YYYY (bits) 
+ where ZZZZ AAAA BBBB (bits) = Base Attack 
+and YYYY XXXX (bits) = Base Defence
+ Base Magic 
+ 3 
+ 0x1D 
+ See description. 
+ Unknown 
+ The base level of the Power and the Resistance stat.
+ 0x1D = AAAA BBBB (bits) 
+0x1E = XXXX ZZZZ (bits) 
+0x1F = 0000 YYYY (bits) 
+ where ZZZZ AAAA BBBB (bits) = Base Power 
+and YYYY XXXX (bits) = Base Res.
+ HP Growth 
+ 1 
+ 0x20 
+ uint8 [Verification Needed] 
+ Unknown 
+ How much HP grows at level up, x10.
+ Eg.:
+ A value of 84 will raise HP by 8, with a 40% chance of being 9. 
+ A value of 52 will raise HP by 5, with a 20% chance of being 6. 
+ MP Growth 
+ 1 
+ 0x21 
+ uint8 [Verification Needed] 
+ Unknown 
+ How much MP grows at level up, x10.
+ Speed Growth 
+ 1 
+ 0x22 
+ uint8 [Verification Needed] 
+ Unknown 
+ How much Speed grows at level up, x10.
+ Attack Growth 
+ 1 
+ 0x23 
+ uint8 [Verification Needed] 
+ Unknown 
+ How much Attack grows at level up, x10.
+ Defense Growth 
+ 1 
+ 0x24 
+ uint8 [Verification Needed] 
+ Unknown 
+ How much Defense grows at level up, x10.
+ Magic Pow. Growth 
+ 1 
+ 0x25 
+ uint8 [Verification Needed] 
+ Unknown 
+ How much Power grows at level up, x10.
+ Magic Res. Growth 
+ 1 
+ 0x26 
+ uint8 [Verification Needed] 
+ Unknown 
+ How much Resistance grows at level up, x10.
+ Unknown 
+ 1 
+ 0x27 
+ uint8 [Verification Needed] 
+ Unknown 
+ Always appears to be a copy of Resistance Growth (above).
+ Never appears to be read from any routine...
+ Movement 
+ 1 
+ 0x28 
+ uint8 [Verification Needed] 
+ Unknown 
+ The 'Move' value of job.
+ Jump 
+ 1 
+ 0x29 
+ uint8 [Verification Needed] 
+ Unknown 
+ The 'Jump' value of job.
+ Evade 
+ 1 
+ 0x2A 
+ uint8 [Verification Needed] 
+ Unknown 
+ The 'Evade' value of job.
+ Movement Style 
+ 1 
+ 0x2B 
+ uint8 
+ Unknown 
+ The lower 4 bits represent how this job stands.
+ 0x0 - Errorous 
+ 0x1 - Normal? 
+ 0x2 - Normal again? 
+ 0x3 - Crawl 
+ 0x4 - Float (ie: can walk on water) 
+ 0x5 - Tonberry 
+ The upper 4 bits represent how this job moves.
+ 0x0 - Errorous 
+ 0x1 - Walk 
+ 0x2 - Fly 
+ 0x3 - Teleport 
+ Unknown 
+ 1 
+ 0x2C 
+ uint8 [Verification Needed] 
+ Unknown 
+ Unknown.
+ Equip-able Items Index 
+ 1 
+ 0x2D 
+ uint8 [Verification Needed] 
+ Unknown. 
+ The word (4 bytes) at 0x51D0F4 + (X * 4) , where X is the value of this byte, determines what items are equip-able.
+ Each bit (0x00 being the least significant and 0x1F being the most significant) in the word determines a different type of item:
+ 0x00 - Sword 
+ 0x01 - Blade 
+ 0x02 - Saber 
+ 0x03 - Knight Sword 
+ 0x04 - Great Sword 
+ 0x05 - Broad Sword 
+ 0x06 - Knife 
+ 0x07 - Rapier 
+ 0x08 - Katana 
+ 0x09 - Staff 
+ 0x0A - Rod 
+ 0x0B - Mace 
+ 0x0C - Bow 
+ 0x0D - Great Bow 
+ 0x0E - Spear 
+ 0x0F - Instrument 
+ 0x10 - Knuckles 
+ 0x11 - Soul 
+ 0x12 - Gun 
+ 0x13 - Shield 
+ 0x14 - Helmet 
+ 0x15 - Ribbon 
+ 0x16 - Hat 
+ 0x17 - Armor 
+ 0x18 - Clothing 
+ 0x19 - Robe 
+ 0x1A - Shoes 
+ 0x1B - Armlets 
+ 0x1C - Accessory 
+ 0x1D - Not used - But can't be used due to items 
+ 0x1E - Not used 
+ 0x1F - Not used 
+ Ability Start 
+ 1 
+ 0x2E 
+ uint8 
+ Unknown 
+ Represents the start of the array of abilities for this job. Based on the pointer at 0x051BA84 + Race * 4.
+ NNNN DDDD AAAA TT AP 
+ NNNN = Name Index
+ DDDD = Description Index(?)
+ AAAA = Ability Identifier(?)
+ TT = Type:
+ 00: Breaks Ability; 
+ 01: "Action"; 
+ 02: "Reaction"; 
+ 03: "Support"; 
+ 05: "Combo"; 
+ Else: "Action" 
+ AP = AP
+ Ability End 
+ 1 
+ 0x2F 
+ uint8 
+ Unknown 
+ Represents the end of the array of abilities for this job. Based on the same pointer.
+ Job Requirement 
+ 1 
+ 0x30 
+ uint8 
+ Unknown 
+ Index of the Job Requirement data.
+ See below.
+ Unknown 
+ 3 
+ 0x31 
+  ???? 
+  ???? 
+ Unknown.
+ Job Requirement Data Structure 
+ The Job Requirement Data Structure is 0x4 bytes long. 
+ Name
+ Length
+ Offset
+ Type
+ Max Value
+ Description
+ Job ID 
+ 1 
+ 0x00 
+ uint8 
+ unknown 
+ The ID # of the 1st Job.
+ Amount 
+ 1 
+ 0x01 
+ uint8 
+ unknown 
+ How many abilities are needed in 1st Job.
+ Job ID 
+ 1 
+ 0x02 
+ uint8 
+ unknown 
+ The ID # of the 2nd Job.
+ Amount 
+ 1 
+ 0x03 
+ uint8 
+ unknown 
+ How many abilities are needed in 2nd Job.
+ Default List of Jobs 
+ Index
+ Job
+ Race
+ Playable?
+ Requirements
+ 0x00 
+ - 
+ 0x00 
+ 0x00 
+ 0x00
+ 0x01 
+ - 
+ 0x00 
+ 0x00 
+ 0x00
+ 0x02 
+ Soldier 
+ 0x01 
+ 0x01 
+ 0x00
+ 0x03 
+ Paladin 
+ 0x01 
+ 0x01 
+ 0x03
+ 0x04 
+ Fighter 
+ 0x01 
+ 0x01 
+ 0x03
+ 0x05 
+ Thief 
+ 0x01 
+ 0x01 
+ 0x00
+ 0x06 
+ Ninja 
+ 0x01 
+ 0x01 
+ 0x01
+ 0x07 
+ White Mage 
+ 0x01 
+ 0x01 
+ 0x00
+ 0x08 
+ Black Mage 
+ 0x01 
+ 0x01 
+ 0x00
+ 0x09 
+ Illusionist 
+ 0x01 
+ 0x01 
+ 0x0D
+ 0x0A 
+ Blue Mage 
+ 0x01 
+ 0x01 
+ 0x0E
+ 0x0B 
+ Archer 
+ 0x01 
+ 0x01 
+ 0x00
+ 0x0C 
+ Hunter 
+ 0x01 
+ 0x01 
+ 0x08
+ 0x0D 
+ Warrior 
+ 0x02 
+ 0x01 
+ 0x00
+ 0x0E 
+ Dragoon 
+ 0x02 
+ 0x01 
+ 0x04
+ 0x0F 
+ Defender 
+ 0x02 
+ 0x01 
+ 0x04
+ 0x10 
+ Gladiator 
+ 0x02 
+ 0x01 
+ 0x04
+ 0x11 
+ White Monk 
+ 0x02 
+ 0x01 
+ 0x00
+ 0x12 
+ Bishop 
+ 0x02 
+ 0x01 
+ 0x07
+ 0x13 
+ Templar 
+ 0x02 
+ 0x01 
+ 0x07
+ 0x14 
+ White Mage 
+ 0x03 
+ 0x01 
+ 0x00
+ 0x15 
+ Black Mage 
+ 0x03 
+ 0x01 
+ 0x00
+ 0x16 
+ Time Mage 
+ 0x03 
+ 0x01 
+ 0x0F
+ 0x17 
+ Illusionist 
+ 0x03 
+ 0x01 
+ 0x10
+ 0x18 
+ Alchemist 
+ 0x03 
+ 0x01 
+ 0x10
+ 0x19 
+ Beastmaster 
+ 0x03 
+ 0x01 
+ 0x00
+ 0x1A 
+ Morpher 
+ 0x03 
+ 0x01 
+ 0x12
+ 0x1B 
+ Sage 
+ 0x03 
+ 0x01 
+ 0x13
+ 0x1C 
+ Fencer 
+ 0x04 
+ 0x01 
+ 0x00
+ 0x1D 
+ Elementalist 
+ 0x04 
+ 0x01 
+ 0x05
+ 0x1E 
+ Red Mage 
+ 0x04 
+ 0x01 
+ 0x06
+ 0x1F 
+ White Mage 
+ 0x04 
+ 0x01 
+ 0x00
+ 0x20 
+ Summoner 
+ 0x04 
+ 0x01 
+ 0x11
+ 0x21 
+ Archer 
+ 0x04 
+ 0x01 
+ 0x00
+ 0x22 
+ Assassin 
+ 0x04 
+ 0x01 
+ 0x09
+ 0x23 
+ Sniper 
+ 0x04 
+ 0x01 
+ 0x0A
+ 0x24 
+ Animist 
+ 0x05 
+ 0x01 
+ 0x00
+ 0x25 
+ Mog Knight 
+ 0x05 
+ 0x01 
+ 0x0C
+ 0x26 
+ Gunner 
+ 0x05 
+ 0x01 
+ 0x0C
+ 0x27 
+ Thief 
+ 0x05 
+ 0x01 
+ 0x00
+ 0x28 
+ Juggler 
+ 0x05 
+ 0x01 
+ 0x02
+ 0x29 
+ Gadgeteer 
+ 0x05 
+ 0x01 
+ 0x02
+ 0x2A 
+ Black Mage 
+ 0x05 
+ 0x01 
+ 0x00
+ 0x2B 
+ Time Mage 
+ 0x05 
+ 0x01 
+ 0x0B
+ 0x2C 
+ Goblin 
+ 0x06 
+ 0x02 
+ 0x00
+ 0x2D 
+ Red Cap 
+ 0x06 
+ 0x02 
+ 0x00
+ 0x2E 
+ Jelly 
+ 0x07 
+ 0x02 
+ 0x00
+ 0x2F 
+ Ice Flan 
+ 0x07 
+ 0x02 
+ 0x00
+ 0x30 
+ Cream 
+ 0x07 
+ 0x02 
+ 0x00
+ 0x31 
+ Bomb 
+ 0x08 
+ 0x02 
+ 0x00
+ 0x32 
+ Grenade 
+ 0x08 
+ 0x02 
+ 0x00
+ 0x33 
+ Icedrake 
+ 0x09 
+ 0x02 
+ 0x00
+ 0x34 
+ Firewyrm 
+ 0x09 
+ 0x02 
+ 0x00
+ 0x35 
+ Thundrake 
+ 0x09 
+ 0x02 
+ 0x00
+ 0x36 
+ Lamia 
+ 0x0A 
+ 0x02 
+ 0x00
+ 0x37 
+ Lilith 
+ 0x0A 
+ 0x02 
+ 0x00
+ 0x38 
+ Antlion 
+ 0x0B 
+ 0x02 
+ 0x00
+ 0x39 
+ Jawbreaker 
+ 0x0B 
+ 0x02 
+ 0x00
+ 0x3A 
+ Toughskin 
+ 0x0C 
+ 0x02 
+ 0x00
+ 0x3B 
+ Blade Biter 
+ 0x0C 
+ 0x02 
+ 0x00
+ 0x3C 
+ Tonberry 
+ 0x0D 
+ 0x02 
+ 0x00
+ 0x3D 
+ Masterberry 
+ 0x0D 
+ 0x02 
+ 0x00
+ 0x3E 
+ Red Panther 
+ 0x0E 
+ 0x02 
+ 0x00
+ 0x3F 
+ Coeurl 
+ 0x0E 
+ 0x02 
+ 0x00
+ 0x40 
+ Malboro 
+ 0x0F 
+ 0x02 
+ 0x00
+ 0x41 
+ Big Malboro 
+ 0x0F 
+ 0x02 
+ 0x00
+ 0x42 
+ Floateye 
+ 0x10 
+ 0x02 
+ 0x00
+ 0x43 
+ Ahriman 
+ 0x10 
+ 0x02 
+ 0x00
+ 0x44 
+ Zombie 
+ 0x11 
+ 0x02 
+ 0x00
+ 0x45 
+ Vampire 
+ 0x11 
+ 0x02 
+ 0x00
+ 0x46 
+ Sprite 
+ 0x12 
+ 0x02 
+ 0x00
+ 0x47 
+ Titania 
+ 0x12 
+ 0x02 
+ 0x00
+ 0x48 
+ - 
+ 0x00 
+ 0x00 
+ 0x00
+ 0x49 
+ - 
+ 0x00 
+ 0x00 
+ 0x00
+ 0x4A 
+ - 
+ 0x00 
+ 0x00 
+ 0x00
+ 0x4B 
+ - 
+ 0x00 
+ 0x00 
+ 0x00
+ 0x4C 
+ - 
+ 0x00 
+ 0x00 
+ 0x00
+ 0x4D 
+ Official 
+ 0x01 
+ 0x01 
+ 0x00
+ 0x4E 
+ - 
+ 0x01 
+ 0x01 
+ 0x00
+ 0x4F 
+ - 
+ 0x01 
+ 0x02 
+ 0x00
+ 0x50 
+ - 
+ 0x01 
+ 0x01 
+ 0x00
+ 0x51 
+ - 
+ 0x04 
+ 0x01 
+ 0x00
+ 0x52 
+ - 
+ 0x05 
+ 0x01 
+ 0x00
+ 0x53 
+ Runeseeker 
+ 0x14 
+ 0x01 
+ 0x00
+ 0x54 
+ Hermetic 
+ 0x14 
+ 0x01 
+ 0x00
+ 0x55 
+ - 
+ 0x04 
+ 0x01 
+ 0x00
+ 0x56 
+ Biskmatar 
+ 0x13 
+ 0x01 
+ 0x00
+ 0x57 
+ - 
+ 0x13 
+ 0x01 
+ 0x00
+ 0x58 
+ Li-grim 
+ 0x16 
+ 0x02 
+ 0x00
+ 0x59 
+ - 
+ 0x16 
+ 0x02 
+ 0x00
+ 0x5A 
+ New Kid 
+ 0x01 
+ 0x01 
+ 0x00
+ 0x5B 
+ Librarian 
+ 0x01 
+ 0x01 
+ 0x00
+ 0x5C 
+ Class Head 
+ 0x01 
+ 0x01 
+ 0x00
+ 0x5D 
+ PE Head 
+ 0x01 
+ 0x01 
+ 0x00
+ 0x5E 
+ D.J. 
+ 0x01 
+ 0x01 
+ 0x00
+ 0x5F 
+ Nurse 
+ 0x04 
+ 0x01 
+ 0x00
+ 0x60 
+ Custodian 
+ 0x04 
+ 0x01 
+ 0x00
+ 0x61 
+ Totema 
+ 0x15 
+ 0x02 
+ 0x00
+ 0x62 
+ Totema 
+ 0x15 
+ 0x02 
+ 0x00
+ 0x63 
+ Totema 
+ 0x15 
+ 0x02 
+ 0x00
+ 0x64 
+ Totema 
+ 0x15 
+ 0x02 
+ 0x00
+ 0x65 
+ Totema 
+ 0x15 
+ 0x02 
+ 0x00
+ 0x66 
+ - 
+ 0x15 
+ 0x02 
+ 0x00
+ 0x67 
+ Judgemaster 
+ 0x01 
+ 0x02 
+ 0x00
+ 0x68 
+ Judge 
+ 0x17 
+ 0x02 
+ 0x00
+ 0x69 
+ Judge 
+ 0x17 
+ 0x02 
+ 0x00
+ 0x6A 
+ Judgemaster 
+ 0x17 
+ 0x02 
+ 0x00
+ 0x6B 
+ Mr. Leslaie 
+ 0x17 
+ 0x02 
+ 0x00
+ 0x6C 
+ Battle Queen 
+ 0x16 
+ 0x02 
+ 0x00
+ 0x6D 
+ Box 
+ 0x01 
+ 0x02 
+ 0x00
+ 0x6E 
+ Statue 
+ 0x01 
+ 0x02 
+ 0x00
+ 0x6F 
+ Sphere 
+ 0x01 
+ 0x02 
+ 0x00
+ 0x70 
+ Judge 
+ 0x17 
+ 0x01 
+ 0x00
+ 0x71 
+ Judge 
+ 0x17 
+ 0x01 
+ 0x00
+ 0x72 
+ Judge 
+ 0x17 
+ 0x01 
+ 0x00
+ 0x73 
+ Judgemaster 
+ 0x17 
+ 0x01 
+ 0x00
+ Help, please... 
+ You can edit this... In fact, please do. I am getting very lazy in my old age.
+ Retrieved from " http://datacrystal.romhacking.net/wikid/index.php?title=Final_Fantasy_Tactics_Advance:Jobs&oldid=36483 " 
+ Category : Subpages 
+ Navigation menu 
+ Personal tools 
+ Log in 
+ Namespaces 
+ Page 
+ Discussion 
+ Variants 
+ Views 
+ Read 
+ View source 
+ View history 
+ More 
+ Search 
+ Navigation 
+ Data Crystal Main Page RHDN Home Recent changes Random page Help 
+ Games 
+ RHDN Games List Translation Request List NES SNES GB/GBC GBA NDS NGP/NGC WonderSwan GEN N64 PSX PS2 PSP GCN TG16 SMS 
+ Community History 
+ Fan Translation Community History 
+ Tools 
+ What links here Related changes Special pages Printable version Permanent link Page information 
+ This page was last edited on 5 June 2016, at 00:00. 
+ Content is available under GNU Free Documentation License 1.2 unless otherwise noted. 
+ Privacy policy 
+ About Data Crystal 
+ Disclaimers 
+ 
