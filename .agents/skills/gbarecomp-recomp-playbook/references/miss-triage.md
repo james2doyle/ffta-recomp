@@ -17,7 +17,10 @@ no start found.
   switch cases and branches.
 - A dense run of consecutive same-mode misses is almost always the
   **case targets of a computed-jump switch** inside one or two ordinary
-  functions — not a data table. Seed the starts first.
+  functions — not a data table. Seed the starts first. In practice expect
+  **two** functions (a dispatcher plus an adjacent handler); scan forward
+  inside the run for a second prologue before concluding the run is one
+  function.
 - Prefer a sized **jump-table entry** only if a strict replay still misses
   interiors after seeding the start. To size one, find the dispatcher
   (`ldr rT,[pc,#..]; add rT,index<<2; ldr/mov pc`), then read off the table
@@ -71,7 +74,8 @@ covers.
 
 - Classify all PCs of a session mechanically into (start, interior, none).
 - Merge the deduplicated union as one batch per session with a dated header
-  comment; keep per-entry evidence short but exact.
+  comment; keep per-entry evidence short but exact. Dedupe against the
+  config and all earlier batches, not just this session.
 - After merging, the strict replay is the judge: it will surface any PC the
-  live session never hit (input timing differs slightly). Seed those too —
-  they belong to the batch.
+  live session never hit (input timing differs slightly). Expect 1–2 such
+  resolve-added PCs per session; merge them into the same batch.
