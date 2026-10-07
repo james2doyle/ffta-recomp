@@ -92,7 +92,9 @@ def native_seq():
             if pc == CALL_PC:
                 out.append((frame, int(g["r0"]), int(g["r1"]), int(g["r2"]),
                             int(g.get("r3", 0)), int(g.get("r13", 0)),
-                            int(g.get("r14", 0))))
+                            int(g.get("r14", 0)), int(g.get("r4", 0)),
+                            int(g.get("r5", 0)), int(g.get("r6", 0)),
+                            int(g.get("r7", 0))))
                 c.call(cmd="set_break_pc", value=0)      # clear
                 c.call(cmd="step_inst")                  # past the call
                 c.call(cmd="set_break_pc", value=CALL_PC)  # re-arm
@@ -144,7 +146,9 @@ def oracle_seq():
                 g = c.call(cmd="emu_registers")
                 out.append((frame, int(g["r0"]), int(g["r1"]), int(g["r2"]),
                             int(g.get("r3", 0)), int(g.get("r13", 0)),
-                            int(g.get("r14", 0))))
+                            int(g.get("r14", 0)), int(g.get("r4", 0)),
+                            int(g.get("r5", 0)), int(g.get("r6", 0)),
+                            int(g.get("r7", 0))))
                 c.call(cmd="emu_step_inst")
                 continue
             frame = int(c.call(cmd="emu_vblank_count").get("vblank", frame + 1))
@@ -166,15 +170,19 @@ if __name__ == "__main__":
     which = sys.argv[1] if len(sys.argv) > 1 else "both"
     if which in ("native", "both"):
         seq = native_seq()
-        print(f"=== NATIVE read-stub calls ({len(seq)}) ===", flush=True)
+        print(f"=== NATIVE calls ({len(seq)}) ===", flush=True)
         for row in seq:
-            fr, r0, r1, r2, r3, sp, lr = row
+            fr, r0, r1, r2, r3, sp, lr = row[:7]
+            r4, r5, r6, r7 = row[7:11]
             print(f"  f{fr}: src={r0:#010x} dst={r1:#010x} n={r2:#05x} "
-                  f"r3={r3:#010x} sp={sp:#010x} lr={lr:#010x}", flush=True)
+                  f"r3={r3:#010x} sp={sp:#010x} lr={lr:#010x} | "
+                  f"r4={r4:#x} r5={r5:#010x} r6={r6:#x} r7={r7:#010x}", flush=True)
     if which in ("oracle", "both"):
         seq = oracle_seq()
-        print(f"=== ORACLE read-stub calls ({len(seq)}) ===", flush=True)
+        print(f"=== ORACLE calls ({len(seq)}) ===", flush=True)
         for row in seq:
-            fr, r0, r1, r2, r3, sp, lr = row
+            fr, r0, r1, r2, r3, sp, lr = row[:7]
+            r4, r5, r6, r7 = row[7:11]
             print(f"  f{fr}: src={r0:#010x} dst={r1:#010x} n={r2:#05x} "
-                  f"r3={r3:#010x} sp={sp:#010x} lr={lr:#010x}", flush=True)
+                  f"r3={r3:#010x} sp={sp:#010x} lr={lr:#010x} | "
+                  f"r4={r4:#x} r5={r5:#010x} r6={r6:#x} r7={r7:#010x}", flush=True)

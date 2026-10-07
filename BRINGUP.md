@@ -1687,3 +1687,46 @@ abort-on-write (seconds); do not leave a stalled session open.
 "miss" PC is outside addressable code (`>=0x09000000` or 0x04–0x08 range) —
 that PC class means the replay diverged (behavioral bug), not a coverage gap,
 and must never be seeded into the overlay.
+
+### 2026-10-07 (cont.) — Save-flow divergence narrowed to the record-validation success path
+
+**Structural first divergence (pt repro, oracle lockstep, fine bracket).**
+Tracking the EWRAM structures across checkpoints f900→1720: the load window
+(f~1043) produces a **decoded save-slot descriptor at guest `0x02000000`**
+(`FFTEX000` + counter + checksum + ROM pointers `0x80xx…`, 82 bytes) on the
+**oracle only**; the native leaves it zeroed all the way to the stall. The
+f1660–1690 "buffer fill" seen earlier was phase noise — this 82-byte block
+is the stable divergence, born between f1000 and f1100 (the load).
+
+**Correction: the read asymmetry was a probe artifact.** The
+`readseq_probe` capture (TCP-driven) showed "native 1 read vs oracle 4" —
+but the always-on instruction ring (headless regime, `GBARECOMP_INSN_TRACE`
++ `FP_SAVE` + `ringscan.py`) proves the native ran the loop **4 times too**
+(4× driver entry `0x08141B14`, 4× bookkeeping `0x0813B622`, stub loop at
+`0x03007D74`). Root cause of the artifact: the native breakpoint is a *yield
+predicate* — it cannot fire on mid-block PCs; counts from it are lower
+bounds. **Rule: verify any mid-block breakpoint capture with the instruction
+ring before concluding divergence.** (The earlier found-save "1 vs 12" read
+asymmetry is suspect for the same reason; the found-save zeroing-difference
+evidence came from dumps and stands.)
+
+**Validator anatomy (`0x0813B57C`, thumb, disarm-verified).** Args: `r0` =
+slot/index (0/1 → selects aux ptr `[sp+0x14]` = pool 0x3CA8-family), `r1` =
+caller's buffer (`r7`, observed `0x02003CB0`). Calls `0x0813B060(index,
+&local)` and requires **result == 4** to proceed (`cmp r0,#4; beq
+0x813B5CC`), else returns 0. Then the 4-sector read loop (sectors 7,6,5,4 →
+`buf + 0x1000*i`), memcmp 8-byte magic (`0x081443B0`) on the completed
+buffer, then zeroes `+0xC` and `+0x12..+0x16`, recomputes checksum
+(`0x0813ADF0(buffer, [sp+0x14], 0)`) and compares with the saved `+0xC`
+(match path → `0x813B5C8`; mismatch/retry counter `sb ≤ 2` → re-scan).
+Two wrapper variants exist around `0x0813AA94`/`0x0813AB2A` (write mode
+bytes 0x3C/0x1F/0x1E after calling `0x08135854` + `0x0808A604(3,2)`); the
+slot-list UI builder near `0x0813BBE0` reads the `0x02000000` structure
+(`ldrh [0x02000000+idx]` vs `0x2FBF`, display codes 0x3B/0x3C).
+
+**Next probes (queued).** (1) Capture `0x0813B060` call results on both
+engines (expect 4; suspect the native gets something else or skips the
+descriptor step after). (2) Capture `0x0813ADF0` checksum results per record
+on both engines. (3) Find the writer of `0x02000000` by ring-querying the
+load window for stores (ring `--cyc` context around the store time), not by
+mid-block breakpoints.
