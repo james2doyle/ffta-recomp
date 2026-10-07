@@ -1077,3 +1077,28 @@ distinct self-heal miss PCs** (`logs/playtest_misses.frag`; 484 in
 - Scratch artifacts from the hunt live under /tmp/opencode/ffta-hang/
   (repro dirs, probes, ring dumps) — nothing repo-side changed; no
   game.toml edits (this is not a coverage issue).
+- **Community corroboration (web research, 2026-10-06)**: FFTA has a
+  documented class of freezes at exactly this shape — audio/transition
+  moments and data-driven walks:
+  - ffhacktics "FFTA: Revisited" thread: "unit moved to slot 1, dismissed,
+    saving afterward causes the game to freeze" (a SAVE→freeze bug).
+  - ffhacktics "Screen Freezing in Shop": freeze from items with 0x00
+    quantity / inventory past 99 — a data walk that never terminates.
+  - ffhacktics "FFTA Crash"/"Dispatch results crash" (mGBA 0.9.3, USA):
+    freeze "when the jingle plays just before the results screen" —
+    audio+screen-transition, same shape as ours; one case fixed only by
+    editing the .sav to remove the faulty item.
+  - multiworld.gg FFTA guide: "Pausing in a battle on a Jagd area causes
+    the game to freeze. Same with certain missions like Decision Time" —
+    REAL-HARDWARE game freezes at specific content points.
+  - mGBA issues #2790 (FFTA crashes appearing between 0.10.0→0.10.1) —
+    FFTA instability tracks emulator timing changes.
+  - ipatix/gba-hq-mixer's hardware cycle table (LDRSB ROM = 6 cycles)
+    matches our measured mixer costs exactly — our per-instruction
+    timing is calibrated right.
+  Conclusion: the wedge sits on a genuine game fragility (nestable VBlank
+  × non-reentrant SoundMain at a heavy scene) that the community has hit
+  in adjacent forms; our runtime's sub-frame timing delta tips it at this
+  scene. Remaining unknown: whether hardware/mGBA also wedges at THIS
+  exact point (needs the oracle at the scene — blocked by the
+  savestate-format interop gap; noted for upstream).
