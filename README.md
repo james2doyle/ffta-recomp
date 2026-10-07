@@ -15,14 +15,15 @@ precise miss count).
 title, new game, intro, and battles — the first non-tutorial battle was
 completed 2026-10-07 (first event-interpreter seeds merged) — with **every
 executed path FULLY_STATIC** (zero interpreted instructions) at last
-verification. Fifteen interactive playtest sessions are integrated (audit
-batches a–s), plus the native-save-path batch t (2026-10-07): corpus **45,559
-emitted units**, walker's static reach ≈ 98.9 %,
-pointer-pool lens ≈ 86.6 % (both are proxies — the bar for a route is
+verification. Interactive playtest sessions are integrated through audit
+batch **w** (menus/party/ability screens; batches a–s plus t–w):
+corpus **47,677 emitted units**, walker's static reach ≈ 98.9 %,
+pointer-pool lens ≈ 90.3 % (both are proxies — the bar for a route is
 FULLY_STATIC on executed paths; full table in § Verification). The attract
-regression gate hash has been stable since pinning. Remaining work:
-continuing past the first non-tutorial battle, a long-run attract contact
-sheet, and one upstream note — see Roadmap.
+regression gate hash has been stable since pinning. Remaining work: the
+save-flow divergence fix (open investigation below), continuing past the
+first non-tutorial battle, a long-run attract contact sheet, and one
+upstream note — see Roadmap.
 
 > **You must own the game and BIOS.** Both are user-supplied, hash-verified at
 > launch, and **never committed** (no ROM-derived bytes in git history, ever —
@@ -224,28 +225,32 @@ GBARECOMP_INPUT_REPLAY=logs/playthrough.csv ./build/FFTARecomp ...` — expect
   not a goal; FFTA needs FULLY_STATIC on executed paths, not 100 % of a
   proxy). `--json` for machine-readable output.
 
-Current snapshot (2026-10-06, strict 1200-frame run; refresh with
+Current snapshot (2026-10-07, strict 1200-frame run; refresh with
 `.venv/bin/python tools/coverage_report.py`):
 
 | Lens | Mapped / total | % |
 |---|---|---|
 | **Executed path** (strict 1200-frame run) | everything that ran | **100 % — FULLY_STATIC, zero interpreter fallback** |
-| **Walker's static reach** (whole-ROM scan trial) | **45,559 / 46,066** emitted units | **≈ 98.9 %** |
-| **Pointer-pool reach** (speculative-harvest trial) | **45,559 / 52,606** | **≈ 86.6 %** |
+| **Walker's static reach** (whole-ROM scan trial) | **47,677 / 48,184** emitted units | **≈ 98.9 %** |
+| **Pointer-pool reach** (speculative-harvest trial) | **47,677 / 52,787** | **≈ 90.3 %** |
 
 Rows 2–3 are proxies with different denominators (no ground-truth function
 inventory exists); a route is done when its replay is FULLY_STATIC. Corpus:
-46,383 emitted units (interior split units + IWRAM code-copy included); the
-speculative-harvest trial kept 2,078 pointer candidates out of 103,391
+47,677 emitted units (interior split units + IWRAM code-copy included); the
+speculative-harvest trial kept 2,080 pointer candidates out of 103,500
 PC-relative literals (`false` in `game.toml` by policy).
 
-**Open investigation (2026-10-07):** the save-record **scan/validate** path
-(`0x0813B57C`, checksum `0x0813ADF0`) diverges on certain save contents — two
-observed stalls (a found/downloaded save's load; the playtest save's in-game
-save) both end in a runaway copy called with `source = ~count`. The oracle
-mGBA completes both flows; the files themselves are validated healthy. A
-deterministic repro + tooling (`tools/readseq_probe.py`) are in place — see
-BRINGUP § "Save-record scan/validate divergence"; root cause in progress.
+**Open investigation (2026-10-07):** the save **load/save flow** diverges on
+certain save contents — the oracle builds the decoded save-slot descriptor
+at guest `0x02000000` during the load; our build leaves it zeroed, and the
+later in-game save then reads garbage descriptors and runs away (a copy loop
+called with `source = ~count`; the same signature as a downloaded save's
+load stall). The validator (`0x0813B57C` + checksum `0x0813ADF0`) and the
+read loop are proven identical on both engines (verified with the
+instruction ring — earlier read-count asymmetry was a probe artifact). A
+deterministic repro + tooling (`tools/readseq_probe.py`, `tools/dualrun.py`)
+are in place — see BRINGUP § "Save-flow divergence narrowed…"; root cause in
+progress.
 - **Oracle frame-diff:** `tools/framediff.py --lo 4 --hi 300` (native vs the
   framework's mGBA oracle; bounded band diffs on animated content are
   expected and documented in BRINGUP § "park-phase semantics") and
