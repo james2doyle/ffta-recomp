@@ -11,16 +11,17 @@ static. It is intended to be *honest*: every run reports exactly how much ran
 as statically recompiled code (`self_heal_coverage=FULLY_STATIC ...` or the
 precise miss count).
 
-**Current status (2026-10-06):** boots (BIOS LLE), plays the attract loop,
-title, new game, intro, and into the first battle — with **every executed path
-FULLY_STATIC** (zero interpreted instructions) at last verification. Six
-interactive playtest sessions are integrated (audit batches a–j):
-corpus **33,945 emitted units**, walker's static reach ≈ 98.3 %, pointer-pool
-lens ≈ 65.2 % (both are proxies — the bar for a route is FULLY_STATIC on
-executed paths; full table in § Verification). The attract regression gate
-hash has been stable since pinning. Remaining work: finishing the tutorial
-battle + post-battle content, a long-run attract contact sheet, and one
-upstream note — see Roadmap.
+**Current status (2026-10-07):** boots (BIOS LLE), plays the attract loop,
+title, new game, intro, and battles — the first non-tutorial battle was
+completed 2026-10-07 (first event-interpreter seeds merged) — with **every
+executed path FULLY_STATIC** (zero interpreted instructions) at last
+verification. Seven interactive playtest sessions are integrated (audit
+batches a–k): corpus **33,989 emitted units**, walker's static reach ≈ 98.3 %,
+pointer-pool lens ≈ 65.2 % (both are proxies — the bar for a route is
+FULLY_STATIC on executed paths; full table in § Verification). The attract
+regression gate hash has been stable since pinning. Remaining work:
+continuing past the first non-tutorial battle, a long-run attract contact
+sheet, and one upstream note — see Roadmap.
 
 > **You must own the game and BIOS.** Both are user-supplied, hash-verified at
 > launch, and **never committed** (no ROM-derived bytes in git history, ever —
@@ -184,13 +185,13 @@ Current snapshot (2026-10-06, strict 1200-frame run; refresh with
 | Lens | Mapped / total | % |
 |---|---|---|
 | **Executed path** (strict 1200-frame run) | everything that ran | **100 % — FULLY_STATIC, zero interpreter fallback** |
-| **Walker's static reach** (whole-ROM scan trial) | **33,945 / 34,522** emitted units | **≈ 98.3 %** |
-| **Pointer-pool reach** (speculative-harvest trial) | **33,945 / 52,071** | **≈ 65.2 %** |
+| **Walker's static reach** (whole-ROM scan trial) | **33,989 / 34,566** emitted units | **≈ 98.3 %** |
+| **Pointer-pool reach** (speculative-harvest trial) | **33,989 / 52,109** | **≈ 65.2 %** |
 
 Rows 2–3 are proxies with different denominators (no ground-truth function
 inventory exists); a route is done when its replay is FULLY_STATIC. Corpus:
-33,945 emitted units (interior split units + IWRAM code-copy included); the
-speculative-harvest trial kept 2,069 pointer candidates out of 103,049
+33,989 emitted units (interior split units + IWRAM code-copy included); the
+speculative-harvest trial kept 2,069 pointer candidates out of 103,117
 PC-relative literals (`false` in `game.toml` by policy).
 - **Oracle frame-diff:** `tools/framediff.py --lo 4 --hi 300` (native vs the
   framework's mGBA oracle; bounded band diffs on animated content are
@@ -244,8 +245,8 @@ Full rules live in `AGENTS.md`; the essentials:
 
 ## Roadmap
 
-1. Finish the tutorial battle + post-battle content (play → harvest →
-   resolve), closing Phase 5.
+1. Continue main-game content past the first non-tutorial battle (completed
+   2026-10-07; play → harvest → resolve), closing Phase 5.
 2. Long-run attract contact sheet (f6000+), upstream note on the bridge
    stop-contract runaway.
 3. **Android port** (research done; the app shell ships inside gbarecomp).

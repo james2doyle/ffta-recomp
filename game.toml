@@ -3663,3 +3663,28 @@ addr = 0x080E8A18
 mode = "thumb"
 note = "session-6 direct entry; shared epilogue (add sp,#0x30 / pop r3-r7 / bx r1 @0x080E8A18) entered via computed jump (disarm)"
 
+
+# ─── Batch k: session-7 (first non-tutorial battle completed, 2026-10-07 07:09) ───
+# 4 heal-cache units; all four verified push-rooted starts (disarm evidence in notes).
+# Includes the first event-interpreter (0x08123xxx) seeds.
+
+[[extra_func]]
+addr = 0x080E2C54
+mode = "thumb"
+note = "session-7 start; push {r4,r5,lr} @0x080E2C54 after prior ret (bx r0 @0x080E2C52, disarm); bridged x15; battle-end path"
+
+[[extra_func]]
+addr = 0x08123860
+mode = "thumb"
+note = "session-7 start; push {r4,lr} @0x08123860 after epilogue+pool (disarm); calls 0x0802D934; event-interpreter region 0x08123xxx (first VM-area seed); bridged x1"
+
+[[extra_func]]
+addr = 0x08123B68
+mode = "thumb"
+note = "session-7 start; push {r4,r5,r6,lr} @0x08123B68 after bx r1 + pool (disarm); event-interpreter region; bridged x3"
+
+[[extra_func]]
+addr = 0x08123CFC
+mode = "thumb"
+note = "session-7 start; push {r4,r5,lr} @0x08123CFC after bx r1 + pool (disarm); calls 0x080C95A8; event-interpreter region; bridged x1"
+

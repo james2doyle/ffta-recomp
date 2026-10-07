@@ -1025,6 +1025,18 @@ distinct self-heal miss PCs** (`logs/playtest_misses.frag`; 484 in
 - **Batch i** (merged earlier, committed here): 0x080191B0 + 0x08142160 —
   live-healed during the 17:41 in-game save; save-path helpers.
 
+### Session 7 (2026-10-07 morning): first non-tutorial battle completed
+- Session shape: loaded the state2 snapshot saved at the end of session B
+  (f19,076 — mid-battle), finished the battle in ~40 s of play
+  (f19,076 → f21,467), saved state @f21,467, clean exit (frag flushed).
+- **Batch k**: 4 heal units, all four verified push-rooted starts (first
+  all-clean batch): 0x080E2C54 (battle-end path, bridged x15) + the first
+  three **event-interpreter (0x08123xxx)** seeds — 0x08123860, 0x08123B68,
+  0x08123CFC — the AGENTS "known hard spot" region, healed live without
+  incident. resolve.py = PASSED iter 0, 0 seeds; strict replay FULLY_STATIC
+  (`logs/session7_strict.log`); cycle.py PASS (attract hash unchanged);
+  corpus 33,945 → 33,989; pointer-pool lens steady ≈ 65.2 %.
+
 ### Native-save session (2026-10-06, 17:41): Batch i — the session that produced `game.state2`
 - The user played a continuation and performed an in-game (native/flash)
   save at 17:41. The session produced the post-save savestate `game.state2`

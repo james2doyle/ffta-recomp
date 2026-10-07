@@ -232,13 +232,15 @@ recomp-net @ c58f125.
 - Phase 5 (validation harness + audit loop): **near done.** Harness complete
   (oracle/framediff/dualrun/attract gate/misspack/cycle/coverage_report/
   ringscan) plus playtest tooling (`play.sh`, `cache_harvest.py`,
-  `resolve.py`). Six sessions integrated (batches a–j): corpus 23.4k → 33,945
-  emitted units; walker's reach ≈ 98.3 %; pointer-pool lens ≈ 65.2 % (proxy,
-  not a goal — the bar is FULLY_STATIC on executed paths). Every executed path is FULLY_STATIC (strict replays: boot→newgame
-  6000 f; state2 battle 60k f; session-5 112k f) and the attract hash is
-  unchanged since pinning. Remaining: finish the tutorial battle +
-  post-battle content (pure play → harvest), f6000+ attract contact sheet,
-  upstream note on the bridge stop-contract runaway. Crash playbook:
+  `resolve.py`). Seven sessions integrated (batches a–k): corpus 23.4k →
+  33,989 emitted units; walker's reach ≈ 98.3 %; pointer-pool lens ≈ 65.2 %
+  (proxy, not a goal — the bar is FULLY_STATIC on executed paths). Every
+  executed path is FULLY_STATIC (strict replays: boot→newgame 6000 f; state2
+  battle 60k f; session-5 112k f; session-7 battle f19k→21.5k) and the
+  attract hash is unchanged since pinning. Remaining: main-game content past
+  the first non-tutorial battle (completed 2026-10-07; pure play → harvest),
+  f6000+ attract contact sheet, upstream note on the bridge stop-contract
+  runaway. Crash playbook:
   BRINGUP § "Battle-session crash" / "Crash #2" (harvest → merge → resolve
   → cycle).
 - Reference projects (mstan's Emerald/FRLG/RS/MinishCap/WWT clones) ship
