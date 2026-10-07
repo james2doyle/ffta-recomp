@@ -5464,3 +5464,67 @@ note = "batch ab: interior of 0x081151A0 (runtime-dispatched); split-interior se
 addr = 0x0800543C
 mode = "thumb"
 note = "lzss guard seam -> host plugin ffta.lzss-guard; rejects corrupted source headers"
+
+# ─── Batch ac: session 16:31 (post-fix summon attempt, spin) ───
+# 12 heal-cache units (0x081154D8-0x081159D0 battle cluster); split-interior seeds.
+
+[[extra_func]]
+addr = 0x081154D8
+mode = "thumb"
+note = "batch ac: start [push {r4, r5, lr}]; prologue scan"
+
+[[extra_func]]
+addr = 0x0811584C
+mode = "thumb"
+note = "batch ac: start [push {r4, r5, r6, r7, lr}]; prologue scan"
+
+[[extra_func]]
+addr = 0x08115872
+mode = "thumb"
+note = "batch ac: interior of 0x0811584C (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x0811587C
+mode = "thumb"
+note = "batch ac: interior of 0x0811584C (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x0811590E
+mode = "thumb"
+note = "batch ac: interior of 0x0811584C (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x0811591C
+mode = "thumb"
+note = "batch ac: interior of 0x0811584C (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x08115920
+mode = "thumb"
+note = "batch ac: interior of 0x0811584C (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x08115934
+mode = "thumb"
+note = "batch ac: interior of 0x0811584C (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x081159B6
+mode = "thumb"
+note = "batch ac: interior of 0x0811584C (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x081159CA
+mode = "thumb"
+note = "batch ac: interior of 0x0811584C (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x081159D0
+mode = "thumb"
+note = "batch ac: interior of 0x0811584C (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x08115A0A
+mode = "thumb"
+note = "batch ac: interior of 0x0811584C (runtime-dispatched); split-interior seed"
+
