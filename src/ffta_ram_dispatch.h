@@ -16,6 +16,7 @@
 // through to the normal dispatcher. Pattern follows
 // EmeraldRecomp src/emerald_ram_dispatch.h (same framework hook).
 #include "runtime_arm.h"
+#include <cstdio>
 
 extern "C" void gf_tfunc_03007D64(void);  // byte-copy    <- ROM 0x08141AF0 (0x24)
 extern "C" void gf_tfunc_03007CE4(void);  // byte-compare <- ROM 0x08141BB0 (0x2E)
@@ -30,13 +31,44 @@ inline bool ram_matches_rom(uint32_t ram_pc, uint32_t rom_pc, uint32_t size) {
     return true;
 }
 
+// Defensive fixups for the corrupted-copy class (BRINGUP § "Summon crash" /
+// "Save-flow divergence"). Two shapes observed:
+//  * r2 == 0xFFFFFFFF (the routine's own loop sentinel) with a valid-ish
+//    context: an interrupted copy RESUMED at its entry — the true remaining
+//    count survives in r3; reconstruct it.
+//  * any other implausible count (e.g. 0xFF00CE7F / 0xFF01010F): a garbage
+//    descriptor from a stale frame — clamp to a bounded no-op.
+// Legitimate counts observed are <= 0x1000. Both shapes would otherwise run
+// a multi-gigabyte runaway and corrupt IWRAM.
+inline void copy_entry_fixup(uint32_t pc) {
+    uint32_t r2 = g_cpu.R[2];
+    if (r2 <= 0x10000u) return;
+    if (r2 == 0xFFFFFFFFu) {
+        uint32_t count = g_cpu.R[3] + 1u;
+        if (count <= 0x10000u) { g_cpu.R[2] = count; return; }
+    }
+    static uint32_t logged = 0;
+    if (logged < 32) {
+        std::fprintf(stderr,
+                     "[ffta] copy-guard: clamped count=0x%08X r3=0x%08X r0=0x%08X r1=0x%08X pc=0x%08X\n",
+                     r2, g_cpu.R[3], g_cpu.R[0], g_cpu.R[1], pc);
+        ++logged;
+    }
+    g_cpu.R[2] = 0;
+}
+
 // Runs before the fixed dispatch table for every RAM-range (0x02-0x03) target.
 // Returns non-zero after running a byte-verified canonical body.
 inline int ram_dispatch(uint32_t pc, int thumb) {
     if (!thumb) return 0;
     // iwram_byte_copy — also covers the 2-byte-offset re-plant at 0x03007CA4
     // (its entry bytes are ROM 0x08141AF0 verbatim).
-    if (ram_matches_rom(pc, 0x08141AF0u, 0x24u)) { gf_tfunc_03007D64(); return 1; }
+    if (ram_matches_rom(pc, 0x08141AF0u, 0x24u)) { copy_entry_fixup(pc); gf_tfunc_03007D64(); return 1; }
+    // Observed corrupted re-entries dispatch two bytes BEFORE a fresh plant
+    // (pc=0x03007D72, routine at 0x03007D74): treat as the copy too.
+    if (pc == 0x03007D72u && ram_matches_rom(pc + 2u, 0x08141AF0u, 0x24u)) {
+        copy_entry_fixup(pc); gf_tfunc_03007D64(); return 1;
+    }
     // iwram_byte_compare.
     if (ram_matches_rom(pc, 0x08141BB0u, 0x2Eu)) { gf_tfunc_03007CE4(); return 1; }
     // iwram_{flash,save}_getter (00 78 70 47) — planted at 0x03007D48/7D9C/7E00/7E60.
