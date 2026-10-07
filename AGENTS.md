@@ -101,7 +101,9 @@ from `recomp_cache` unit filenames.
 
 Session resolve: `tools/resolve.py --trace <csv> [--load-state <state>]
 [--frames N]` strict-replays a recording, seeds each miss through a temp
-overlay, rebuilds and repeats until FULLY_STATIC. Accumulated seeds land in
+overlay, rebuilds and repeats until FULLY_STATIC. A trace with a mid-session
+savestate reload jumps backward — split it with `tools/trace_split.py` and
+resolve each segment. Accumulated seeds land in
 a proposal file (game.toml is never auto-edited) — merge them, then run a
 normal `tools/cycle.py` + strict replay as the acceptance.
 
@@ -199,7 +201,7 @@ commands: `emu_step`/`emu_step_to_vblank` (one runFrame = one PPU frame),
 | `src/` | Host code: `main.cpp` + integration |
 | `generated/` | Recompiler output — gitignored, never edited |
 | `gbarecomp/`, `recomp-ui/` | Pinned submodules (see below) |
-| `tools/` | Full harness — see README § Repository layout; key ones: `play.sh` (playtest), `resolve.py` (strict resolve loop), `cache_harvest.py` (crash-safe harvest), `cycle.py` (change cycle), `attract_check.py` (golden gate), `misspack.py` (evidence packs), `coverage_report.py` (three lenses), `framediff.py`/`dualrun.py` (oracle diffs), `disarm.py`, `keyprobe.py`, `ringscan.py` |
+| `tools/` | Full harness — see README § Repository layout; key ones: `play.sh` (playtest), `resolve.py` (strict resolve loop), `trace_split.py` (split non-monotonic traces), `cache_harvest.py` (crash-safe harvest), `cycle.py` (change cycle), `attract_check.py` (golden gate), `misspack.py` (evidence packs), `coverage_report.py` (three lenses), `framediff.py`/`dualrun.py` (oracle diffs), `disarm.py`, `keyprobe.py`, `ringscan.py` |
 | `inputs/` | Deterministic keyinput traces (`<frame>,0x<hex>` active-low, sticky) — `title_to_newgame.csv`, `session2_battle_trace.csv` |
 | `symbols/` | Curated symbol seeds + data names (charlie-troy/ffta-decomp facts + engine-hacks-derived, attributed); consumed via `--symbols` / `--data-symbols` |
 | `BRINGUP.md` | Decision log — the project's memory |
@@ -232,8 +234,8 @@ recomp-net @ c58f125.
 - Phase 5 (validation harness + audit loop): **near done.** Harness complete
   (oracle/framediff/dualrun/attract gate/misspack/cycle/coverage_report/
   ringscan) plus playtest tooling (`play.sh`, `cache_harvest.py`,
-  `resolve.py`). Eight sessions integrated (batches a–l): corpus 23.4k →
-  34,362 emitted units; walker's reach ≈ 98.5 %; pointer-pool lens ≈ 65.5 %
+  `resolve.py`). Nine sessions integrated (batches a–m): corpus 23.4k →
+  39,027 emitted units; walker's reach ≈ 98.7 %; pointer-pool lens ≈ 74.3 %
   (proxy, not a goal — the bar is FULLY_STATIC on executed paths). Every
   executed path is FULLY_STATIC (strict replays: boot→newgame 6000 f; state2
   battle 60k f; session-5 112k f; session-7 battle f19k→21.5k) and the

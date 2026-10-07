@@ -15,9 +15,9 @@ precise miss count).
 title, new game, intro, and battles — the first non-tutorial battle was
 completed 2026-10-07 (first event-interpreter seeds merged) — with **every
 executed path FULLY_STATIC** (zero interpreted instructions) at last
-verification. Eight interactive playtest sessions are integrated (audit
-batches a–l): corpus **34,362 emitted units**, walker's static reach ≈ 98.5 %,
-pointer-pool lens ≈ 65.5 % (both are proxies — the bar for a route is
+verification. Nine interactive playtest sessions are integrated (audit
+batches a–m): corpus **39,027 emitted units**, walker's static reach ≈ 98.7 %,
+pointer-pool lens ≈ 74.3 % (both are proxies — the bar for a route is
 FULLY_STATIC on executed paths; full table in § Verification). The attract
 regression gate hash has been stable since pinning. Remaining work:
 continuing past the first non-tutorial battle, a long-run attract contact
@@ -184,7 +184,10 @@ instruments everything:
 logs/playthrough.csv [--load-state saves/<state>] [--frames N]` — it
 strict-replays your session, seeds each miss through a temporary overlay,
 rebuilds and repeats until `FULLY_STATIC`, then writes the accumulated seeds
-to a proposal file for merging.
+to a proposal file for merging. If you reloaded a savestate mid-session, the
+trace jumps backward and replay rejects it — split it first with
+`.venv/bin/python tools/trace_split.py --trace logs/playthrough.csv` and
+resolve each segment from the same start state.
 
 **5 — Verify.** `.venv/bin/python tools/cycle.py` (cold regen →
 dispatch-alignment sanity → build → attract gate) and one final strict replay
@@ -222,13 +225,13 @@ Current snapshot (2026-10-06, strict 1200-frame run; refresh with
 | Lens | Mapped / total | % |
 |---|---|---|
 | **Executed path** (strict 1200-frame run) | everything that ran | **100 % — FULLY_STATIC, zero interpreter fallback** |
-| **Walker's static reach** (whole-ROM scan trial) | **34,362 / 34,869** emitted units | **≈ 98.5 %** |
-| **Pointer-pool reach** (speculative-harvest trial) | **34,362 / 52,497** | **≈ 65.5 %** |
+| **Walker's static reach** (whole-ROM scan trial) | **39,027 / 39,534** emitted units | **≈ 98.7 %** |
+| **Pointer-pool reach** (speculative-harvest trial) | **39,027 / 52,506** | **≈ 74.3 %** |
 
 Rows 2–3 are proxies with different denominators (no ground-truth function
 inventory exists); a route is done when its replay is FULLY_STATIC. Corpus:
-34,362 emitted units (interior split units + IWRAM code-copy included); the
-speculative-harvest trial kept 2,078 pointer candidates out of 103,320
+39,027 emitted units (interior split units + IWRAM code-copy included); the
+speculative-harvest trial kept 2,078 pointer candidates out of 103,321
 PC-relative literals (`false` in `game.toml` by policy).
 - **Oracle frame-diff:** `tools/framediff.py --lo 4 --hi 300` (native vs the
   framework's mGBA oracle; bounded band diffs on animated content are
@@ -247,7 +250,7 @@ PC-relative literals (`false` in `game.toml` by policy).
 | `src/` | Host integration: `main.cpp`, launcher boot, stack setup |
 | `generated/` | Recompiler output — gitignored, **never edited** |
 | `gbarecomp/`, `recomp-ui/` | Pinned framework submodules (see `AGENTS.md` for pins) |
-| `tools/` | The whole harness: `play.sh`, `resolve.py`, `cache_harvest.py`, `cycle.py`, `attract_check.py`, `misspack.py`, `coverage_report.py`, `framediff.py`, `dualrun.py`, `ringscan.py`, `keyprobe.py`, `disarm.py`, … |
+| `tools/` | The whole harness: `play.sh`, `resolve.py`, `cache_harvest.py`, `cycle.py`, `attract_check.py`, `misspack.py`, `coverage_report.py`, `framediff.py`, `dualrun.py`, `ringscan.py`, `keyprobe.py`, `trace_split.py`, `disarm.py`, … |
 | `inputs/` | Deterministic input traces (`<frame>,0x<hex>` active-low, sticky) |
 | `symbols/` | Curated symbol seeds (attributed; consumed via `--symbols`) |
 | `BRINGUP.md` | Decision log — the project's memory; read it |

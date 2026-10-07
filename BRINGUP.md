@@ -1050,6 +1050,23 @@ distinct self-heal miss PCs** (`logs/playtest_misses.frag`; 484 in
   (`logs/session8_strict.log`); cycle.py PASS (attract hash unchanged);
   corpus 33,989 → 34,362 (+373); walker ≈ 98.5 %; pool ≈ 65.5 %.
 
+### Session 9 (2026-10-07 07:29–07:31): mid-session savestate reload
+- Loaded the session-8 end state (f26,481), played, then **reloaded the same
+  state mid-session** (guest frame jumped 29,853 → 26,6xx) and continued —
+  the recorded trace is no longer monotonic and `GBARECOMP_INPUT_REPLAY`
+  rejects it ("invalid input trace line"). New tool: `tools/trace_split.py`
+  splits a trace into monotonic segments; each segment then resolves from
+  the same start state.
+- **Batch m**: 18 heal units (frag+cache agree, 4th validation) → 9 verified
+  starts; the hot 6-PC jump-table candidate [0x0803155C, 0x08031636]
+  (bridged up to x487) was again two ordinary functions. First 0x08122xxx
+  event-interpreter seeds merged. Strict acceptance of both segments caught
+  2 extra PCs (0x080318D0/DC — tiny `push {lr}` thunks into 0x08031708);
+  merged.
+- seg1 + seg2 strict replays FULLY_STATIC (`logs/session9{a,b}_strict.log`);
+  cycle.py PASS (attract hash unchanged). Corpus 34,362 → **39,027** (+4,665
+  — the 0x08031xxx walk-out); walker ≈ 98.7 %; **pointer-pool 65.5 % → 74.3 %**.
+
 ### Native-save session (2026-10-06, 17:41): Batch i — the session that produced `game.state2`
 - The user played a continuation and performed an in-game (native/flash)
   save at 17:41. The session produced the post-save savestate `game.state2`

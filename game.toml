@@ -3763,3 +3763,63 @@ addr = 0x0812B7F0
 mode = "thumb"
 note = "session-8 start; push-root verified by prologue scan"
 
+
+# ─── Batch m: session-9 (2026-10-07 07:31) ───
+# 18 heal-cache units; 9 verified starts cover all (incl. the hot
+# 0x0803155C-0x08031636 6-PC jump-table candidate = two functions).
+
+[[extra_func]]
+addr = 0x08018D24
+mode = "thumb"
+note = "session-9 start; push-root verified by prologue scan; covers interior 0x08018D2C"
+
+[[extra_func]]
+addr = 0x0803155C
+mode = "thumb"
+note = "session-9 start; push-root verified by prologue scan; covers hot switch interiors 0x08031594/B2/160A (bridged up to x487; frag 6-PC jump-table candidate = two functions)"
+
+[[extra_func]]
+addr = 0x08031624
+mode = "thumb"
+note = "session-9 start; push-root verified by prologue scan; covers interior 0x08031636 (same frag candidate range)"
+
+[[extra_func]]
+addr = 0x0803197C
+mode = "thumb"
+note = "session-9 start; push-root verified by prologue scan; covers interior 0x08031994"
+
+[[extra_func]]
+addr = 0x08034C94
+mode = "thumb"
+note = "session-9 start; push-root verified by prologue scan"
+
+[[extra_func]]
+addr = 0x08034E88
+mode = "thumb"
+note = "session-9 start; push-root verified by prologue scan; covers interior 0x08034E8E"
+
+[[extra_func]]
+addr = 0x0804C044
+mode = "thumb"
+note = "session-9 start; push-root verified by prologue scan; covers interior 0x0804C232"
+
+[[extra_func]]
+addr = 0x08122BEC
+mode = "thumb"
+note = "session-9 start; push-root verified by prologue scan; covers interior 0x08122BF2; event-interpreter region (first 0x08122xxx seeds)"
+
+[[extra_func]]
+addr = 0x08125884
+mode = "thumb"
+note = "session-9 start; push-root verified by prologue scan"
+
+
+[[extra_func]]
+addr = 0x080318D0
+mode = "thumb"
+note = "resolve-added seed (session-9 strict acceptance); frag/cache did not cover this pc; see disasm"
+
+[[extra_func]]
+addr = 0x080318DC
+mode = "thumb"
+note = "resolve-added seed (session-9 strict acceptance)"
