@@ -1476,3 +1476,28 @@ against mGBA instead of guessing from one side. Tooling built + findings:
   at the same logical step (its save-processing completes; the same read's
   registers on the oracle = the intended values — mirrored from the boot-scan
   probe pattern in § "Save/load flow: oracle save autoload…").
+
+### 2026-10-07 — Correction: two retracted claims (probe artifacts)
+1. **The `--tcp` serve mode DOES load the battery save.** It sets
+   `args.quiet = true` (runtime.cpp:945, same for `--window`: line ~1116),
+   which suppresses every `!args.quiet`-guarded boot print — including
+   `save_loaded` / `rom_loaded` / `bios_loaded` — while unguarded lines
+   (`cpu_backend`, `save_config`, `strict_static`) still appear. That's why
+   TCP logs looked like the save was skipped. Verified end-to-end: with
+   `--save-path /tmp/ramp.sav` (sector 0 = `11 12 … 20`), the game's own
+   driver reads the ramp through the flash window in TCP mode.
+2. **The "native re-reads sector 0 every frame / reads zeros" claim (prior
+   entry) was a probe artifact.** The `set_break_pc` yield parks the core
+   until the instruction is stepped past; a probe that re-armed without
+   stepping produced fake repeats. Corrected probe (step past each hit;
+   second breakpoint at the call's return site `0x08141BA4` to read the
+   destination buffer right after the copy) shows the native boot scan
+   reads sectors 0→15 then wraps — same as the oracle — with correct data
+   (sector 0 = ramp, others FF), all inside guest frame 281.
+- Net status: save loading, flash reads, and the boot save-scan are all
+  healthy in both engines. The divergence to chase is in the **load flow**
+  after the input trace (driver call sequence at `0x08141BA0` from ~f900
+  onward). Oracle reference (same trace): first load call reads sector 8
+  (`src=0x0E008000`) into `dest=0x02008430`, `count=0x1000`, returning to
+  lr `0x0813AE9D`-family. Next: capture the native's corresponding sequence
+  and find the first divergent call.
