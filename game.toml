@@ -4162,3 +4162,87 @@ addr = 0x03007E00
 mode = "thumb"
 source_addr = 0x08141AAC
 note = "cold-run miss x1 (or dump-observed sibling) in the strict save-flow repro; planted getter sequence of the save/flash driver"
+
+# ─── Batch u: session 11:46 (2026-10-07, frag 11:47) ───
+# 11 heal-cache units (frag + cache_harvest --new agree). 9 push-root starts +
+# 2 pre-verified interior block entries (0x08019150 after a literal pool,
+# 0x080544CA mid-body hot target). Notes carry per-PC disarm/context evidence.
+
+[[extra_func]]
+addr = 0x0800A330
+mode = "thumb"
+note = "session-11:46 start; push {r4,lr} at pc (disarm); bridged x1"
+
+[[extra_func]]
+addr = 0x08018E20
+mode = "thumb"
+note = "session-11:46 start; push {r4,r5,r6,r7,lr}+mov r7,r8 (disarm); bridged x1"
+
+[[extra_func]]
+addr = 0x08019120
+mode = "thumb"
+note = "session-11:46 start; push {r4,r5,r6,lr} at pc (disarm); bridged x1"
+
+[[extra_func]]
+addr = 0x08019150
+mode = "thumb"
+note = "block entry after literal pool (b @0x08019144; pool 0x08019146-4E); ldrb r1,[r2] at pc; bridged x1; interior of 0x08019120-region"
+
+[[extra_func]]
+addr = 0x0801920C
+mode = "thumb"
+note = "session-11:46 start; push {r4,lr} at pc (disarm); bridged x1"
+
+[[extra_func]]
+addr = 0x080192C0
+mode = "thumb"
+note = "session-11:46 start; push {r4,r5,r6,r7,lr}+mov r7,sb (disarm); bridged x2"
+
+[[extra_func]]
+addr = 0x080543EC
+mode = "thumb"
+note = "session-11:46 start; push {r4,r5,r6,lr}+sub sp,#8 (disarm); bridged x439 (hot, per-frame update)"
+
+[[extra_func]]
+addr = 0x080544CA
+mode = "thumb"
+note = "continuation block entry (bl @0x080544C6; ldr r0,[r4] at pc); bridged x374 (hot); interior of 0x080543EC body"
+
+[[extra_func]]
+addr = 0x080601B4
+mode = "thumb"
+note = "session-11:46 start; push {lr} at pc (disarm); bridged x6"
+
+[[extra_func]]
+addr = 0x08061188
+mode = "thumb"
+note = "session-11:46 start; push {lr}; args r0..r3 then bl 0x0802A2C0 (disarm); bridged x1"
+
+[[extra_func]]
+addr = 0x0806119C
+mode = "thumb"
+note = "session-11:46 start; push {lr}; zero args then bl 0x0802A2C0 (disarm); bridged x1"
+
+
+# ─── Batch u addendum: resolve-verified frontier seeds (same session) ───
+
+[[extra_func]]
+addr = 0x08054664
+mode = "thumb"
+note = "resolve addendum (session-11:46): push {r4,r5,r6,r7,lr}+mov r7,r8 at pc (disarm); strict-replay frontier miss"
+
+[[extra_func]]
+addr = 0x08054DA8
+mode = "thumb"
+note = "resolve addendum (session-11:46): push {r4,lr} at pc; body bls 0x08141540 (disarm); strict-replay frontier miss"
+
+[[extra_func]]
+addr = 0x08054E14
+mode = "thumb"
+note = "resolve addendum (session-11:46): push {r4,r5,r6,r7,lr}+mov r7,r8+sub sp,#0xC at pc (disarm); strict-replay frontier miss"
+
+[[extra_func]]
+addr = 0x08055F10
+mode = "thumb"
+note = "resolve addendum (session-11:46): push {r4,r5,r6,r7,lr}+mov r7,sb/r6,r8+sub sp,#0x20 at pc (disarm); strict-replay frontier miss"
+

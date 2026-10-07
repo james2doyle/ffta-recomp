@@ -1565,3 +1565,26 @@ covered by the three templates (e.g. the compare-routine tail assembled at
 byte-verify+canonical pattern — do not rely on the stale static entry.
 (2) Optional: teach the TCP `screenshot` path to serve the PPU frame in
 headless/`--tcp` runs so lockstep probes can compare pixels directly.
+
+### 2026-10-07 (cont.) — Session 11:46 battle-cluster frag batch (batch u)
+- **Session**: play.sh 11:46→11:47, started from `state2_prev_20261007_114607`
+  (f47414, auto-loaded); `logs/playthrough.csv` ends f53092. Non-strict exit:
+  `NOT_STATIC distinct_misses=11 healed_native=11`; the 11:47 frag and
+  `cache_harvest --new` agree on the same 11 PCs.
+- **Merged (batch u)**: nine push-root starts — 0x0800A330, 0x08018E20,
+  0x08019120, 0x0801920C, 0x080192C0, 0x080543EC (bridged x439), 0x080601B4,
+  0x08061188, 0x0806119C — plus two pre-verified interior block entries:
+  0x08019150 (block entry after the literal pool at 0x08019146..4E; preceded
+  by `b 0x080191a0`) and 0x080544CA (mid-body continuation of 0x080543EC,
+  bridged x374 — the hot pair is the per-frame battle update path).
+- **Resolve addendum**: strict replay on the session trace surfaced 4 more
+  frontier misses — 0x08054664, 0x08054DA8, 0x08054E14, 0x08055F10 (all clean
+  push roots in the same battle cluster; disasm evidence in notes). Merged;
+  replay then passed end-to-end.
+- **Acceptance**: `tools/cycle.py` PASS — cold regen discovered 46,383
+  functions (+824 from the new roots' walks, 45,559 → 46,383); dispatch
+  sanity OK; attract hash unchanged (`1EF4C118…`). Final strict session
+  replay (no overlay): `FULLY_STATIC`, 0 misses / 0 interpreted, f47414→53392.
+- **Coverage (post-batch)**: executed 100 % (strict 1200); walker's static
+  reach ≈ 98.9 %; pointer-pool lens **86.6 % → 88.1 %** (2,078 literal seeds
+  from 103,418 scanned).
