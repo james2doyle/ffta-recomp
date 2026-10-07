@@ -122,6 +122,43 @@ yet ("a miss"): the runtime **bridges** it with the reference interpreter,
 from then on), and **records a TOML proposal** for the offline corpus. A
 watchdog aborts loudly if a bridge ever spins (never silent corruption).
 
+The diagram below maps the loop end to end; the numbered steps that follow
+are the same loop in prose.
+
+```mermaid
+flowchart TD
+    Play["🎮 1 · Play — tools/play.sh"] --> Runtime
+    Runtime["runtime self-heal: miss → bridge (interpret)<br/>→ heal to recomp_cache → native from then on"] --> Spin{"bridge spins?"}
+    Spin -->|"yes — watchdog"| Abort["❌ loud abort → crash-classes table"]
+    Spin -->|"no — keep playing"| Exit
+    Abort --> Harvest
+    Exit{"2 · session exit"} -->|"clean"| Frag["📝 .frag proposals + playthrough.csv"]
+    Exit -->|"crash"| Harvest["🧲 cache_harvest.py --new"]
+    Frag --> Merge
+    Harvest --> Merge
+    Merge["✍️ 3 · review + merge seeds into game.toml<br/>(misspack.py evidence · never auto-written)"] --> Resolve
+    Resolve["🔁 4 · resolve.py --trace … [--load-state …]"] --> Strict{"strict replay FULLY_STATIC?"}
+    Strict -->|"miss at pc"| Seed["seed via temp overlay<br/>(accumulated → proposal file)"]
+    Seed --> Resolve
+    Strict -->|"yes"| Cycle["⚙️ 5 · cycle.py — cold regen → dispatch sanity<br/>→ build → attract gate"]
+    Cycle --> Gate{"attract gate PASS?"}
+    Gate -->|"no"| Fix["fix first divergence"]
+    Fix --> Resolve
+    Gate -->|"yes"| Accept{"final strict replay FULLY_STATIC?"}
+    Accept -->|"no"| Resolve
+    Accept -->|"yes"| Commit["✅ 6 · commit game.toml + BRINGUP entry"]
+    Commit -->|"next session feeds the loop"| Play
+
+    classDef step fill:#87CEEB,stroke:#333,stroke-width:2px,color:darkblue
+    classDef decision fill:#FFD700,stroke:#333,stroke-width:2px,color:black
+    classDef success fill:#90EE90,stroke:#333,stroke-width:2px,color:darkgreen
+    classDef failure fill:#FFB6C1,stroke:#DC143C,stroke-width:2px,color:black
+    class Play,Runtime,Frag,Harvest,Merge,Resolve,Seed,Cycle step
+    class Spin,Exit,Strict,Gate,Accept decision
+    class Commit success
+    class Abort,Fix failure
+```
+
 **1 — Play.** `tools/play.sh [--scale 8]` and just play. The launcher
 instruments everything:
 
