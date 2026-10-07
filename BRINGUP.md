@@ -1000,9 +1000,11 @@ distinct self-heal miss PCs** (`logs/playtest_misses.frag`; 484 in
   115,148), press A (guest frame 115,302) → hang.
 - **Reproduction (deterministic)**: headless `--load-state game.state2` +
   `GBARECOMP_INPUT_REPLAY=logs/playthrough.csv` + `--frames N`: for any
-  N ≥ ~1200 the run NEVER exits (timeout kill; the guest wedges inside ONE
+  N ≥ ~1140 the run NEVER exits (timeout kill; the guest wedges inside ONE
   never-returning dispatch — a budget-1200 run ran its vblank counter to
-  1439+ past its own budget without the runner loop ever iterating again).
+  1439+ past its own budget without the runner loop ever iterating again;
+  a budget-1140 run likewise never exited) → wedge onset ≈ frame
+  116,288 (≈1140 after the load).
   Two concurrent identical runs trip the hang watchdog at byte-identical
   guest state (pc=0x08001646, cycles=404,347,423, vblank=1439, identical
   m4a snapshot) → the guest state at the wedge is deterministic; earlier
