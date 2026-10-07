@@ -118,3 +118,21 @@ Run this after every play session; it is the whole loop in order.
   pass the save argument *last* so it wins over the launcher's built-in
   default (verify by the runner's "save loaded" log line), and always work
   on a copy — save flows rewrite the file.
+
+### Live sessions: window + debug port (`--tcp-observe`) and the stall watchdog
+
+Plain `--tcp` is **structurally headless** (its branch returns before window
+init) — it can never show a window. The windowed debug combo is
+`--tcp-observe <port>`: reads, touch commands, memory reads, state hashes,
+queued savestates — **no stepping**. The observe listener serves a handful of
+sequential clients and then stops accepting (observed: refused after one
+long-lived watcher disconnected), so use exactly **one long-lived watcher**
+per session and keep ad-hoc queries off its port.
+
+Recipe: `tools/livewatch.py <port>` (poll registers/state_hash/frame every
+2 s; on ~10 s of no frame-counter progress — a real stall; pc-stalls with a
+moving frame counter are legitimate waits — snapshot regs + hash + an IWRAM
+stack window while the game is frozen). Consult the frozen registers *before*
+killing anything: this converts "it hung again" into a pc + stack + caller
+chain without any replay. The frame counter is the hang signal; the pc is
+the diagnosis.

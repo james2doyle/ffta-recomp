@@ -52,7 +52,44 @@ def split_monotonic(events):
 
 Cross-check which state was reloaded: load each candidate state briefly and
 read its recorded frame number; the segment's first event frame must be at
-or after the state's frame.
+or after the state's frame. A reload also invalidates a boot-based replay of
+the *whole* trace from the reload onward — the replayed timeline never
+performs the load. See the live-session section below before trying anyway.
+
+## Live-session debugging (when replays cannot reproduce)
+
+The replay pipeline reproduces only sessions whose inputs formed a
+*continuous* timeline. Two discontinuities break it:
+
+- **Mid-session state loads.** "Load the tricky-state, retry the tricky
+  thing" is the most natural play style — and it is exactly the session a
+  boot-based replay cannot reproduce. If replays of such a session keep
+  coming back clean while the live session hangs, that is the explanation,
+  not a mystery.
+- **Live-vs-stepped regimes.** An interactive/observing process and a
+  headless batch can diverge in timing-sensitive subsystems. A hang seen
+  live that never appears in a replay is a live-regime problem: debug it
+  live.
+
+**Decision rule.** Two clean replays of a live hang = stop replaying. Bank
+the session's heals (merge → resolve → regenerate) and play on: every round
+removes more live heal sites, and the next live freeze is better evidence.
+Replays remain the oracle for *deterministic* routes (strict acceptance,
+bisects); they are not the oracle for live-only hangs.
+
+**Live capture pattern (window + debug port).** Run the session in the
+windowed observe mode (window + read-only debug port — distinct from the
+headless debug port; see tooling notes). Attach exactly one long-lived
+watchdog polling registers / state-hash / frame-counter every couple of
+seconds. The **frame counter is the hang signal**: it stops advancing inside
+a real hang; a static pc with a moving frame counter is a legitimate wait
+(BIOS loops, menu idles). On detection, snapshot registers + hash + a stack
+window *while the game is still frozen*, then kill. This converts "it hung
+again" into a pc + caller chain with zero reproduction effort.
+
+**Loop hygiene.** Never launch a play session while a regenerate/build runs
+(the player would be on a stale binary and the build contends for CPU).
+Sequence: harvest → merge → resolve → cycle → commit → relaunch fresh build.
 
 ## Crash-safe harvesting
 

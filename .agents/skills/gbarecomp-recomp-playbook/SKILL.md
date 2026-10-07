@@ -22,6 +22,8 @@ interpreted instructions).
 
 1. **Play** with the instrumented launcher; the session records an input
    trace and savestates, and archives the previous session's artifacts.
+   When hunting a live-only hang, play in windowed-observe mode with the
+   frame-stall watchdog attached (see `references/reproducibility.md`).
 2. **Close.** A clean exit flushes the proposal file; after a crash, harvest
    the healed PCs from the heal-cache unit filenames.
 3. **Merge** reviewed proposals into the config, with disassembly evidence in
@@ -52,7 +54,7 @@ Load the reference for the task at hand; do not read them all at once.
 | Task | Reference |
 |---|---|
 | Turn miss PCs into config entries (boundaries, switches, tables, RAM code) | `references/miss-triage.md` |
-| Sessions: savestates, input traces, replay semantics, crash harvesting, playtest ergonomics | `references/reproducibility.md` |
+| Sessions: savestates, input traces, replay semantics, crash harvesting, live-session watchdogs, playtest ergonomics | `references/reproducibility.md` |
 | Coverage numbers, seed-until-static automation, regression gates, oracle diffs | `references/verification.md` |
 | Crashes, hangs, spins, wedges, recomp-vs-emulator divergence | `references/debugging.md` |
 | Harness tools to build, pitfalls that cost hours, decision-log and docs discipline | `references/tooling-and-pitfalls.md` |
