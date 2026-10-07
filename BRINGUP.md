@@ -1501,3 +1501,67 @@ against mGBA instead of guessing from one side. Tooling built + findings:
   (`src=0x0E008000`) into `dest=0x02008430`, `count=0x1000`, returning to
   lr `0x0813AE9D`-family. Next: capture the native's corresponding sequence
   and find the first divergent call.
+
+### 2026-10-07 — Load-hang root cause & fix: moving stack-copy code vs stale AOT
+
+**Root cause (verified).** FFTA's save/flash driver (`0x08141B14`) relocates
+short position-independent helpers into its own stack frame and calls them by
+computed address through the `bx` veneer `0x08142250` (`r3/r5 = sp|1`). The
+copy address MOVES with the stack depth, so the fixed dispatch table can end up
+executing stale AOT for a re-planted slot. In the load flow the driver's copy
+landed at **0x03007D74**: the live bytes there are the routine's prologue
+(`10 b5 …` = `push {r4,lr}`), but the static resume entry at `0x03007D74`
+(alias inside `gf_tfunc_03007D72`, from the earlier dump where the copy sat at
+`0x03007D64`) ran the OLD dump's loop body (`strb`). The prologue was skipped
+— entry registers observed at the wedge: `r2=0x1000`, `r3=0x30007D74`,
+`r4=0x8001`, i.e. the count/sentinel/terminator setup never ran — the loop
+never terminated, zeroed low IWRAM (incl. the IRQ handler table at
+`0x030008D0`), and cascaded into the bad dispatch `pc=0xE25EF004`:
+strict abort / non-strict spin (root-cause chain first documented in
+§ "f1750 runaway…" and § "Native-save hang #2").
+
+**Fix.** New `src/ffta_ram_dispatch.h`, installed in `src/main.cpp` as
+`g_runtime_ram_dispatch_hook` before `run_game()` (framework's sanctioned
+"game-owned canonicalizer for position-independent code copied to transient
+RAM addresses (notably routines executed from a moving stack frame)",
+`src/armv4t/runtime_arm.h`; pattern from EmeraldRecomp
+`src/emerald_ram_dispatch.h`). It runs before the fixed table for every
+RAM-range dispatch, byte-verifies the live copy against its ROM source, and
+runs the canonical generated body:
+- byte-copy `← ROM 0x08141AF0 (0x24)` → `gf_tfunc_03007D64` (covers entries at
+  `0x03007D64`, `0x03007D74`, and the 2-byte-offset re-plant `0x03007CA4`);
+- byte-compare `← ROM 0x08141BB0 (0x2E)` → `gf_tfunc_03007CE4`;
+- 4-byte getter `← ROM 0x08141AAC` (`00 78 70 47`) → `gf_tfunc_03007D48`.
+A slot whose live bytes no longer match any template falls through to the
+normal dispatcher (no false canonicalization).
+
+**Validation (cache-free, deterministic).**
+- Load repro (boot + `logs/playthrough.csv` + `saves/playtest.sav`,
+  `--frames 3000`): BEFORE (preserved `/tmp/FFTARecomp_at_hang`): strict
+  `STRICT_STATIC dispatch miss for pc=0xE25EF004` → abort (exit 134); AFTER:
+  exit 0, `FULLY_STATIC dispatch_misses=0 interpreted_insns=0`; `--dump-png`
+  at f1050 shows the load menu, matching the oracle f1050 screenshot from
+  `tools/dualrun.py probe saveflow`. Non-strict: 3000 frames, exit 0.
+- Strict load flow to **8000 f**: exit 0, FULLY_STATIC (main loop alive).
+- Strict boot→newgame 6000 f (standard gate): exit 0, FULLY_STATIC.
+- Write-flow repro (`state2_prev_20261007_092041` +
+  `trace_prev_20261007_092041.csv`, 2756 f): strict exit 0, FULLY_STATIC,
+  no hang; at 9756 f the game is back on the world map (screenshot). NOTE:
+  this repro no longer hangs even with the old binary under a COLD cache —
+  the original live write-hang was warm-cache-linked, so the write path is
+  confirmed by this fix at the "no hang / no miss" level only; re-verify the
+  actual flash write in the next live session.
+- Attract gate unchanged: `attract_verify=PASS frames=1200
+  sha256=1EF4C118…`.
+- `dualrun probe saveflow`: oracle dumps are deterministic across runs;
+  native f1050 state is ~identical pre/post fix (109 B IWRAM); the ~1.2 KB
+  IWRAM / ~4.7 KB EWRAM same-index plateau is a pre-existing park-phase
+  property, and blank native TCP `screenshot` PNGs (192 B) are a pre-existing
+  artifact of the `frames_presented=0` path (headless `--dump-png` works).
+
+**Open items.** (1) If a future session shows a moving-copy variant not
+covered by the three templates (e.g. the compare-routine tail assembled at
+`sp=0x03007D08`-family addresses), extend `ffta_ram_dispatch.h` with the same
+byte-verify+canonical pattern — do not rely on the stale static entry.
+(2) Optional: teach the TCP `screenshot` path to serve the PPU frame in
+headless/`--tcp` runs so lockstep probes can compare pixels directly.

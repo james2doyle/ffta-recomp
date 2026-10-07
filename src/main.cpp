@@ -3,6 +3,7 @@
 #include <vector>
 
 #include "runtime.h"
+#include "ffta_ram_dispatch.h"
 
 #if defined(GBAGAME_RECOMP_UI)
 #include "game_launcher_boot.h"
@@ -52,6 +53,13 @@ int main(int argc, char** argv) {
     opts.builtin_rom_sha1 = "4ac05441f4de70a4ec3dd932116346c61b8783d9";
     opts.launcher_region = "USA";
     opts.launcher_game_config = "game.toml";
+
+    // FFTA relocates position-independent save/flash helpers into a moving
+    // stack frame and calls them by computed address; canonicalize those
+    // transient copies to their generated native bodies so a reused scratch
+    // slot can never execute stale AOT code (see src/ffta_ram_dispatch.h,
+    // BRINGUP § Phase 5 save-flow). Cleared by run_game() on every return path.
+    g_runtime_ram_dispatch_hook = &ffta::ram_dispatch;
 
 #if defined(GBAGAME_RECOMP_UI)
     std::vector<std::string> args(argv, argv + argc);

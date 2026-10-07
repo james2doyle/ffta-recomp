@@ -171,11 +171,13 @@ register-level captures. The oracle **autoloads `<rom>.sav`** (patch:
 re-apply after submodule updates); put a save copy next to a symlinked ROM
 to drive save/load flows (`tools/dualrun.py probe saveflow` does this).
 
-**Save-flow caveat**: the interactive `--tcp` serve mode does **not** load
-the battery save (`save_loaded` never prints; flash stays zeroed), so
-register/TCP probes of save paths must run through the normal
-windowed/`--frames` path until the serve mode honours `--save-path` (see
-BRINGUP § "Save/load flow: oracle save autoload…").
+**Save-flow note (corrected 2026-10-07)**: `--tcp` (and `--window`) set
+`quiet = true`, which hides the `!quiet`-guarded boot prints
+(`save_loaded`, `rom_loaded`, `bios_loaded`, `input_replay`, …) — the save
+**does** still load via `--save-path`. Do not use missing log lines to
+infer state in these modes. (An earlier caveat here claimed the serve mode
+skipped the save; that was a probe artifact — see BRINGUP § "Correction:
+two retracted claims".)
 
 **Comparison protocol** (learned the hard way — see BRINGUP § Phase 5):
 - Both engines park at **VBlank-start** (source-verified; the old "mGBA
@@ -252,11 +254,12 @@ recomp-net @ c58f125.
   (proxy, not a goal — the bar is FULLY_STATIC on executed paths). Every
   executed path is FULLY_STATIC (strict replays: boot→newgame 6000 f; state2
   battle 60k f; session-5 112k f; session-7 battle f19k→21.5k) and the
-  attract hash is unchanged since pinning. **Open (2026-10-07):** field-menu
-  native saves complete but then hang in the save driver's runtime
-  code-relocation path — deterministic repro + core archived
-  (BRINGUP § "Native-save hang #2"); batch t seeded the save path up to the
-  frontier. Remaining: main-game content past
+  attract hash is unchanged since pinning. **Save/load hang FIXED
+  (2026-10-07):** the save driver's moving stack-copy helpers were hitting
+  stale AOT at re-planted addresses; canonicalized in
+  `src/ffta_ram_dispatch.h` (load repro: strict abort at `0xE25EF004` →
+  FULLY_STATIC + menu renders; write repro no longer hangs — BRINGUP
+  § "Load-hang root cause & fix"). Remaining: main-game content past
   the first non-tutorial battle (completed 2026-10-07; pure play → harvest),
   f6000+ attract contact sheet, upstream note on the bridge stop-contract
   runaway. Crash playbook:
@@ -321,6 +324,15 @@ recomp-net @ c58f125.
 - Non-strict self-heal runs are safe at long horizons now
   (present-in-place + background healing): the session-5 acceptance replay
   runs 112,000 frames headless; strict runs are faster.
+- RAM code that MOVES: FFTA's save/flash driver re-plants position-independent
+  helpers at stack-relative addresses and calls them via `bx` veneers; fixed
+  dispatch entries (esp. `static_resume_all` aliases) can then run stale AOT
+  for a re-planted slot (2026-10-07 load-hang). Every RAM-range dispatch goes
+  through `src/ffta_ram_dispatch.h` (`g_runtime_ram_dispatch_hook`), which
+  byte-verifies live copies against their ROM source and runs the canonical
+  generated body. When a new copied-routine family shows up, add its template
+  there — don't register only a fixed address (BRINGUP § "Load-hang root
+  cause & fix").
 - Run examples: smoke `GBARECOMP_STRICT_STATIC=1 ./build/FFTARecomp --bios
   gbarecomp/bios/gba_bios.bin --rom game.gba --frames 2400 --no-window`;
   session replays via `tools/resolve.py`; coverage via
