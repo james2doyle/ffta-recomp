@@ -91,6 +91,20 @@ Run this after every play session; it is the whole loop in order.
   same input applied by a stepped server vs a batch replay lands on
   *slightly different frames* — pick one regime per investigation and never
   compare absolute frame numbers across regimes.
+- **Abort-on-write watchpoints are the sharpest tool for runaway/divergence
+  onsets.** Gate by address, min-frame, and exact value so the abort fires on
+  the *corrupted* write, not the legit one; pick the corruption's FIRST
+  touched byte as the address so the handler's trailing event window still
+  contains the entry into the bad loop. Abort handlers dump the last N trace
+  events (default small; raise it — it clamps at the ring capacity, a few
+  thousand events). A long runaway flushes the window: capture the onset,
+  don't chase the aftermath.
+- **Long routes (tens of thousands of frames) are probe-able in minutes:**
+  drive frames in N-frame chunks between trace events instead of one frame
+  per round-trip. For hot target PCs, arm the breakpoint *late* (just before
+  the window of interest) so legitimate calls don't drown the probe; add
+  stop-on-first-hit and dump ~0x100 bytes of guest stack from SP at the park
+  — parked frames lose their caller at the PC level, but the stack keeps it.
 - **Keep the machine idle during lockstep/timing probes.** A concurrent
   build or regeneration slows both engines and can trip the tool's command
   timeout — which then looks exactly like the stall you are hunting. Check

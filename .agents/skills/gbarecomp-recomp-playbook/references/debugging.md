@@ -57,6 +57,40 @@ emulator.
   root; meanwhile kill stalled sessions (memory frees on exit) and gate
   probes with write-triggered abort hooks that stop runaways within seconds.
 
+## Relocated-code re-entry (planted stubs)
+
+Some engines copy tiny position-independent helpers (copiers, comparators,
+getters) into RAM scratch — often *the current stack itself* — and call them
+by computed address. Three failure shapes recur:
+
+- **Misaligned re-entry**: the plant address moves between plantings (the
+  stack shifts), so a suspended call that resumes at the old address lands
+  one instruction off — the prologue is skipped and the body runs from its
+  loop with whatever state remains.
+- **Stale argument registers**: if the re-entry happens from another
+  subsystem's context (task switch, interrupt, resumed state machine), the
+  argument registers belong to the *current* code, not the interrupted call.
+  Valid-looking args plus one nonsense arg — typically a loop sentinel like
+  `0xFFFFFFFF` that the routine itself sets — is the fingerprint.
+- **Runaway cascade**: a copier re-entered at its top recomputes its
+  remaining count from the stale register and walks gigabytes, corrupting
+  RAM; watch for a same-PC tight loop whose memory writes sweep a region.
+
+Diagnosis: park at the *dispatched* pc (the unit entry — loop bodies may not
+yield to the breakpoint) and dump ~0x100 bytes of guest stack from SP. A
+stale frame holding the suspended operation (its descriptor fields, return
+addresses into the original caller) plus the planted routine bytes proves
+the re-entry story even when registers look random.
+
+Mitigations, in order of honesty:
+1. **Reconstruct the volatile state** in the canonical routine (e.g.
+   remaining count = surviving loop register + 1) and run the canonical
+   body — preserves semantics when the reconstruction is provably right.
+2. **Clamp implausible arguments** (counts beyond any legitimate size) to a
+   bounded no-op with a log line — turns hangs into degraded-but-continuing
+   behavior as a stopgap while the true flow divergence is fixed.
+3. Fix the upstream flow divergence so the stale re-entry never happens.
+
 ## Savestate-related wedges
 
 - Host-side models (HLE mixers, shadow devices) that are not part of the
