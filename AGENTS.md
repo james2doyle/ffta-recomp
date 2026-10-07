@@ -97,6 +97,12 @@ Crash sessions: the `.frag` flushes only at clean exit — after a crash, run
 `tools/cache_harvest.py --out logs/proposal.frag` to recover the miss pcs
 from `recomp_cache` unit filenames.
 
+Session resolve: `tools/resolve.py --trace <csv> [--load-state <state>]
+[--frames N]` strict-replays a recording, seeds each miss through a temp
+overlay, rebuilds and repeats until FULLY_STATIC. Accumulated seeds land in
+a proposal file (game.toml is never auto-edited) — merge them, then run a
+normal `tools/cycle.py` + strict replay as the acceptance.
+
 Coverage report (three lenses — executed path / walker's static reach /
 pointer-pool reach): `.venv/bin/python tools/coverage_report.py` (defaults
 to a 1200-frame strict run; `--frames N`, `--json` for machine-readable,
@@ -260,9 +266,14 @@ recomp-net @ c58f125.
 - Window size: `--scale N` (1–8; window = N×240 × N×160; `--scale 8` =
   1920×1280, the max). `--view-width` is the *widescreen view* feature, not
   window size — unsupported games (FFTA) clamp it to 240 and it does
-  nothing. `--fullscreen` = borderless desktop fullscreen. Live
-  fullscreen/window-size keys are system hotkeys bound in `config.ini`
-  `[KeyMap]` (rebindable in the launcher).
+  nothing; the runtime prints `extended view requested ... but this game
+  has not opted in` when asked (`--quiet` hides it). Adaptive /
+  resize-driven view (`--resize-view`) is likewise game-owned
+  (`RunOptions::max_view_width` / `resize_driven_view`, defaults 240/false
+  in the runner; only a mod can opt in — `gba_mod_view_width` /
+  `gba_mod_adaptive_view_enabled`). `--fullscreen` = borderless desktop
+  fullscreen. Live fullscreen/window-size keys are system hotkeys bound in
+  `config.ini` `[KeyMap]` (rebindable in the launcher).
 
 - BIOS recompile must run with cwd = `gbarecomp/` (or output lands in the
   wrong `src/runtime/generated_bios/`); after generating, **re-run CMake

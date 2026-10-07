@@ -3378,3 +3378,69 @@ addr = 0x081239DC
 mode = "thumb"
 note = "session-4 miss unit 081239DC; live heal + frag proposal"
 
+
+# ─── Playtest batch h: session-5 (2026-10-06, crash-free) ───
+# Wider window playthrough (state resume f104,673 → 111,485): 10 units across
+# 0x0800/0x0802/0x080B + the 0x0812xxxx interpreter cluster. union of cache
+# and clean-exit frag, deduped against all prior batches.
+
+[[extra_func]]
+addr = 0x0800A244
+mode = "thumb"
+note = "session-5 miss unit 0800A244; live heal + frag"
+
+[[extra_func]]
+addr = 0x08029188
+mode = "thumb"
+note = "session-5 miss unit 08029188; live heal + frag"
+
+[[extra_func]]
+addr = 0x080BFDB0
+mode = "thumb"
+note = "session-5 miss unit 080BFDB0; live heal + frag"
+
+[[extra_func]]
+addr = 0x08123098
+mode = "thumb"
+note = "session-5 miss unit 08123098; live heal + frag"
+
+[[extra_func]]
+addr = 0x081230A0
+mode = "thumb"
+note = "session-5 miss unit 081230A0; live heal + frag"
+
+[[extra_func]]
+addr = 0x08123848
+mode = "thumb"
+note = "session-5 miss unit 08123848; live heal + frag"
+
+[[extra_func]]
+addr = 0x081239F8
+mode = "thumb"
+note = "session-5 miss unit 081239F8; live heal + frag"
+
+[[extra_func]]
+addr = 0x08124D58
+mode = "thumb"
+note = "session-5 miss unit 08124D58; live heal + frag"
+
+[[extra_func]]
+addr = 0x081287C4
+mode = "thumb"
+note = "session-5 miss unit 081287C4; live heal + frag"
+
+[[extra_func]]
+addr = 0x0812BA08
+mode = "thumb"
+note = "session-5 miss unit 0812BA08; live heal + frag"
+
+
+# ─── Batch h2: session-5 resolve follow-on (2026-10-06) ───
+# Strict replay of session 5 exposed one callee the session never surfaced
+# (its caller ran inside a bridged subtree; once static, the callee appears).
+
+[[extra_func]]
+addr = 0x08019480
+mode = "thumb"
+note = "session-5 resolve: covers miss 0x8019480; push @0x08019480"
+

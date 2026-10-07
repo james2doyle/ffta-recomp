@@ -962,3 +962,23 @@ distinct self-heal miss PCs** (`logs/playtest_misses.frag`; 484 in
   the first version collided both slots onto one filename.
 - Frontier trend (miss units per session): 901 → 168 → 61 → 5. The
   discovery wave is closing as the VM region converges.
+
+### Session 5 (2026-10-06): wider window, crash-free; first follow-on-only resolve
+- Played with `--scale 8` (1920×1280; window-size doc fix committed same
+  night — `--view-width` is the widescreen-*view* feature, clamped to 240
+  for FFTA; `--scale` is the size knob). State resume f104,591 → 111,485;
+  crash-free; `.frag` flushed; play.sh per-slot archives worked (start state
+  = `saves/state2_prev_20261006_172820.state`).
+- **Batch h**: 10 units (0x0800A244, 0x08029188, 0x080BFDB0, 0x08123098/A0,
+  0x08123848, 0x081239F8, 0x08124D58, 0x081287C4, 0x0812BA08) — heal cache
+  and frag agree.
+- **Follow-on pattern**: the strict replay then exposed ONE callee
+  (0x08019480) the play session never surfaced — its caller had always run
+  inside a bridged subtree, so the callee only appears once the caller is
+  static. **Batch h2** seeds it. Expect ~1 follow-on iteration per session
+  from now on.
+- **Acceptance: strict replay of session 5 from game.toml = FULLY_STATIC,
+  0 misses** (`logs/session5_strict_final.log`); attract gate unchanged.
+- **Tooling**: the resolve loop is now scripted — `tools/resolve.py`
+  (temp overlay + proposal file; never writes game.toml). Next session
+  closes with: cache_harvest → merge → `resolve.py` → cycle → commit.
