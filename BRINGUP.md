@@ -1840,3 +1840,31 @@ Nothing on save internals or the relocation/two-phase handoff (as before —
 those remain our own reverse-engineering). Also verified BCROBERT's notes
 pack landmarks (`0x0812E368` speed formula, `0x0812D3D4` Parley formula)
 match the disassembly bit-for-bit.
+
+### 2026-10-07 (cont.) — LZSS decoder guard: save-menu/summon hangs fixed (all routes green)
+
+The remaining hangs (strict-replay stall at f17,794; the user's post-summon
+hang) came from a **ROM-resident LZSS decompressor at 0x0800543C**
+(DataCrystal "Compression Formats": big-endian output length at src+0, stream
+at src+4; the byte loop at 0x08005558 is its track-back copy) being re-entered
+with a corrupted source pointer by the save-menu/summon flow → decoded
+length ≈ 4G → endless loop. It is a normal static ROM function: the RAM hook
+never sees it, and the aborts left no sweep to canary. Located with
+`tools/spinhunt.py` (chunked TCP driver that detects a stalled pc and dumps
+regs+stack).
+
+Fix: a reviewed **`[[mod_function_hook]]`** seam (game.toml) + host plugin
+`ffta.lzss-guard` (src/main.cpp) — at the entry it reads the header length;
+>1MB ⇒ skip the call back to the caller (`R15=LR`, logged); otherwise
+decline and the original body runs. (An earlier attempt to use the
+framework's `program_dispatch` field was impossible — the context pointer is
+file-local in `runtime_arm.cpp`; the mod-hook registry is the sanctioned,
+always-linked seam.)
+
+Verified: strict route G f19,400 **FULLY_STATIC** (previously stalled);
+warm G clean; sessionH (user's post-summon hang) warm f22,000 clean and
+**strict resolve 0 seeds, FULLY_STATIC**; cycle PASS — regen discovered
+**49,186** functions, attract gate PASS (`1EF4C118…` unchanged). Batch ab
+(8 units) merged. The underlying stale-frame re-invocation divergence
+remains open but every observed symptom is now bounded (degraded call, no
+hang). New tool: `tools/spinhunt.py`.

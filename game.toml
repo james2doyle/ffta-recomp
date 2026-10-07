@@ -5452,3 +5452,15 @@ addr = 0x08115468
 mode = "thumb"
 note = "batch ab: interior of 0x081151A0 (runtime-dispatched); split-interior seed"
 
+
+# ─── LZSS decompressor guard (2026-10-07) ───
+# The decoder at 0x0800543C reads its output length (big-endian) from the
+# source header; the save-menu/summon divergence re-enters it with a
+# corrupted source pointer -> ~4G length -> endless track-back copy loop at
+# 0x08005558 (strict-replay stall, BRINGUP § "Summon crash"). The host
+# plugin "ffta.lzss-guard" (src/main.cpp) inspects the header at the entry
+# and skips implausible calls back to the caller.
+[[mod_function_hook]]
+addr = 0x0800543C
+mode = "thumb"
+note = "lzss guard seam -> host plugin ffta.lzss-guard; rejects corrupted source headers"
