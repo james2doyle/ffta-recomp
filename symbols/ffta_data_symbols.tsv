@@ -146,3 +146,9 @@
 # 0x04000008..0x04000054; watched SAD=0x03000942, CNT_L=39, one copy per
 # frame — BRINGUP § "MMIO cap gap").
 0x03000942	iwram	0x4E	gDisplayRegShadow
+
+# Section 14: battle strip blit descriptors (2026-10-08; W1b battle pan —
+# blit r0 arg (strip_blit). 0x28-byte stride, two entries seen
+# (0x02007F40, 0x02007F68); +0x24/+0x26 counters advance with the pan
+# (strip-ring walk); +0x02/+0x08/+0x28 fields read during the walk).
+0x02007F40	ewram	0x50	gStripBlitDesc

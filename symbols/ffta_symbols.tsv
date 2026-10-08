@@ -268,3 +268,16 @@
 # 0x080CB8C6 call the decoder too.
 0x0800543C	thumb	lzss_decompress
 0x08022A04	thumb	scene_gfx_load
+
+# Section 15: battle strip redraw pipeline (2026-10-08; battle-overview pan
+# of game.state1 — reference/widescreen.md § W1b battle notes). Pan redraws
+# the field screenblocks: strip_refresh_engine 0x0801AC78 ->
+# strip_refresh 0x0801B7F8 -> strip_blit 0x0801AF08 (chunked staging->VRAM
+# copy: manual ch0 DMA of 32x 16-bit, src += 0x80 / dst += 0x40 per chunk,
+# busy-poll; CpuSet variant via 0x0814186C). strip_window_fill 0x0801B798
+# writes a constant u16 across grid rows (64-column cap = 512-px model
+# width). Descriptors: gStripBlitDesc (data symbols § 14).
+0x0801AC78	thumb	strip_refresh_engine
+0x0801AF08	thumb	strip_blit
+0x0801B798	thumb	strip_window_fill
+0x0801B7F8	thumb	strip_refresh

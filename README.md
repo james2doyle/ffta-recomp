@@ -538,13 +538,14 @@ noncommercial purposes. Third-party components keep their own terms (the
    per-frame block commit now records to `GBARECOMP_MMIO_CAP` after the
    2026-10-08 capture fix). **W1b** (2026-10-08) located the strip pipeline:
    scene loads decompress pre-baked strips (`lzss_decompress` 0x0800543C)
-   into EWRAM staging and stream them to the field screenblocks by DMA —
-   battle-map variant to confirm. Next: **W2** widen the 256-px field
-   tilemaps to 512 + extend the drawer behind a mod hook + camera bias at
-   the struct level; **W3** per-scene policy (menus pillarbox) + opt-in via
-   `opts.max_view_width` in `src/main.cpp`. Dev override for experiments:
-   `GBARECOMP_WS_WIP=1 --view-width N` (renders wide headless today; margins
-   currently show wrapped BG columns).
+   into EWRAM staging and stream them to the field screenblocks by DMA;
+   battle pans redraw through the same pipeline (`strip_blit` 0x0801AF08;
+   internal model is 64 cols / 512 px wide). Next: **W2** widen the 256-px
+   field tilemaps to 512 + extend the drawer behind a mod hook + camera
+   bias at the struct level; **W3** per-scene policy (menus pillarbox) +
+   opt-in via `opts.max_view_width` in `src/main.cpp`. Dev override for
+   experiments: `GBARECOMP_WS_WIP=1 --view-width N` (renders wide headless
+   today; margins currently show wrapped BG columns).
 2. **Offline coverage push — re-trial gated.** The speculative literal
    harvest reaches +4,912 units, but it split the guarded LZSS decoder at an
    interior entry (`0x08005544`): the save-menu route resumes into the

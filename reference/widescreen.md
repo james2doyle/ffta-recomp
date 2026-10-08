@@ -45,7 +45,7 @@ bottom of this file (savestate diff → abort trace → FP ring).
   reachable world-map node (travel east unresolved — needs a node whose
   camera actually clamps h > 0, or a battle-map probe).
 
-## World-map camera state (battle field TBD — likely same family)
+## World-map camera state (battle: NOT this struct — see § W1b battle notes)
 
 Struct around **0x02002C10-0x02002C1F** (reached via object at IWRAM
 0x03002810, `[[0x03002810]+4] = 0x02002C10`):
@@ -122,6 +122,26 @@ for where/when; FP ring + `ringscan.py --cyc/--reg-range` for who; DMA watch
 for upload attribution. NOTE: 0x02003CB0 is SHARED scratch (both the save
 driver and this loader decompress into it) — the historical save-vs-scene
 churn around that address was this overlap.
+
+### Battle pans redraw the strips (2026-10-08; mid-battle overview, game.state1)
+
+- Battle field layers are **BG2/BG3** (horizontal pan = BG2HOFS/BG3HOFS
+  0x04000018/0x1C stepping ~0x12/frame while easing; BG0/BG1 VOFS animate
+  separately). The world-map camera struct 0x02002C10 is **not** used in
+  battle.
+- Panning **rewrites the field screenblocks** 0x06006000-0x06007FFF (frames
+  ~62-115 for a right-hold) via the strip pipeline: `strip_refresh_engine`
+  0x0801AC78 -> `strip_refresh` 0x0801B7F8 -> `strip_blit` 0x0801AF08
+  (chunked staging -> VRAM: manual ch0 DMA 32x16-bit chunks, src += 0x80 /
+  dst += 0x40, busy-poll; CpuSet variant too).
+- Staging (0x0200B000-ish) is **pre-composed** (zero writes during the run;
+  the decoder does NOT run per pan step) — the blit walks offset counters in
+  `gStripBlitDesc` (0x02007F40, 0x28-byte entries; +0x24/+0x26 advance with
+  the pan). The internal model is **64 columns wide** (`cmp #0x3f`) = 512 px:
+  the engine already handles >=512-px-wide maps internally; the visible
+  window is 256 px.
+- W2 hooks are now concrete: extend at `strip_blit` / the descriptor walk
+  (materialize extra columns) rather than at the decoder.
 
 ## W2 sketch (unchanged, sharpened)
 

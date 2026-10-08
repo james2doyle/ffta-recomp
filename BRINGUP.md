@@ -2622,3 +2622,32 @@ Symbols: `lzss_decompress` 0x0800543C + `scene_gfx_load` 0x08022A04
 rewritten with the pipeline + repro; README roadmap + AGENTS updated.
 Cycle PASS; attract 1EF4C118… byte-exact. Next: battle-map variant confirm
 (same pipeline expected) + W2 hook design (extend at the upload stage).
+
+### 2026-10-08 (cont.) — W1b battle variant: pan redraw pipeline mapped (strip blit)
+
+User-provided state `game.state1` (mid-battle overview — cursor pans the map).
+Holding Right pans BG2/BG3 horizontally (BG2HOFS/BG3HOFS 0x04000018/0x1C,
+~0x12/frame eased; BG0/BG1 VOFS animate separately); the world-map camera
+struct 0x02002C10 is NOT used in battle (zero writes during the pan).
+
+The pan REWRITES the field screenblocks 0x06006000-0x06007FFF (frames 62-115
+for a right-hold) via the strip pipeline: `strip_refresh_engine` 0x0801AC78
+-> `strip_refresh` 0x0801B7F8 -> `strip_blit` 0x0801AF08 (chunked
+staging->VRAM: manual ch0 DMA 32x16-bit, src += 0x80 / dst += 0x40,
+busy-poll; CpuSet variant via the 0x0814186C thunk). Staging
+(0x0200B000-0x0200C000 traced) is PRE-COMPOSED — zero writes across the
+whole run; the LZSS decoder does NOT run per pan step (two decoder calls in
+the run came from 0x080CB8AA, ~every 48 frames = the animated-tiles refresh,
+not the pan). The blit walks offset counters in `gStripBlitDesc` 0x02007F40
+(0x28-byte entries; +0x24/+0x26 advance with the pan; two entries seen).
+Internal map model is 64 columns wide (`cmp #0x3f`) = 512 px — the engine
+already handles >=512-px-wide maps internally; the visible window is 256 px.
+
+Symbols: Section 15 (strip_refresh_engine/strip_blit/strip_window_fill/
+strip_refresh) + data Section 14 (gStripBlitDesc). reference/widescreen.md
+W1b rewritten (both variants); camera section corrected (battle: not this
+struct). README roadmap updated. Cycle PASS; corpus 54,355; attract
+1EF4C118… byte-exact.
+
+W2 consequence: hook at strip_blit / the descriptor walk (materialize the
+extra columns there) — the decoder is NOT in the pan path.
