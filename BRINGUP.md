@@ -2072,3 +2072,30 @@ unaffected (route K strict FULLY_STATIC throughout).
   the window close misbehaves; the heal loop is unaffected.
 - Open: framework teardown fix + possible upstream issue (same family as
   the bridge stop-contract note).
+
+### 2026-10-08 — Widescreen W1: camera struct, ease code, and the DMA apply path
+
+- Savestate diffing (a new technique here) found the world-map camera
+  struct: 0x02002C10-0x02002C1F — v-scroll at +0x0C (151 -> 192 during a
+  pan; equals the register value), eased twin +0x0E (stepped 152, 153, ...),
+  coordinate +0x08 (256 -> 330), strip pointers +0x02/+0x0A; reached via
+  IWRAM object [[0x03002810]+4].
+- Update code: ease-step unit 0x08038BF2/0x08038C3E (delta<=3 1:1, <=0xB /2,
+  else /4), coordinate writer 0x080376A2, cluster head 0x080328BA; reader
+  0x0804C24A-0x0804C288 (flags/coords; unidentified caller role yet).
+  Abort-on-write 0x02002C1C caught the first step (pc=0x08038C5E 0x98) with
+  the full event chain.
+- Scroll REGISTER apply = guest-owned hardware DMA: helper family
+  0x08001300-0x08001420 (SAD/DAD/CNT writes + bit31 poll) observed with DAD
+  0x04000010/12/14/16 in the FP ring; reached via pointers, not BLs. These
+  writes never appear in GBARECOMP_MMIO_CAP — heal_gate.cpp's Journal is
+  the registered BusWriteObserver and the prime suspect for the gap.
+- W1b (open): the strip drawer. Within-map pans cause zero VRAM-range
+  register touches (FP ring), so the drawer runs on scene/map load — next:
+  abort-on-write 0x06005000/0x06006000 during world-map and battle ENTRY.
+- Tooling learned: (1) savestate before/after diff for state vars;
+  (2) FP ring + ringscan --reg/--reg-range for "code that touches X";
+  (3) ABORT_ON_MEM_WRITE_ADDR for writer chains (RAM/VRAM only, not IO);
+  (4) DMA_WATCH_ADDR for DMA attribution.
+- Artifacts: logs/fp_pan.bin (671 MB ring of the pan run; query, don't
+  commit), /tmp/ws_{before,after}.state, reference/widescreen.md (new).

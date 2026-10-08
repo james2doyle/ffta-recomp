@@ -192,3 +192,14 @@ shutdown — keep a one-line helper (connect, send `{"cmd":"quit"}`) and
 prefer it for scripted sessions. SIGTERM may be swallowed. Verify a clean
 exit by checking that the process leaves within a few seconds and the
 wrapper's archive/flush steps ran.
+
+Finding game state and the code around it (portable): (1) save a state
+before/after an action and byte-diff the container - changed fields reveal
+the variables (camera, counters, flags); (2) query the FP ring for
+instructions whose registers hold an address/value (`--reg`, `--reg-range`)
+to find both readers/writers and generic helpers; (3) trap writers with an
+abort-on-memory-write env (+ runtime trace) for the caller chain - RAM/VRAM
+works, IO registers may not (guest-DMA and write-observer paths can bypass
+the capture ring entirely); (4) watch DMA destinations explicitly when the
+guest programs hardware DMA. Static BL scans miss pointer-table entries;
+prefer runtime traps.
