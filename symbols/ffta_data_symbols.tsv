@@ -84,3 +84,9 @@
 0x08565880	rom	0x0	gTextClanNames
 0x08566A00	rom	0x0	gTextNames
 0x085680DC	rom	0x0	gTextRandomUnitNames
+# Section 6: JoKyR "Advanced Hacking Guide" (GameFAQs 2005) — VERIFIED live on
+# our build 2026-10-07: name-ptr @+0x80 (char1 = 0x02001F1C), level @+0x89
+# (read 3), stride 0x108, 24 slots; growth counters readable.
+0x02000000	ewram	0x18C0	gPartyUnits
+0x02001F1C	ewram	0x0	gPartyNameBuffer
+0x02002031	ewram	0x4	gGrowthItemCounters

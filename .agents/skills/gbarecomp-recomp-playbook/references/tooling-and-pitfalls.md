@@ -119,6 +119,17 @@ Run this after every play session; it is the whole loop in order.
   default (verify by the runner's "save loaded" log line), and always work
   on a copy — save flows rewrite the file.
 
+### Debug-port memory reads on loaded states
+
+A load-state run restores registers + IWRAM immediately, but **EWRAM is
+repopulated by the scene over the following frames** (observed: 0 nonzero
+bytes at +60 frames, 730 at +300, ~5.5k at +600 after a battle-state load).
+TCP/board reads taken too early return believable zeros — wait several
+hundred frames (or until the scene visibly runs) before trusting EWRAM
+contents on a loaded state. Fresh-boot reads and IWRAM reads are reliable
+immediately. A fresh boot shows live EWRAM within seconds — use that as the
+control when a read looks suspiciously empty.
+
 ### Live sessions: window + debug port (`--tcp-observe`) and the stall watchdog
 
 Plain `--tcp` is **structurally headless** (its branch returns before window
