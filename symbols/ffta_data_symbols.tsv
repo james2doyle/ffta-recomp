@@ -19,3 +19,8 @@
 0x02002FBA	ewram	0x1	gMonth
 0x02002FBB	ewram	0x1	gDay
 0x02002FBC	ewram	0x4	gPlayTime
+# Section 3: named ROM tables from charlie-troy/ffta-decomp data/asm_symbols.txt
+# ("proven by accessor execution" per their docs; imported 2026-10-07).
+0x080C7EA4	rom	0x0	UnitStat
+0x080CCD50	rom	0x0	AbilityProp
+0x0812ED98	rom	0x0	AbilityMpCost
