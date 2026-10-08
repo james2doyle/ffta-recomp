@@ -2467,10 +2467,10 @@ the tree.
   reference-material list (facts/quotes only).
 - `tools/patches/README.md` (new): patches target gbarecomp; patched
   copies stay under its terms.
-- README: legal block (no game content; unofficial; no Square
-  Enix/Nintendo affiliation) + License section; AGENTS rule 8 (public-repo
-  hygiene — never add verbatim third-party text again; keep attribution
-  file current).
+- README: legal block (no game content; unofficial; no Square Enix/Nintendo
+  affiliation), License section, and a "Thanks" section crediting the
+  referenced projects/authors; AGENTS rule 8 (public-repo hygiene — never
+  add verbatim third-party text again; keep the attribution file current).
 
 **No history rewrite** (user decision): the retained GFDL pages are
 compliant as distributed (license text + attribution included in-tree);

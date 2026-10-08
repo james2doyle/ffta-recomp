@@ -328,6 +328,43 @@ Full rules live in `AGENTS.md`; the essentials:
   `reference/datacrystal/` pages are GFDL 1.2 — license text included
   alongside them).
 
+## Thanks
+
+Nothing here would exist without work other people shared. Thank you to:
+
+- **[mstan](https://github.com/mstan)** — the
+  [gbarecomp](https://github.com/mstan/gbarecomp) framework and
+  [recomp-ui](https://github.com/mstan/recomp-ui), plus the reference-game
+  recompilations whose conventions we studied — and the R.A.I.D. community
+  around them.
+- **Bregalad and loveemu** — "GBA Mus Ripper" / `sappy_detector.c`, the
+  basis of our m4a engine detection, with the
+  [berg8793](https://github.com/berg8793/gba-mus-ripper) and
+  [CaptainSwag101](https://github.com/CaptainSwag101/gba-mus-ripper) forks
+  for cross-checking.
+- **The [Data Crystal](https://datacrystal.tcrf.net/) contributors** — the
+  FFTA ROM/RAM maps, scripting and compression pages (recovered via the
+  Wayback Machine) that seeded many symbols.
+- **[LeonarthCG](https://github.com/LeonarthCG)** —
+  [FFTA_Engine_Hacks](https://github.com/LeonarthCG/FFTA_Engine_Hacks), the
+  address index that anchored our engine studies.
+- **[charlie-troy](https://github.com/charlie-troy)** —
+  [ffta-decomp](https://github.com/charlie-troy/ffta-decomp), a
+  revision-exact partial decomp used for naming and cross-checks.
+- **[spiiin](https://github.com/spiiin)** —
+  [FFTAUtils](https://github.com/spiiin/FFTAUtils), map-data formats and
+  verified data regions.
+- **BCROBERT, JoKyR, Terence Fergusson, and the GameFAQs code-guide authors
+  (Adrammelech, labmaster, TetrisTheMovie, Vegikachu)** — the notes and
+  guides that mapped FFTA's structures and formulas.
+- **The [FFHacktics](https://ffhacktics.com/) community** — home of the
+  long-running FFTA research that made all of this findable.
+- **The [mGBA](https://mgba.io/) project** — the emulator we use as the
+  differential-testing oracle.
+
+Redistribution terms for anything included here live in
+`THIRD_PARTY_ATTRIBUTION.md` and `reference/datacrystal/README.md`.
+
 ## License
 
 The project's own code and documentation are licensed **PolyForm
