@@ -19,6 +19,8 @@ Grep the names, not the hex:
 - `grep display_regs_commit symbols/ffta_symbols.tsv` — the per-frame
   39-halfword display-register commit (DMA0 from `gDisplayRegShadow`;
   § "Scroll register apply").
+- `grep "lzss_decompress\|scene_gfx_load" symbols/ffta_symbols.tsv` — the
+  scene-load strip pipeline (W1b; § "W1b — the strip drawer").
 
 Named units (all already emitted; names assigned 2026-10-08):
 
@@ -97,17 +99,29 @@ descriptor (load/backup copy).
   copy per frame, kick pc 0x0800073C; during the pan the copied VOFS values
   step 0x97→0xA1 in lockstep with the camera ease.
 
-## W1b — the strip drawer (still open; leads)
+## W1b — the strip drawer: LOCATED (2026-10-08, world map → pub load)
 
-The 256-wide tilemaps hold the drawn strip. Within-map pans need no redraw
-(FP ring: zero VRAM-range register touches during pans), so the drawer runs
-on scene/map load (world-map entry, map transitions, possibly long node
-jumps). Next probes:
-- Watch VRAM (abort-on-write 0x06005000 / 0x06006000) during world-map
-  ENTRY (from a menu/battle), and during battle map entry.
-- The struct pointers +0x02/+0x0A and DataCrystal `gMap*` fields
-  (gMapTileData 0x02007CB0 et al.) are the likely inputs of that drawer.
-- Static BL scan is weak here (pointer tables/`bx`); prefer runtime traps.
+`lzss_decompress` (0x0800543C; r0 = dst, r1 = src — BE length at src+0,
+stream at src+4; the entry the `ffta.lzss-guard` seam protects). Scene loads
+decompress pre-baked strips into EWRAM staging, then stream them to VRAM by
+DMA — the "drawer" is this decompress+upload pipeline, driven per load step:
+
+- Fills/evictions come from a scene state cluster (0x08023Fxx/0x080240xx),
+  then the graphics load; decoder callers observed: `scene_gfx_load`
+  0x08022A04 (via 0x08022A2E; dst 0x02003CB0), 0x0801A620, 0x080CB8C6.
+- Content lands in the field screenblocks by DMA from EWRAM staging
+  (e.g. ch=0, dad=0x06006800, src=0x0200BDDC/0x0200BA5C, 32x16-bit chunks;
+  staging written by the decoder itself — e.g. 0x0200B80A at frame ~204).
+- Verified on the world map → Sprohm/pub load (repro: game.state2 + A,A):
+  screenblocks 0x6000/0x6800/0x7000/0x7800 fill frames ~193-196; 0x5000/
+  0x5800 later (196-236). Battle-map variant not yet observed (same
+  pipeline expected — confirms with a battle-entry repro).
+
+Repro/tooling: VRAM value trace (`GBARECOMP_WRAM_TRACE` on 0x06005000-7FFF)
+for where/when; FP ring + `ringscan.py --cyc/--reg-range` for who; DMA watch
+for upload attribution. NOTE: 0x02003CB0 is SHARED scratch (both the save
+driver and this loader decompress into it) — the historical save-vs-scene
+churn around that address was this overlap.
 
 ## W2 sketch (unchanged, sharpened)
 

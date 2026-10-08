@@ -536,8 +536,10 @@ noncommercial purposes. Third-party components keep their own terms (the
    `0x08038BF2`/`0x08038C3E`, and the register apply is a **guest-owned
    hardware-DMA write** (helper family `0x08001300-0x08001420`; the
    per-frame block commit now records to `GBARECOMP_MMIO_CAP` after the
-   2026-10-08 capture fix). Next: **W1b** locate the strip drawer (watch
-   VRAM on world-map/battle ENTRY), then **W2** widen the 256-px field
+   2026-10-08 capture fix). **W1b** (2026-10-08) located the strip pipeline:
+   scene loads decompress pre-baked strips (`lzss_decompress` 0x0800543C)
+   into EWRAM staging and stream them to the field screenblocks by DMA —
+   battle-map variant to confirm. Next: **W2** widen the 256-px field
    tilemaps to 512 + extend the drawer behind a mod hook + camera bias at
    the struct level; **W3** per-scene policy (menus pillarbox) + opt-in via
    `opts.max_view_width` in `src/main.cpp`. Dev override for experiments:

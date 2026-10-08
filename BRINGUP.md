@@ -2594,3 +2594,31 @@ program+poll sites inside larger pointer-reached routines (0x080012BC fills
 1024 B at 0x07000000, then runs them; role unpinned — not named).
 reference/widescreen.md index updated. Regenerated (names-only; corpus
 54,355 unchanged) + cycle PASS: attract 1EF4C118… byte-exact.
+
+### 2026-10-08 (cont.) — Widescreen W1b: the strip drawer LOCATED (LZSS → staging → DMA)
+
+Repro: world map (`game.state2`) + two A presses (enter Sprohm/pub).
+Traps chained: VRAM value trace → DMA watch → FP ring + ringscan.
+
+- The field screenblocks get their content at frames ~193-196
+  (0x6000/0x6800/0x7000/0x7800; 0x5000/0x5800 follow, 196-236), by DMA
+  streaming from EWRAM staging buffers (ch=0, e.g. dad=0x06006800,
+  src=0x0200BDDC/0x0200BA5C, 32x16-bit chunks).
+- The staging is written by the LZSS decompressor at 0x0800543C — the
+  entry the ffta.lzss-guard seam already protects (hot loops 0x0800553E-6A;
+  0x08005544 is the interior-split point from the offline-push notes).
+  Captured live call: `0x08022A2E bl 0x0800543C` with src(r1)=0x083AF504,
+  dst(r0)=0x02003CB0 — the shared scratch also used by the save driver
+  (this overlap explains earlier save-vs-scene churn at that address).
+- Decoder callers during the load: `scene_gfx_load` 0x08022A04 (bitmask
+  arg; decompress + CpuFastSet copies), plus 0x0801A620 and 0x080CB8C6
+  (other resource loaders).
+- Fills/evictions (0x08023Fxx/0x080240xx CpuSet/DMA zero-fills) precede the
+  content; the previous scene's blocks are already zero so the fills are
+  value-invisible (only visible via abort probes).
+
+Symbols: `lzss_decompress` 0x0800543C + `scene_gfx_load` 0x08022A04
+(Section 14); gSaveRecordStage note refined. reference/widescreen.md § W1b
+rewritten with the pipeline + repro; README roadmap + AGENTS updated.
+Cycle PASS; attract 1EF4C118… byte-exact. Next: battle-map variant confirm
+(same pipeline expected) + W2 hook design (extend at the upload stage).

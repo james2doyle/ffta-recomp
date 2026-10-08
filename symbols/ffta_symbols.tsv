@@ -257,3 +257,14 @@
 # bit. Literals verified at 0x0800075C-68; kick pc 0x0800073C; block =
 # BGxCNT/scroll/affine/window/blend, one copy per frame on the repro.
 0x08000718	thumb	display_regs_commit
+
+# Section 14: scene-load graphics pipeline (2026-10-08; W1b via FP ring +
+# VRAM/DMA traces — reference/widescreen.md § W1b). lzss_decompress: r0 =
+# dst, r1 = src (BE length at src+0, stream at src+4); entry guarded by
+# ffta.lzss-guard; hot loops 0x0800553E-6A (0x08005544 = the interior-split
+# point from the offline-push notes). scene_gfx_load: bitmask arg selects
+# strip groups; decompresses to staging 0x02003CB0 + CpuFastSet copies;
+# observed on the world map -> pub load; callers incl. 0x0801A620 /
+# 0x080CB8C6 call the decoder too.
+0x0800543C	thumb	lzss_decompress
+0x08022A04	thumb	scene_gfx_load
