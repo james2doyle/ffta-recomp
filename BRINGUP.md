@@ -2504,3 +2504,9 @@ and the AGENTS BIOS note updated.
 
 Evidence: `/tmp/fresh_resume.log`, `/tmp/fresh_bios2.log`,
 `/tmp/fresh_smoke2.log` (scratch clone at `/tmp/ffta_fresh`).
+
+**Pass 2 (untampered re-run of the fixed path, from the committed tree):
+clean through all nine steps** — submodules checked out, both patches applied
+to the pinned submodule, BIOS 770 funcs, corpus emitted 54,355, host build
+linked the recompiled BIOS, strict 2400 `FULLY_STATIC`, attract
+`1EF4C118…` PASS. Evidence: `/tmp/fresh_verify2.log`.
