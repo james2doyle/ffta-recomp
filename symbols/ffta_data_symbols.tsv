@@ -124,5 +124,10 @@
 
 # Section 11: save-format cells (2026-10-08; checksum reversed + verified
 # against all known-good groups — see BRINGUP and tools/savecheck.py).
+# gSaveRecordStage = the 4-sector staging buffer the flash driver reads
+# records into (readseq: sectors h,h-1,h-2,h-3, h = the magic sector; last
+# chunk n=0xFC4). Shared EWRAM scratch — scene clears write it too
+# (BRINGUP route_G entry, 2026-10-08).
 0x08393318	rom	0x400	gSaveCrcTable
 0x08149ff8	rom	0x08	gSaveHeaderMagic
+0x02003CB0	ewram	0x4000	gSaveRecordStage

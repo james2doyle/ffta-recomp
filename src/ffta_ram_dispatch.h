@@ -41,22 +41,17 @@ inline bool ram_matches_rom(uint32_t ram_pc, uint32_t rom_pc, uint32_t size) {
     return true;
 }
 
-// Defensive fixups for the corrupted-copy class (BRINGUP § "Summon crash" /
-// "Save-flow divergence"). Two shapes observed:
-//  * r2 == 0xFFFFFFFF (the routine's own loop sentinel) with a valid-ish
-//    context: an interrupted copy RESUMED at its entry — the true remaining
-//    count survives in r3; reconstruct it.
-//  * any other implausible count (e.g. 0xFF00CE7F / 0xFF01010F): a garbage
-//    descriptor from a stale frame — clamp to a bounded no-op.
-// Legitimate counts observed are <= 0x1000. Both shapes would otherwise run
-// a multi-gigabyte runaway and corrupt IWRAM.
+// Defensive fixup for the corrupted-copy class (BRINGUP § "Summon crash" /
+// "Save-flow divergence"): an implausible count (e.g. 0xFF00CE7F /
+// 0xFF01010F, or the sentinel 0xFFFFFFFF arriving as a "count") is a
+// garbage descriptor from a stale frame — clamp to a bounded no-op, else
+// the loop runs a multi-gigabyte runaway and corrupts IWRAM. Legitimate
+// counts observed are <= 0x1000. Note: r2 == 0xFFFFFFFF never reaches here
+// from ram_dispatch — resume-passthru handles it first (it is a loop-state
+// sentinel, never a count).
 inline void copy_entry_fixup(uint32_t pc) {
     uint32_t r2 = g_cpu.R[2];
     if (r2 <= 0x10000u) return;
-    if (r2 == 0xFFFFFFFFu) {
-        uint32_t count = g_cpu.R[3] + 1u;
-        if (count <= 0x10000u) { g_cpu.R[2] = count; return; }
-    }
     static uint32_t logged = 0;
     if (logged < 32) {
         std::fprintf(stderr,

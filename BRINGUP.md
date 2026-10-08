@@ -2296,3 +2296,12 @@ flow now completes); `tools/check.py` 7/7 PASS, attract byte-exact.
 Observation for follow-up: the extended flow reports unmapped=46 (open-bus
 accesses in newly-reached code) — not chased yet; run completes and gates
 are green.
+
+- Hardening follow-up (same day): `copy_entry_fixup`'s r2==-1 count
+  reconstruction is removed (resume-passthru makes it unreachable, and it
+  embodied the unsafe re-run semantics); the unit suite now pins the new
+  rule — a resume (r2 == -1) passes through from ANY address, including a
+  byte-matching fresh plant (the exact route_G regression), across both
+  chained crossing forms. New label: `gSaveRecordStage` 0x02003CB0
+  (0x4000; readseq evidence, shared-scratch caveat in the tsv note).
+  `tools/check.py` 7/7.

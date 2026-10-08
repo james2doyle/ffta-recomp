@@ -100,10 +100,10 @@ int main() {
     CHECK(g_cpu.R[2] == 0x1000u);
 
     reset_state();
-    g_cpu.R[2] = 0xFFFFFFFFu;  // interrupted copy: count survives in r3
+    g_cpu.R[2] = 0xFFFFFFFFu;  // the loop sentinel is not a count: clamp
     g_cpu.R[3] = 0x00000FFFu;
     copy_entry_fixup(0x03007D74u);
-    CHECK(g_cpu.R[2] == 0x1000u);
+    CHECK(g_cpu.R[2] == 0x0u);
 
     reset_state();
     g_cpu.R[2] = 0xFFFFFFFFu;  // out of range reconstruction -> no-op
@@ -136,6 +136,21 @@ int main() {
     CHECK(ram_dispatch(0x03007D72u, 1) == 0);
     CHECK(g_copy_calls == 0);
 
+    // ── REGRESSION (route_G, 2026-10-08): a mid-copy resume can land ON the
+    // fresh re-plant address — the driver re-plants the helper at its stack
+    // pointer, so the resume PC byte-matches the routine start. The old hook
+    // re-ran the canonical body from the top there (second push + setup
+    // re-run), tearing the driver's frame by 8; its epilogue then popped the
+    // staging-buffer pointer and branched into 0x02003CB0. A resume
+    // (r2 == -1) must pass through from ANY address, even a byte-matching
+    // plant: never a fresh call.
+    reset_state();
+    plant_pair(0x03007D74u, 0x08141AF0u, 0x24u, 0x11);
+    g_cpu.R[2] = 0xFFFFFFFFu;  // live mid-copy state (r3/r1/r4 carried)
+    g_cpu.R[3] = 0x00000D5Fu;
+    CHECK(ram_dispatch(0x03007D74u, 1) == 0);
+    CHECK(g_copy_calls == 0);
+
     // Chained form of the same scenario through the stub.
     reset_state();
     plant_pair(0x03007D74u, 0x08141AF0u, 0x24u, 0x11);
@@ -144,6 +159,8 @@ int main() {
     CHECK(g_copy_calls == 1);
     CHECK(g_cpu.R[2] == 0xFFFFFFFFu);           // stub left the crossing state
     CHECK(ram_dispatch(0x03007D72u, 1) == 0);   // crossing: must not re-fire
+    CHECK(g_copy_calls == 1);
+    CHECK(ram_dispatch(0x03007D74u, 1) == 0);   // resume at the plant: passthrough
     CHECK(g_copy_calls == 1);
 
     // A fresh two-byte-early entry (real count) is still serviced.
