@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Recover self-heal cache units as a reviewable TOML proposal fragment.
-# Crash-session fallback: the runtime .frag never flushes on SIGABRT, but each
-# completed heal left <PC>_<hash>_<mode>.{c,dll,log} in recomp_cache/.
+# Second-source recovery: the runtime .frag is journaled live now, but each
+# completed heal also left <PC>_<hash>_<mode>.{c,dll,log} in recomp_cache/.
 import argparse
 import pathlib
 import re

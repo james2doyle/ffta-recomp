@@ -181,13 +181,15 @@ instruments everything:
 | Artifact | What it is |
 |---|---|
 | `logs/playthrough.csv` | your exact input trace — replayable (`GBARECOMP_INPUT_REPLAY`) |
-| `logs/playtest_misses.frag` | TOML proposals (`.frag` flushes **only on clean exit**; overwritten per clean session — play.sh archives the previous one as `saves/frag_prev_*.frag`) |
+| `logs/playtest_misses.frag` | TOML proposals — **journaled live as misses occur** (an unclean close/kill no longer loses them) and rewritten with final counts at a clean exit; play.sh archives the previous session's as `saves/frag_prev_*.frag` |
 | `recomp_cache/<sha>/gcc/<plat>/<abi>/` | completed heals: `<PC>_<hash>_<t\|a>.{c,dll,log}` |
 | `saves/` | archived previous-session savestates + traces, battery save |
 
 **2 — Close the session.**
-- Clean exit → the `.frag` holds the miss list.
-- Crash → the `.frag` never flushed; recover with
+- The `.frag` is written as you play (every new miss journals the proposal),
+  so both clean exits and kills/hangs leave the miss list on disk; a clean
+  exit rewrites it with final counts.
+- If a session still looks odd, recover the healed PCs with
   `.venv/bin/python tools/cache_harvest.py --new` (reads the heal cache
   filenames). Paste the terminal output too — abort messages name the pc.
 

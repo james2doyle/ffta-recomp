@@ -2385,6 +2385,36 @@ both seeded as split-interior entries (11 total; corpus 54,327 ->
 54,355 emitted). Strict replay of the session trace: FULLY_STATIC
 (resolve needed 0 seeds); cycle PASS (attract byte-exact).
 
-Reminder: playtest sessions only flush `logs/playtest_misses.frag` on a
-clean exit — close with ESC or `tools/quit.py`; otherwise harvest the
-`recomp_cache` as done here.
+Reminder: `logs/playtest_misses.frag` is journaled live as misses occur (see
+the hardening entry below); close with ESC or `tools/quit.py`, and harvest the
+`recomp_cache` as a second source if anything looks off.
+
+### 2026-10-08 (cont.) — Hardening: durable miss-frag journal + bounded close
+
+The session-M close (11 heals) stuck and its frag was never flushed — only
+recovered via `cache_harvest`. Root cause unproven (no coredump, no exit log),
+so the failure class is hardened instead. Two structural gaps: (1) the
+proposal frag was written only at the very END of a clean exit; (2) that exit
+path joins the heal worker, which drained its whole compile queue (each item
+spawns a compiler subprocess) — the only heals-dependent close-path work, and
+unbounded.
+
+Guards (gbarecomp working tree; exported patch:
+`tools/patches/selfheal-journal-close-hardening.patch` — re-apply after
+submodule updates):
+- `runtime_arm_default_aborts.cpp`: the frag is (re)written atomically
+  (tmp+rename; one shared writer with the exit report) the moment each new
+  miss is recorded, env-gated on `GBARECOMP_MISS_FRAG` (play.sh / cycle.py set
+  it). An unclean end can no longer lose proposals.
+- `overlay_loader.cpp`: shutdown stops the worker after the in-flight compile
+  and abandons the queued backlog (already journaled; the next session
+  re-requests it) — close latency is bounded.
+- `runtime.cpp`: `emit_exit_diagnostics()` (frag + coverage JSON) now runs
+  BEFORE the worker join at both game-over exit sites.
+
+Verified: build OK; `tools/check.py` **7/7** (unit-cpp / unit-py / savecheck /
+attract byte-exact `1EF4C118…` / user_load / route_G / route_K strict
+FULLY_STATIC); zero-miss smoke: no journal write, banner + coverage JSON
+intact; framework `selfheal_cluster_test` passes. The record-time journal's
+positive path is exercised by the next session that misses a PC — watch
+`logs/playtest_misses.frag` mtime update mid-session.

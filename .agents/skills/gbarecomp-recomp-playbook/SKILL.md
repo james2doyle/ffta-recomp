@@ -24,8 +24,9 @@ interpreted instructions).
    trace and savestates, and archives the previous session's artifacts.
    When hunting a live-only hang, play in windowed-observe mode with the
    frame-stall watchdog attached (see `references/reproducibility.md`).
-2. **Close.** A clean exit flushes the proposal file; after a crash, harvest
-   the healed PCs from the heal-cache unit filenames.
+2. **Close.** The proposal file is journaled live as misses occur — durable
+   across hung/killed closes; a clean exit rewrites it with final counts.
+   Harvest the heal-cache unit filenames as a second source.
 3. **Merge** reviewed proposals into the config, with disassembly evidence in
    every note. Never auto-write the config; never edit generated code.
 4. **Resolve until static.** Strict-replay the session; seed the first miss

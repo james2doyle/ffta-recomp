@@ -108,9 +108,9 @@ Coverage loop (after every run): read the exit banner
 merge** real ones into `game.toml`, regenerate, rebuild, rerun — until
 `FULLY_STATIC`. Never auto-write `game.toml`.
 
-Crash sessions: the `.frag` flushes only at clean exit — after a crash, run
-`tools/cache_harvest.py --out logs/proposal.frag` to recover the miss pcs
-from `recomp_cache` unit filenames.
+Crash sessions: the `.frag` is journaled live as misses occur (durable across
+unclean exits); `tools/cache_harvest.py --out logs/proposal.frag` recovers the
+healed pcs from `recomp_cache` unit filenames as a second source.
 
 Session resolve: `tools/resolve.py --trace <csv> [--load-state <state>]
 [--frames N]` strict-replays a recording, seeds each miss through a temp
@@ -124,8 +124,9 @@ Interactive playtest (the healing loop's front end — README § "The playtest
 → healing loop"): `tools/play.sh [--scale N | --fullscreen | --tcp-observe
 PORT]`. Letter-key keymap in `build/keybinds.ini` (example:
 `tools/playtest_keybinds.ini.example`); records `logs/playthrough.csv`,
-proposes to `logs/playtest_misses.frag` (clean-exit flush only; overwritten by
-the next clean session — play.sh archives the previous one under `saves/`),
+proposes to `logs/playtest_misses.frag` (journaled live as misses occur —
+durable across unclean exits; final counts at a clean exit — play.sh archives
+the previous session's under `saves/`),
 archives the previous session's savestates/traces under `saves/`, battery save
 at `saves/playtest.sav`.
 
@@ -240,6 +241,12 @@ Submodule pins (2026-10-06): gbarecomp @ `ecc9c55` (main; newer than the
 2952aff pin in reference game repos — newest main was chosen deliberately),
 recomp-ui @ `cac2b8f`. Nested: arm-recomp-core @ 15fc7b7, rbengine @ 2a03e7,
 recomp-net @ c58f125.
+
+Local framework patches: `tools/patches/*.patch` are working-tree edits to
+`gbarecomp/` (uncommitted — re-apply after submodule updates, like the oracle
+patch). Current set: `oracle-save-autoload.patch`;
+`selfheal-journal-close-hardening.patch` (miss-frag journaled at record time,
+bounded heal-worker stop, diagnostics flushed before the worker join).
 
 ## Bring-up status & next milestone
 
@@ -394,10 +401,10 @@ recomp-net @ c58f125.
   `.venv/bin/python tools/check.py` (host unit tests + attract + strict
   route replays over frozen fixtures in `saves/regress/`; `--fast` for the
   quick subset). Freeze every new route worth guarding as a fixture.
-- After every playtest session: harvest (`.frag` on clean exit, else
-  `tools/cache_harvest.py`) → merge reviewed seeds → `tools/resolve.py` on
-  the session trace until FULLY_STATIC → `tools/cycle.py` → commit with a
-  BRINGUP entry.
+- After every playtest session: harvest (the `.frag` is current either way;
+  `tools/cache_harvest.py` as a second source) → merge reviewed seeds →
+  `tools/resolve.py` on the session trace until FULLY_STATIC →
+  `tools/cycle.py` → commit with a BRINGUP entry.
 - Debug via gbarecomp's TCP debug surface (`--tcp`), not printf; state claims
   as "per the frame ring at f=N (vblank=M)".
 - FFTA known hard spot (CORRECTED 2026-10-06): the 0x080C7EC0/0x080C85A0/
