@@ -2329,12 +2329,46 @@ cluster:
   `_deadbeef`) returns the constant 0xE710B710; real hardware (A28-A31
   not decoded) would mirror into ROM. The caller stores these values, so
   a hidden engine-value divergence exists in this path.
+  **WRONG — corrected 2026-10-08 (cont.4): data loads do not hit
+  `_deadbeef` (fetch path only); mGBA returns the same open-bus value we
+  do (0x47084708), verified empirically on both engines. See cont.4.**
 - Open: why the walk's inputs hold pointers (writer not traced; the
   ~950-frame native-vs-oracle flow offset blocks same-frame state diffs).
 - Options: (a) framework bus parity for A28+ reads (mGBA's _deadbeef
   constant) — scoped, no other route reads above 28 bits today; (b) true
   hardware mirror model (drop A28+) if retail accuracy beats oracle
-  parity.
+  parity. **BOTH WITHDRAWN — no bus change is needed (cont.4).**
 
 Symbols added: `name_ptr_resolve` 0x080CA1BC; `gNamePtrTableA`
 0x085516D0 (107 entries); `gNamePtrTableB` 0x085680DC (512).
+
+### 2026-10-08 (cont.4) — CORRECTION: unmapped=46 is oracle-identical; no bus change
+
+Re-trace + measurement overturn the cont.3 "engine-value divergence"
+conclusion (the `_deadbeef` path it cited is fetch-only):
+
+- mGBA interpreter data loads go `cpu->memory.load32` -> `GBALoad32`
+  (call sites: isa-arm.c:556ff, isa-thumb.c:105ff); the `default:` case
+  runs `LOAD_BAD` -> `GBALoadBad()`. For THUMB with PC in ROM that
+  returns `prefetch[1] | <<16` — and `ThumbStep`'s recurrence makes
+  `prefetch[1] = H(exec_pc + 4)` during execution — i.e. the same
+  "[PC+4] halfword mirrored" formula our bus implements. `_deadbeef`
+  (`0xE710B710`) serves only fetch/execution in a dead region.
+- Ring reconstruction of the f17,799 burst (~12k cycles): the save flow
+  rebuilds 24 unit records at staging (0x02003CB0 + 0x80, stride 0x108)
+  with the name resolver 0x080CA1BC ([unit+0] = index, mode byte +0x106:
+  1 -> gNamePtrTableA, 0 -> gNamePtrTableB, else 0x02001F1C; result
+  written back to [unit+0]). The loop runs 3x back-to-back: run 1
+  resolves indexes -> pointers (23 valid table reads; sequence
+  0x02001F1C, 0x085512C7, 0x08566EAD, 0x08567281, ...); runs 2-3 feed
+  the just-written pointers back as indexes -> 23 + 23 = the 46
+  out-of-range reads -> field degrades to 0x47084708; a later phase
+  restores the real pointers.
+- Empirical cross-check (oracle EWRAM snapshots): f18,600/18,700 hold
+  0x47084708 in exactly these staging slots (23 of 24); f18,800 holds
+  the same resolved-pointer sequence as our run 1. Byte-for-byte the
+  engines agree through every observed phase.
+- Conclusion: neither option (a) nor (b) — our open-bus behavior already
+  matches the pinned oracle for these reads; no framework bus change is
+  warranted. (The ~950-frame native-vs-oracle flow offset remains a
+  separate, still-open question.)
