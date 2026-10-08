@@ -87,3 +87,14 @@ else()
     # recompiled-guest bodies are flat C calls, not deep recursion.
     target_link_options(FFTARecomp PRIVATE -Wl,-z,noexecstack)
 endif()
+
+# ── host unit tests for src/ custom code ────────────────────────────
+option(FFTA_BUILD_TESTS "Build host unit tests for src/ custom code" ON)
+if(FFTA_BUILD_TESTS)
+    enable_testing()
+    add_executable(ffta_unit_tests tests/unit/test_ram_dispatch.cpp)
+    target_include_directories(ffta_unit_tests PRIVATE
+        "${GBARECOMP_ROOT}/src/armv4t"
+        src)
+    add_test(NAME ram_dispatch COMMAND ffta_unit_tests)
+endif()

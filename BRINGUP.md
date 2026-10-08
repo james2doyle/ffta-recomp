@@ -2187,3 +2187,15 @@ today's disarm/traces): `byte_copy` 0x08141AF0, `byte_compare` 0x08141BB0,
 data row `gIrqCallbackTable` 0x030008D0 (slot+8 = VBlank fn; sources
 0x0814942C). `gf_rom_irq_dispatcher` was already named via the code_copy.
 Cycle PASS, attract byte-exact, strict G FULLY_STATIC.
+
+### 2026-10-08 (cont.) — Host unit tests for the RAM-dispatch hook
+
+`tests/unit/test_ram_dispatch.cpp` + CTest target `ffta_unit_tests`
+(`cmake --build build --target ffta_unit_tests`; `ctest --test-dir build -R
+ram_dispatch`). Covers `copy_entry_fixup` semantics (resume reconstruction,
+garbage clamps), every hook match branch, ARM pass-through, and a REGRESSION
+for today's recursion: a 0x03007D72 dispatch with r2==-1 (the setup
+fragment's post-`rsbs` crossing) must fall through, while fresh
+two-byte-early entries are still serviced. Synthetic byte patterns only
+(no ROM-derived bytes). Framework ctest suites stay unbuilt
+(EXCLUDE_FROM_ALL) — scope runs with `-R`.

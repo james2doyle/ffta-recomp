@@ -276,6 +276,7 @@ progress.
 |---|---|
 | `game.toml` | Per-game config: identity pin + all audit seeds (evidence in `note`s) |
 | `src/` | Host integration: `main.cpp`, launcher boot, stack setup |
+| `tests/` | Host unit tests for `src/` custom code: `ctest --test-dir build -R ram_dispatch` (or run `./build/ffta_unit_tests` directly) |
 | `generated/` | Recompiler output — gitignored, **never edited** |
 | `gbarecomp/`, `recomp-ui/` | Pinned framework submodules (see `AGENTS.md` for pins) |
 | `tools/` | The whole harness: `play.sh`, `resolve.py`, `cache_harvest.py`, `cycle.py`, `attract_check.py`, `misspack.py`, `coverage_report.py`, `framediff.py`, `dualrun.py`, `ringscan.py`, `keyprobe.py`, `trace_split.py`, `disarm.py`, … |

@@ -82,6 +82,13 @@ cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build --target FFTARecomp --parallel 8
 ```
 
+Host unit tests for `src/` custom code (no ROM/BIOS needed; CTest):
+
+```sh
+cmake --build build --target ffta_unit_tests --parallel 8
+ctest --test-dir build -R ram_dispatch --output-on-failure
+```
+
 Run (needs BIOS + ROM paths; both must hash-verify):
 
 ```sh
