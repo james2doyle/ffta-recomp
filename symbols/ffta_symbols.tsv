@@ -182,3 +182,15 @@
 # verified via thumb-push check; names ours, evidence theirs).
 0x08022854	thumb	name_tile_buffer_legacy
 0x08121B78	thumb	clan_named_check_wrapper
+# Section 3: charlie-troy/ffta-decomp data/sym_driver_fns.txt — m4a sound
+# driver names (their caller-count annotations; "(?)" in their file = name
+# uncertain — kept hedged per-entry; imported 2026-10-07). All PCs already
+# emitted; naming-only, no coverage change.
+0x08141500	thumb	m4a_sound_main
+0x08141520	thumb	m4a_sound_task_step
+0x08141540	thumb	m4a_song_num_start
+0x08141570	thumb	m4a_song_num_stop_alt
+0x081451C0	thumb	m4a_player_info_for_song
+0x081452C0	thumb	m4a_player_for_song_status
+0x081452F4	thumb	m4a_player_status_query
+0x0814513C	thumb	m4a_player_command_dispatch
