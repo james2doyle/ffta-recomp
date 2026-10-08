@@ -2536,3 +2536,16 @@ the garbage calls and the wrong epilogue pop). Remaining open-minor: the
 ~950-frame native-vs-oracle flow offset (cont.4 note). Docs updated: README
 (open-investigation paragraph, acceptance list, roadmap item 4), AGENTS
 gotcha bullet.
+
+### 2026-10-08 (cont.) — README state cleanup
+
+Swept the README for statements that no longer represent the current state
+(save-investigation closure, coverage refresh, annotation pass, event walk):
+the status paragraph now lists the real remaining set (widescreen W1b–W3,
+gated offline re-trial, f6000+ contact sheet, upstream note, Android port;
+batch range a–ag), and the Roadmap is restructured into "Open / next" vs
+"Landed (context)" — the annotation pass, event walk (af/ag), save-flow
+resolution, and main-game content moved under Landed. The offline-push item
+notes that condition (a), the route-level gate, is now satisfied by the
+`check.py` route replays, with (b) (interior-split policy) still the
+re-trial trigger. AGENTS "Remaining" aligned.

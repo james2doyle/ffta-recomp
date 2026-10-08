@@ -16,19 +16,16 @@ title, new game, intro, battles, and now complete **Totema and magic summons**
 (the save-menu/summon stalls were fixed via the LZSS-decoder entry guard +
 RAM-copy fixups — BRINGUP § "Summon crash") — with **every executed path
 FULLY_STATIC** (zero interpreted instructions) at last verification.
-Interactive playtest sessions are integrated through audit batch **ae**,
-plus the event-crawl batches **af/ag** (24 batches): corpus **54,355 emitted
-units**, walker's static reach ≈ 97.6 %, pointer-pool lens ≈ 99.9 % (proxies —
-a route is done when FULLY_STATIC on
-its replay). The **offline coverage push**'s goal (pool reach) was then
-achieved deliberately: strict-push verified seeds (event-crawl batches
-**af/ag**) reached ~99.9 % of the trial literal pool with the attract hash
-byte-exact — the blind speculative path itself stays
-off (interior-split hazard: a single split of the guarded LZSS decoder
-regressed a route). The attract regression
-gate hash has been stable since pinning. Remaining work: the annotation pass
-(next), the event/script static walk, a long-run attract contact
-sheet, and one upstream note.
+Interactive playtest sessions are integrated through the audit + event
+batches (**a**–**ag**): corpus **54,355 emitted units**, walker's static
+reach ≈ 97.6 %, pointer-pool lens ≈ 99.9 % (proxies — a route is done when
+FULLY_STATIC on its replay). The **offline coverage push**'s goal (pool
+reach) was reached deliberately via strict-push verified seeds (event-crawl
+batches **af/ag**) with the attract hash byte-exact — the blind speculative
+path itself stays off (interior-split hazard; re-trial gated, § Roadmap).
+The attract regression gate hash has been stable since pinning. Remaining:
+widescreen W1b–W3, the gated offline-push re-trial, the long-run attract
+contact sheet, the upstream note, and the Android port — § Roadmap.
 
 > **You must own the game and BIOS.** Both are user-supplied, hash-verified at
 > launch, and **never committed** (no ROM-derived bytes in git history, ever —
@@ -531,60 +528,56 @@ noncommercial purposes. Third-party components keep their own terms (the
 
 ## Roadmap
 
-1. **Offline coverage push (tabled 2026-10-07).** The speculative literal
+**Open / next**
+
+1. **Widescreen.** W1 landed 2026-10-08 (`reference/widescreen.md` — it has a
+   durable grep index): the world-map camera struct sits at
+   `0x02002C10-0x02002C1F` (v-scroll `+0x0C`), the eased-update units at
+   `0x08038BF2`/`0x08038C3E`, and the register apply is a **guest-owned
+   hardware-DMA write** (helper family `0x08001300-0x08001420`; not visible
+   to `GBARECOMP_MMIO_CAP`). Next: **W1b** locate the strip drawer (watch
+   VRAM on world-map/battle ENTRY), then **W2** widen the 256-px field
+   tilemaps to 512 + extend the drawer behind a mod hook + camera bias at
+   the struct level; **W3** per-scene policy (menus pillarbox) + opt-in via
+   `opts.max_view_width` in `src/main.cpp`. Dev override for experiments:
+   `GBARECOMP_WS_WIP=1 --view-width N` (renders wide headless today; margins
+   currently show wrapped BG columns).
+2. **Offline coverage push — re-trial gated.** The speculative literal
    harvest reaches +4,912 units, but it split the guarded LZSS decoder at an
    interior entry (`0x08005544`): the save-menu route resumes into the
    unguarded interior, bypasses the entry check, and runs away (f17,794;
-   31.8 GB RSS). Reverted. Re-trial needs (a) a **route-level golden gate** —
-   a long strict replay of the save-menu route as a first-class regression
-   check (the 1,200-frame attract gate is too short to catch this class), and
-   (b) an **interior-split policy** so speculative interior roots cannot
-   bypass entry guards (guard extension and/or seed exclusion).
-2. **Reference-material annotation pass (next active).** Recovered DataCrystal
-   pages + BCROBERT notes + charlie-troy/engine-hacks material: data names
-   (`UnitStat`, `AbilityProp`, `AbilityMpCost`, `gSongTable`, `gMPlayTable`,
-   `gRngState`), m4a driver-function names, and battle/AI/audio doc
-   cross-references; name-only changes, attract-gated.
-3. **Event/script static walk (breadth lever) — landed.** Batches **af/ag**
-   2026-10-07: scripts validated (62 blocks / 213 scripts, no code pointers);
-   family tables are compiler switches; 188 strict-push verified seeds from
-   the trial literal pool lifted 50,015 → 54,327 units (~99.9 % of the
-   54,404 pool), attract hash byte-exact, routes FULLY_STATIC. Tool:
-   `tools/eventcrawl.py` (`--trial-dir`). Remainder: 77 pool units + walker
-   leftovers (proxy only).
-4. **Save-flow divergence — RESOLVED (2026-10-08).** The aborts were a
-   ram-dispatch bug, not a guest divergence: a mid-copy IRQ resume could
-   byte-match a fresh re-plant of the driver's byte-copy helper and re-run
-   the canonical body (stack tear → wrong epilogue return). `r2 == 0xFFFFFFFF`
-   resumes now pass through to the fixed table's resume labels
-   (`src/ffta_ram_dispatch.h`, commit `1eeb60f`); the save flow completes and
-   every save repro/route replays strict-clean. Open-minor: ~950-frame
-   native-vs-oracle flow offset (BRINGUP cont.4).
-5. Main-game content (play → harvest → resolve) plus long-run attract contact
-   sheet (f6000+) and the upstream note on the bridge stop-contract runaway:
-   battles and summons completed 2026-10-07; sessions remain the bug-hunter
-   and the acceptance corpus.
-   - Annotation leftovers **done** (passes 3-6): data-region names (104 rows
-     in `symbols/ffta_data_symbols.tsv`), decompressor entry corrected to
-     `0x0801F098` (+ SWI thunk `0x08141868`), event-VM anchors named
-     (`symbols/ffta_symbols.tsv` § 5) with `reference/event-vm.md`; FAQ
-     26118 mine closed (all codes encrypted — no raw addresses left in it).
-6. **Android port** (research done; the app shell ships inside gbarecomp).
-   Note: device builds run with self-heal disabled — the static coverage this
+   31.8 GB RSS) — reverted, flag stays off. Condition (a), a **route-level
+   golden gate**, is now satisfied: the save-menu class replays as
+   first-class checks in `tools/check.py` (route_G/K). Condition (b), an
+   **interior-split policy** so speculative interior roots cannot bypass
+   entry guards (guard extension and/or seed exclusion), is still to design
+   and is the re-trial trigger.
+3. **Long-run attract contact sheet (f6000+)** and the **upstream note**
+   covering the bridge stop-contract + relocated-stub resume classes (a
+   gbarecomp issue).
+4. **Android port** (research done; the app shell ships inside gbarecomp).
+   Device builds run with self-heal disabled — the static coverage this
    loop builds is its prerequisite.
-7. Widescreen — **W1 landed 2026-10-08** (`reference/widescreen.md`): the
-   world-map camera struct is at `0x02002C10-0x02002C1F` (v-scroll at
-   `+0x0C`), the eased-update code at `0x08038BF2`/`0x08038C3E`, and the
-   register apply is a **guest-owned hardware-DMA write** (helper family
-   `0x08001300-0x08001420`; not visible to `GBARECOMP_MMIO_CAP`). Still
-   open: W1b (locate the strip drawer — watch VRAM on world-map/battle
-   ENTRY), then **W2** widen the 256-px field tilemaps to 512-wide + extend
-   the drawer behind a mod hook + camera bias at the struct level; **W3**
-   per-scene policy (menus pillarbox) + opt-in via `opts.max_view_width` in
-   `src/main.cpp`. Dev override for experiments: `GBARECOMP_WS_WIP=1
-   --view-width N` (renders wide headless today; margins currently show
-   wrapped BG columns). An optional mod layer from the notes' verified hack
-   sites (QoL/difficulty/test-speed) once the core is done.
-8. Community/upstream (optional): gbarecomp issue covering the bridge
-   stop-contract and relocated-stub resume classes; share the
-   reverse-engineered save-record format when the wiki scene is reachable.
+5. Optional: a mod layer from the community notes' verified hack sites
+   (QoL/difficulty/test-speed); share the reverse-engineered save-record
+   format when the wiki scene is reachable.
+
+**Landed (context)**
+
+- **Save-flow divergence — resolved 2026-10-08** (commit `1eeb60f`): the
+  aborts were our ram-dispatch mid-copy re-entry, not a guest divergence;
+  every save repro/route replays strict-clean (open-minor: ~950-frame
+  native-vs-oracle flow offset).
+- **Event/script static walk** (batches **af/ag**): scripts validated (62
+  blocks / 213 scripts, no code pointers); 188 strict-push verified seeds
+  from the trial literal pool lifted 50,015 → 54,327 units at landing
+  (~99.9 % of the then-pool; corpus now 54,355). Tool: `tools/eventcrawl.py`
+  (`--trial-dir`). Remainder: 77 pool units + walker leftovers (proxy only).
+- **Annotation pass**: DataCrystal + BCROBERT + charlie-troy / engine-hacks
+  material named — data regions (104 rows in `symbols/ffta_data_symbols.tsv`),
+  m4a driver functions, decompressor entry corrected to `0x0801F098`
+  (+ SWI thunk `0x08141868`), event-VM anchors (`symbols/ffta_symbols.tsv`
+  § 5) + `reference/event-vm.md`; FAQ 26118 mine closed (all codes
+  encrypted).
+- **Main-game content**: battles and summons completed 2026-10-07; playtest
+  sessions remain the bug-hunter and the acceptance corpus.
