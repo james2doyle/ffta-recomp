@@ -2798,3 +2798,16 @@ touch; Section 15 data / Section 16 symbols, roles with notes). The
 0x08062xxx-0x08066xxx message/queue cluster is documented in the Section 16
 comment (a duplicated strip_scroll_compute row from an earlier edit was
 also removed). Cycle PASS; corpus unchanged by naming.
+
+### 2026-10-08 (cont.) — Batch ai: pub mission screen (3 units)
+
+Session O (trace archived `saves/trace_sessionO_1553.csv`, 32,354 frames,
+boot-based, played on `saves/my_skyemu.sav` — pub mission screen browsing):
+3 misses, all in the 0x08018xxx region (mission/UI code paths reached from
+the mission list): 0x8018E94 and 0x8019268 are function starts, 0x8019280
+is an interior/split seed inside 0x8019268. Merged with prologue evidence;
+resolve iter 0 = FULLY_STATIC; corpus 55,103 (+5 incl. cascade); attract
+1EF4C118… byte-exact; check.py 8/8; coverage refreshed (walker
+55,103/56,333 ≈ 97.8 %, pool 55,103/55,515 ≈ 99.3 %). The close issue
+recurred (third session in a row) — the live journal preserved the frag
+again; no re-investigation per the standing direction.

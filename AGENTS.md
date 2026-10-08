@@ -280,8 +280,8 @@ bounded heal-worker stop, diagnostics flushed before the worker join).
 - Phase 5 (validation harness + audit loop): **near done.** Harness complete
   (oracle/framediff/dualrun/attract gate/misspack/cycle/coverage_report/
   ringscan) plus playtest tooling (`play.sh`, `cache_harvest.py`,
-  `resolve.py`). Sessions through batch **ah** (incl. the save-path batch t):
-  corpus 23.4k → **55,098 emitted units** (through the event-crawl batches
+  `resolve.py`). Sessions through batch **ai** (incl. the save-path batch t):
+  corpus 23.4k → **55,103 emitted units** (through the event-crawl batches
   af/ag; three-lens snapshot refreshed 2026-10-08 — see README).
   The offline coverage push (speculative literal harvest) was trialled
   2026-10-07 and **tabled**: +4,912 units reachable, but it split the guarded

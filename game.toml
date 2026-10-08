@@ -7169,3 +7169,22 @@ note = "byte-identical 0x40-byte span (live IWRAM dump at the batch-ah miss; uni
 addr = 0x03002B70
 mode = "arm"
 note = "batch ah: ARM IRQ buffer-rotate helper (ROM 0x08005088, unique 0x40-byte match); planted copy; see the code_copy above"
+
+# ─── Batch ai: session 15:53 (pub mission screen) ───
+# 3 units; split-interior seeds where the pc is not a function start.
+
+[[extra_func]]
+addr = 0x08018E94
+mode = "thumb"
+note = "batch ai: start [push {r4, lr}]; prologue scan"
+
+[[extra_func]]
+addr = 0x08019268
+mode = "thumb"
+note = "batch ai: start [push {lr}]; prologue scan"
+
+[[extra_func]]
+addr = 0x08019280
+mode = "thumb"
+note = "batch ai: interior of 0x08019268 (runtime-dispatched); split-interior seed"
+

@@ -17,7 +17,7 @@ title, new game, intro, battles, and now complete **Totema and magic summons**
 RAM-copy fixups — BRINGUP § "Summon crash") — with **every executed path
 FULLY_STATIC** (zero interpreted instructions) at last verification.
 Interactive playtest sessions are integrated through the audit + event
-batches (**a**–**ah**): corpus **55,098 emitted units**, walker's static
+batches (**a**–**ai**): corpus **55,103 emitted units**, walker's static
 reach ≈ 97.8 %, pointer-pool lens ≈ 99.3 % (proxies — a route is done when
 FULLY_STATIC on its replay). The **offline coverage push**'s goal (pool
 reach) was reached deliberately via strict-push verified seeds (event-crawl
@@ -405,13 +405,13 @@ Current snapshot (2026-10-08, strict 1200-frame run; refresh with
 | Lens | Mapped / total | % |
 |---|---|---|
 | **Executed path** (strict 1200-frame run) | everything that ran | **100 % — FULLY_STATIC, zero interpreter fallback** |
-| **Walker's static reach** (whole-ROM scan trial) | **55,098 / 56,328** emitted units | **≈ 97.8 %** |
-| **Pointer-pool reach** (speculative-harvest trial) | **55,098 / 55,510** | **≈ 99.3 %** |
+| **Walker's static reach** (whole-ROM scan trial) | **55,103 / 56,333** emitted units | **≈ 97.8 %** |
+| **Pointer-pool reach** (speculative-harvest trial) | **55,103 / 55,515** | **≈ 99.3 %** |
 
 Rows 2–3 are proxies with different denominators (no ground-truth function
 inventory exists); a route is done when its replay is FULLY_STATIC. Corpus:
-55,098 emitted units (interior split units + IWRAM code-copy included); the
-speculative-harvest trial kept 2,204 pointer candidates out of 105,813
+55,103 emitted units (interior split units + IWRAM code-copy included); the
+speculative-harvest trial kept 2,204 pointer candidates out of 105,815
 PC-relative literals (`false` in `game.toml` by policy).
 
 **Save flows — resolved (2026-10-08).** The 2026-10-07 stall/runaway class on
@@ -572,7 +572,7 @@ noncommercial purposes. Third-party components keep their own terms (the
 - **Event/script static walk** (batches **af/ag**): scripts validated (62
   blocks / 213 scripts, no code pointers); 188 strict-push verified seeds
   from the trial literal pool lifted 50,015 → 54,327 units at landing
-  (~99.9 % of the then-pool; corpus then 54,355, 55,098 after batch ah).
+  (~99.9 % of the then-pool; corpus then 54,355 — 55,103 today).
   Tool: `tools/eventcrawl.py`
   (`--trial-dir`). Remainder: 77 pool units + walker leftovers (proxy only).
 - **Annotation pass**: DataCrystal + BCROBERT + charlie-troy / engine-hacks
