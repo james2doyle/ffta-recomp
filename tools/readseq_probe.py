@@ -16,7 +16,7 @@ ROM = REPO / "game.gba"
 NATIVE = REPO / "build/FFTARecomp"
 ORACLE = REPO / "gbarecomp/build/oracle/gbarecomp_oracle"
 SAVE = REPO / "saves/found_save.mGBA.sav"
-TRACE = REPO / "saves/trace_prev_20261007_114607.csv"
+TRACE = pathlib.Path(os.environ.get("READSEQ_TRACE", str(REPO / "saves/trace_prev_20261007_114607.csv")))
 CALL_PC = 0x08141BA0
 WARM = 850
 LIMIT = 1300
@@ -168,8 +168,10 @@ def oracle_seq():
 
 if __name__ == "__main__":
     which = sys.argv[1] if len(sys.argv) > 1 else "both"
+    n_count = o_count = 0
     if which in ("native", "both"):
         seq = native_seq()
+        n_count = len(seq)
         print(f"=== NATIVE calls ({len(seq)}) ===", flush=True)
         for row in seq:
             fr, r0, r1, r2, r3, sp, lr = row[:7]
@@ -179,6 +181,7 @@ if __name__ == "__main__":
                   f"r4={r4:#x} r5={r5:#010x} r6={r6:#x} r7={r7:#010x}", flush=True)
     if which in ("oracle", "both"):
         seq = oracle_seq()
+        o_count = len(seq)
         print(f"=== ORACLE calls ({len(seq)}) ===", flush=True)
         for row in seq:
             fr, r0, r1, r2, r3, sp, lr = row[:7]
@@ -186,3 +189,13 @@ if __name__ == "__main__":
             print(f"  f{fr}: src={r0:#010x} dst={r1:#010x} n={r2:#05x} "
                   f"r3={r3:#010x} sp={sp:#010x} lr={lr:#010x} | "
                   f"r4={r4:#x} r5={r5:#010x} r6={r6:#x} r7={r7:#010x}", flush=True)
+
+    # Sanity: the native capture is the fragile half (set_break_pc is a
+    # dispatch-entry yield; it does not fire for mid-function pcs — see
+    # BRINGUP 2026-10-08). Zero native hits against a non-empty oracle
+    # sequence is the silent-failure signature; fail loudly instead.
+    if which == "both" and o_count > 0 and n_count == 0:
+        print("readseq_probe: native captured 0 calls while the oracle saw "
+              f"{o_count} - the breakpoint did not fire (mid-function pc or "
+              "stalled run); sequences are NOT comparable.", file=sys.stderr)
+        sys.exit(2)

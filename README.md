@@ -279,7 +279,7 @@ progress.
 | `tests/` | Host unit tests for `src/` custom code: `ctest --test-dir build -R ram_dispatch` (or run `./build/ffta_unit_tests` directly) |
 | `generated/` | Recompiler output — gitignored, **never edited** |
 | `gbarecomp/`, `recomp-ui/` | Pinned framework submodules (see `AGENTS.md` for pins) |
-| `tools/` | The whole harness: `play.sh`, `resolve.py`, `cache_harvest.py`, `cycle.py`, `attract_check.py`, `misspack.py`, `coverage_report.py`, `framediff.py`, `dualrun.py`, `ringscan.py`, `keyprobe.py`, `trace_split.py`, `disarm.py`, … |
+| `tools/` | The whole harness: `play.sh`, `check.py` (regression gate), `resolve.py`, `cache_harvest.py`, `cycle.py`, `attract_check.py`, `misspack.py`, `coverage_report.py`, `framediff.py`, `dualrun.py`, `ringscan.py`, `keyprobe.py`, `trace_split.py`, `disarm.py`, … |
 | `.agents/skills/` | Project-local agent skills — `gbarecomp-recomp-playbook`, a portable healing-loop/audit playbook with task-grouped references |
 | `inputs/` | Deterministic input traces (`<frame>,0x<hex>` active-low, sticky) |
 | `symbols/` | Curated symbol seeds (attributed; consumed via `--symbols`) |

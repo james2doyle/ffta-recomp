@@ -89,6 +89,12 @@ cmake --build build --target ffta_unit_tests --parallel 8
 ctest --test-dir build -R ram_dispatch --output-on-failure
 ```
 
+Full regression gate (host tests + attract + strict route replays, ~6 min):
+
+```sh
+.venv/bin/python tools/check.py            # --fast = units + attract only
+```
+
 Run (needs BIOS + ROM paths; both must hash-verify):
 
 ```sh

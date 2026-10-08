@@ -2211,3 +2211,19 @@ Mined BRINGUP for verified-but-unnamed entities. Functions: `crt0`
 `gIrqCallbackRomTable` 0x0814942C. Skipped as already-named: main,
 m4a_player_info_for_song, gSongTable. Skipped as vague/interior: init-chain
 calls, handler tables, the 0x030027D0 slot. Cycle PASS, attract byte-exact.
+
+### 2026-10-08 (cont.) — Regression gate: tools/check.py + tool tests + probe sanity
+
+- `tools/check.py`: one command runs host unit tests (C++ + Python), the
+  attract golden gate, and three strict replays (user save-load repro,
+  session G, session K) against frozen fixtures in `saves/regress/`
+  (sha-pinned save `65742af1...`; traces user_load/sessionG/sessionK).
+  Exit non-zero unless every check passes; `--fast` / `--only NAME` exist.
+- `tests/python/test_tools.py` (stdlib unittest, 6 checks): trace_split
+  backward-jump segmentation + header preservation, cache_harvest
+  unit-file parsing + game.toml address set, misspack prologue_scan thumb
+  push backscan (synthetic ROM; no real ROM bytes).
+- `tools/readseq_probe.py`: now fails loudly (exit 2) when the native
+  capture yields 0 calls while the oracle saw >0 — the 2026-10-08
+  silent-failure signature (its set_break_pc is a dispatch-entry yield and
+  does not fire for mid-function pcs).
