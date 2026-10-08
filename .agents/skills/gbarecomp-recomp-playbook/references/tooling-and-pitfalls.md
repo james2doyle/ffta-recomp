@@ -183,3 +183,12 @@ a field BG tilemap narrower than the view does not error — the renderer
 WRAPS its edges, producing margins that look plausible but are wrong
 (mirrored edge columns). Verify margin content against the game's true
 extent before believing a wide render.
+
+Runner shutdown: the window-close path can hang in teardown (observed:
+debug listener closes, then an XInput poll hits the destroyed window and a
+joinable thread destructor raises `terminate called without an active
+exception`; the process lingers). The TCP `quit` command is the reliable
+shutdown — keep a one-line helper (connect, send `{"cmd":"quit"}`) and
+prefer it for scripted sessions. SIGTERM may be swallowed. Verify a clean
+exit by checking that the process leaves within a few seconds and the
+wrapper's archive/flush steps ran.

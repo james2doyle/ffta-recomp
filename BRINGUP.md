@@ -2044,3 +2044,31 @@ unaffected (route K strict FULLY_STATIC throughout).
 - Artifacts (ROM-derived, /tmp only): ws240.png, ws320.png (world map
   240 vs 320), ws_battle2_f2.png, ws_map_down.png (v-scroll evidence),
   probe logs wsprobe*.log.
+
+### 2026-10-07 (cont.) — Close-hang investigation (widescreen session) — workaround shipped
+
+- Symptom (user, wide session): the game window would not close; the process
+  kept running. Probed via the observe TCP port: game healthy, frames
+  advancing, 320x160 view active.
+- Evidence: TCP `quit` closes cleanly (verified 4x; play.sh still archives
+  states + flushes the frag). Window close reproduced under
+  SDL_VIDEODRIVER=x11 + `xdotool windowclose` (/tmp/close_repro2.log):
+  teardown STARTS (the debug listener closes -> connection refused), then
+  the process lingers; the log ends with
+  `X Error ... BadWindow ... XInputExtension` (a poll against the already-
+  destroyed window) followed by `terminate called without an active
+  exception` (a joinable std::thread destroyed on some exit path).
+  SIGTERM is swallowed outright (survivors observed); no signal handlers
+  exist in the tree except tinyfiledialogs', so library-side masking
+  (SDL/GTK/PipeWire) is suspected.
+- Suspects for a framework-side fix: observer-thread join vs stop ordering
+  (runtime.cpp ~2580-2840), gamepad/XInput polling after window destroy,
+  and the joinable-thread destruction on the window-close exit path.
+- Tooling caveat learned: x11-forced launches on this Wayland desktop
+  intermittently stall during early SDL init (also under gdb; `cpu_backend`
+  is the last line). Retry, or use the default driver.
+- SHIPPED: `tools/quit.py <port>` (default 19870) = clean-close helper;
+  documented in README (play.sh examples) + AGENTS gotchas. Use whenever
+  the window close misbehaves; the heal loop is unaffected.
+- Open: framework teardown fix + possible upstream issue (same family as
+  the bridge stop-contract note).
