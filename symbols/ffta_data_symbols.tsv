@@ -102,3 +102,9 @@
 # in Section 6): name-ptr +0x80, level +0x89 (0x8A per one code — XP?),
 # HP +0x98/+0x9A, MP +0x9C/+0x9E, Atk +0xA0, Def +0xA2, Pow +0xA4, Res +0xA6,
 # abilities bitmap +0xC0 (0x90 bytes), Speed +0x152, JP +0x156.
+# Section 8: widescreen W1 — world-map camera (2026-10-08; verified live via
+# savestate diffing + abort traces; see reference/widescreen.md).
+# +0x00 mode/flags byte · +0x02 strip pointer · +0x08 coordinate (eased) ·
+# +0x0A strip pointer · +0x0C v-scroll (echoes BG0/BG1VOFS) · +0x0E eased
+# twin · +0x18/0x19 flags (read by gf_worldmap_camera_flags_read).
+0x02002C10	ewram	0x20	gWorldMapCamera

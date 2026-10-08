@@ -4,6 +4,32 @@ Facts from the 2026-10-08 investigation (BRINGUP § "Widescreen W1"). All
 addresses verified with `tools/disarm.py`/live TCP probes unless labeled as
 hypotheses. ROM = AFXE (sha1 4ac05441…).
 
+## Finding this code (durable index — start here)
+
+Grep the names, not the hex:
+
+- `grep worldmap_camera symbols/ffta_symbols.tsv` — the five named units
+  and what they do (section 6 there has the evidence note).
+- `grep worldmap_camera generated/dispatch_table.cpp` (or any generated
+  file) — the emitted functions under those names.
+- `grep gWorldMapCamera symbols/ffta_data_symbols.tsv` — the camera struct
+  row (section 8 has the field map).
+- The scroll-register apply has **no named entry** (guest DMA helpers at
+  0x08001300-0x08001420, pointer-reached); search this doc for that range.
+
+Named units (all already emitted; names assigned 2026-10-08):
+
+| Name | Address | Role |
+|---|---|---|
+| `worldmap_camera_ease` | 0x08038BF2 | ease step, delta > 0 branch |
+| `worldmap_camera_ease_cont` | 0x08038C3E | continuation (applies +0x0C) |
+| `worldmap_camera_coord_write` | 0x080376A2 | writes +0x08 coordinate |
+| `worldmap_camera_head` | 0x080328BA | writes +0x00 flags/head |
+| `worldmap_camera_flags_read` | 0x0804C044 | reads +0x00/0x18/0x19 |
+
+To re-derive from scratch (other scenes/axes), use the probe recipes at the
+bottom of this file (savestate diff → abort trace → FP ring).
+
 ## Display facts (world map + battle, mode 0)
 
 - Four BGs enabled. **BG0/BG1 = field layers**, tilemaps 256x512 (size=2):

@@ -203,3 +203,10 @@ works, IO registers may not (guest-DMA and write-observer paths can bypass
 the capture ring entirely); (4) watch DMA destinations explicitly when the
 guest programs hardware DMA. Static BL scans miss pointer-table entries;
 prefer runtime traps.
+
+Name discoveries in the durable index as soon as their role is verified:
+seed/symbol files propagate names into generated code (grep-able forever),
+data-symbol files carry RAM-struct names + a field comment block, and a
+reference doc holds the deep detail with probe recipes. Cross-link the
+three. This turns one session's archaeology into the next session's
+starting point instead of a repeat expedition.

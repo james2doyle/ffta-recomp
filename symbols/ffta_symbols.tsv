@@ -208,3 +208,15 @@
 0x08123B68	thumb	evt_death_case
 0x08123898	thumb	mission_script_trigger
 0x08125578	thumb	evt_get_character_ptr
+
+# Section 6: widescreen W1 discoveries (2026-10-08) — name-only; all PCs
+# already emitted. Roles verified live (BRINGUP § "Widescreen W1";
+# reference/widescreen.md has the full map + probe recipes).
+0x08038BF2	thumb	worldmap_camera_ease
+0x08038C3E	thumb	worldmap_camera_ease_cont
+0x080376A2	thumb	worldmap_camera_coord_write
+0x080328BA	thumb	worldmap_camera_head
+0x0804C044	thumb	worldmap_camera_flags_read
+# Note: the scroll registers are applied by guest hardware-DMA helpers at
+# 0x08001300-0x08001420 (SAD/DAD/CNT program + bit31 poll; reached via
+# pointers — no static entry to seed). See reference/widescreen.md.
