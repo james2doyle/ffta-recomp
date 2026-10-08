@@ -220,3 +220,15 @@
 # Note: the scroll registers are applied by guest hardware-DMA helpers at
 # 0x08001300-0x08001420 (SAD/DAD/CNT program + bit31 poll; reached via
 # pointers — no static entry to seed). See reference/widescreen.md.
+
+# Section 7: save/flash driver cluster (2026-10-08) — name-only; verified by
+# disarm + live traces (BRINGUP § "Save-load abort FIXED" / "Load-hang root
+# cause" / "f1750 runaway"). These are the ROM sources; the IWRAM runtime
+# copies are position-dependent (see src/ffta_ram_dispatch.h).
+0x08141AF0	thumb	byte_copy
+0x08141BB0	thumb	byte_compare
+0x08141B14	thumb	flash_read
+0x08142250	thumb	bx_r3_veneer
+0x0813AE30	thumb	save_sector_scan
+0x0813B57C	thumb	save_record_validate
+0x0813ADF0	thumb	save_checksum

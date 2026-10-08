@@ -108,3 +108,8 @@
 # +0x0A strip pointer · +0x0C v-scroll (echoes BG0/BG1VOFS) · +0x0E eased
 # twin · +0x18/0x19 flags (read by gf_worldmap_camera_flags_read).
 0x02002C10	ewram	0x20	gWorldMapCamera
+# Section 9: IRQ callback table (2026-10-08; BRINGUP vblank-audit correction):
+# thumb function pointers copied from ROM 0x0814942C; slot +8 = the VBlank
+# handler the IRQ dispatcher calls (BRINGUP § "Save-load abort FIXED").
+# Extent beyond +0x0C not yet verified.
+0x030008D0	iwram	0x0C	gIrqCallbackTable

@@ -2177,3 +2177,13 @@ unaffected (route K strict FULLY_STATIC throughout).
   fresh boot -> Start -> Continue -> the save loaded and played (inputs f919-f1357);
   clean close, no core, no heal units, no frag rewrite - the route that used to
   abort now runs heals-free in the real windowed flow.
+
+### 2026-10-08 (cont.) — Annotation pass 7: save/flash driver cluster named
+
+Name-only rows (verified primaries; evidence: the save-flow sections above +
+today's disarm/traces): `byte_copy` 0x08141AF0, `byte_compare` 0x08141BB0,
+`flash_read` 0x08141B14, `bx_r3_veneer` 0x08142250, `save_sector_scan`
+0x0813AE30, `save_record_validate` 0x0813B57C, `save_checksum` 0x0813ADF0;
+data row `gIrqCallbackTable` 0x030008D0 (slot+8 = VBlank fn; sources
+0x0814942C). `gf_rom_irq_dispatcher` was already named via the code_copy.
+Cycle PASS, attract byte-exact, strict G FULLY_STATIC.
