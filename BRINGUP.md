@@ -2790,3 +2790,11 @@ Acceptance: strict replay of session N = FULLY_STATIC (resolve iter 0);
 attract 1EF4C118… byte-exact; `check.py` 8/8; coverage refreshed (walker
 55,098/56,328 ≈ 97.8 %, pool 55,098/55,510 ≈ 99.3 %). All ROM claims
 byte-matched (disasm + live dump evidence).
+
+Annotation from the same batch: `irq_buffer_swap` (0x03002B70 arm — the
+canonical name for the planted ROM 0x08005088 helper) + `gMsgWorkBuffer`
+(0x030028A0, 0x60 — the queue-manager work struct the cluster and the swap
+touch; Section 15 data / Section 16 symbols, roles with notes). The
+0x08062xxx-0x08066xxx message/queue cluster is documented in the Section 16
+comment (a duplicated strip_scroll_compute row from an earlier edit was
+also removed). Cycle PASS; corpus unchanged by naming.

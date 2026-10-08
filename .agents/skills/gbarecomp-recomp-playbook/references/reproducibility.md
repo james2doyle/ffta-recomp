@@ -31,6 +31,11 @@ Archive the proposal at every launch next to state+trace, and treat the
   state's frame (the "state loaded" log line prints it). Tool-side frame
   counters may legitimately restart at 0 — check which counter each tool
   keys on before correlating.
+- **Sessions that load a save in-game need that battery save for replay.**
+  A replay booting with a different (or absent) battery save diverges at
+  the load screen before the interesting code — pass the session's save
+  through to the replay driver (e.g. `resolve.py --save-path`). The input
+  trace alone is not the whole input.
 - **Replay application differs by run mode.** Headless batch loops typically
   apply the input replay; interactive/debug stepping servers typically do
   not. If in doubt, read the key-input register at the first interesting

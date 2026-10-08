@@ -314,4 +314,9 @@ and re-running the canonical body (second prologue push + setup re-run)
 tears the caller's stack by one frame — the caller's epilogue then pops a
 stale local as a return address. Key entry identity on the live loop
 sentinel register (e.g. r2 == -1 means the copy is already in progress) and
-fall through to the resume labels instead of re-entering the body.
+fall through to the resume labels instead of re-entering the body. Two more
+rules learned the same week: byte-verify hooks must handle BOTH ISA modes —
+a thumb-only canonicalizer silently declines ARM-planted routines (every
+ARM dispatch becomes a miss; extend the hook and its unit tests rather than
+seeding the fixed address), and fixed-address seeds cover only the
+canonical body — moving plants belong to the byte-verify table.

@@ -157,3 +157,10 @@
 # +0x2C flags (bit0 = refresh pending — the engine 0x0801AC78 gate; 0x200
 # set after a refresh completes).
 0x02007F40	ewram	0x50	gStripBlitDesc
+
+# Section 15: queue-manager work buffer (2026-10-08; batch ah). Referenced
+# by the 0x08062xxx-0x08066xxx message/queue cluster (0x80624B0, 0x806251C,
+# 0x8062698) and by the IE-guarded swap helper (ROM 0x08005088, planted at
+# 0x03002B70): the helper swaps the two 16-byte halves at +0x40 and
+# takes-clears +4. Size covers the +0x40..+0x5F block.
+0x030028A0	iwram	0x60	gMsgWorkBuffer

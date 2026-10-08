@@ -285,4 +285,15 @@
 0x0801B798	thumb	strip_window_fill
 0x0801B7F8	thumb	strip_refresh
 0x0801C984	thumb	strip_scroll_compute
-0x0801C984	thumb	strip_scroll_compute
+
+# Section 16: comm/queue manager cluster + IRQ swap helper (2026-10-08; from
+# the batch-ah link-feature session). The 0x08062xxx-0x08066xxx region is
+# the game's message/queue manager: task entries with a type byte, a count
+# at +0x02 and entries from +0x04; per-type handlers dispatch via the switch
+# at 0x8064FA0; scene setup reaches it through 0x8006A7C/0x8006ADC. Cluster
+# function roles are documented here instead of named where not pinned. The
+# IE-guarded swap helper (ROM 0x08005088, 0x40 bytes) — planted at 0x03002B70
+# and dispatched in ARM mode — swaps the two 16-byte halves at
+# [gMsgWorkBuffer]+0x40 with IRQs off and returns (clearing)
+# [gMsgWorkBuffer]+4. See BRINGUP § batch ah.
+0x03002B70	arm	irq_buffer_swap
