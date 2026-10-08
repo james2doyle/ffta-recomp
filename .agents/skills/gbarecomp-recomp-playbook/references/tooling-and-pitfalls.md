@@ -166,3 +166,11 @@ the diagnosis.
   per batch) with evidence notes. The attract gate + strict route replays
   arbitrate — one bad interior split can regress a route. Cascades are
   common: a handful of island seeds can pull in hundreds of units.
+
+Refinements from lifting an entire pool: (1) membership = the dispatch
+table's **per-row addresses** (starts AND resume points); name-based
+extraction under-reports and leaks emitted functions back into the candidate
+list. (2) A candidate must be a trial **primary start** (resume=0 row) — a
+resume point is an interior pc. (3) Scope batches by region so any gate
+failure bisects cleanly; cascades can be huge (15 seeds -> +523; 173 seeds ->
++4,312, ending within 77 units of the whole speculative pool).

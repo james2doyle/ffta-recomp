@@ -5897,3 +5897,873 @@ addr = 0x0812E368
 mode = "thumb"
 note = "batch af (event crawl): trial literal-pool candidate in event/battle family; start [B530]; unplayed-content island; covers script/battle-family code never walked"
 
+
+# ─── Batch ag: event-crawl remainder (2026-10-07) ───
+# Strict-push function starts from the trial literal pool across all regions;
+# walker-missed and not covered by any current dispatchable row.
+
+[[extra_func]]
+addr = 0x08018A24
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B570]; region 0x0801xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08018A90
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B500]; region 0x0801xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08022104
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B510]; region 0x0802xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08025D84
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B500]; region 0x0802xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08025DAC
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B500]; region 0x0802xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08028BBC
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B500]; region 0x0802xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08028BDC
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B500]; region 0x0802xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08028C34
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B500]; region 0x0802xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08028C84
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B500]; region 0x0802xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x0802A424
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B570]; region 0x0802xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x0802B430
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B500]; region 0x0802xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08035174
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x0803xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x0804E5CC
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x0804xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x0804F3B4
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B530]; region 0x0804xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x0804F470
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B510]; region 0x0804xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x0804FAE4
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B570]; region 0x0804xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x0804FB38
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B500]; region 0x0804xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x0804FB84
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B500]; region 0x0804xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08050D50
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B500]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08050DA0
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B500]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08050E94
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B510]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08051048
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B530]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08051084
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B510]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080510B0
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08051D50
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B510]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08051DB4
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080524C0
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B510]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080524E8
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x0805262C
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08052790
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B570]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08052800
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B570]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08052870
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080530A0
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080531F0
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B570]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08053348
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080534F4
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B570]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08053568
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080535BC
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B510]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080535E8
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B570]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08053648
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B510]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08053674
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08053714
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B570]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080537A8
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x0805391C
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B570]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080539B4
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08053AA0
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B570]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08053B34
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08053BE0
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B570]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08053C74
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08053DE8
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08053E4C
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08053F08
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08053FE0
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x0805417C
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B500]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080541B0
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B530]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08054204
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08054284
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08054314
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x0805463C
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B500]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08055DC4
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08057298
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08057578
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08057B90
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B570]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08057C88
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B500]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08058104
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x0805862C
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B570]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x0805868C
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080586E0
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B510]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08058908
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08058C0C
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B500]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080592D0
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B500]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x0805ABB0
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x0805AD30
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B530]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x0805ADA4
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x0805BE68
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x0805BFC0
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B510]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x0805C02C
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B570]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x0805C09C
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B570]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x0805C10C
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x0805C220
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x0805C340
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B570]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x0805C568
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B500]; region 0x0805xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080601A4
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B500]; region 0x0806xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08060E30
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x0806xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080614C4
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B510]; region 0x0806xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080615E0
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x0806xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08061720
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B570]; region 0x0806xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08061778
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B570]; region 0x0806xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080617C4
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B510]; region 0x0806xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08061804
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x0806xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08064DB4
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B530]; region 0x0806xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08064E2C
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B500]; region 0x0806xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08064E54
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B500]; region 0x0806xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08064EF8
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x0806xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08065028
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B500]; region 0x0806xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08066028
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B500]; region 0x0806xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08069548
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B510]; region 0x0806xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x0806B460
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B570]; region 0x0806xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x0806D300
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x0806xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x0806D590
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B570]; region 0x0806xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x0806D664
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x0806xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x0806E0F0
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B530]; region 0x0806xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x0806E848
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x0806xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x0806F67C
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B500]; region 0x0806xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x0807BDF8
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x0807xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x0807C00C
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x0807xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x0807D240
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x0807xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080802E4
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x0808xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080868D4
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x0808xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08087660
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x0808xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08089F98
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x0808xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x0808B984
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B510]; region 0x0808xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x0808BA08
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B570]; region 0x0808xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x0808BAD0
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x0808xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x0808BE0C
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x0808xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x0808BF24
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x0808xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x0808D0C4
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x0808xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x0808D554
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x0808xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x0808D5BC
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x0808xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x0808D624
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x0808xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x0809AB24
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B510]; region 0x0809xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x0809AD48
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B500]; region 0x0809xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080A7EC4
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B510]; region 0x080Axxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080A83DC
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B500]; region 0x080Axxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080A95EC
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B570]; region 0x080Axxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080A96B0
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B570]; region 0x080Axxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080A97EC
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x080Axxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080A9B00
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x080Axxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080A9E6C
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x080Axxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080A9F24
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x080Axxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080AA29C
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x080Axxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080AA894
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x080Axxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080AADBC
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x080Axxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080AB358
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x080Axxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080AB674
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x080Axxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080ABBD8
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x080Axxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080AC05C
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x080Axxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080ACC24
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x080Axxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080AD168
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x080Axxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080AD66C
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x080Axxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080AE7D8
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x080Axxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080AF230
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x080Axxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080AFF70
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x080Axxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080B0510
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x080Bxxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080B0E78
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x080Bxxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080B18C0
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x080Bxxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080B264C
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x080Bxxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080BDB78
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B530]; region 0x080Bxxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080BDC58
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B500]; region 0x080Bxxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080BDCD0
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B510]; region 0x080Bxxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080BDD7C
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x080Bxxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080BE1F4
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x080Bxxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080BE8E0
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x080Bxxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080BEAC8
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x080Bxxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080BF5A4
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x080Bxxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080CB320
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B510]; region 0x080Cxxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080CBCE0
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x080Cxxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080CC218
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B530]; region 0x080Cxxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080CC300
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x080Cxxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080CC348
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x080Cxxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080CC3C8
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B500]; region 0x080Cxxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080CC7CC
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B500]; region 0x080Cxxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080CCA20
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B500]; region 0x080Cxxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080CCA54
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B500]; region 0x080Cxxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080CCAAC
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B510]; region 0x080Cxxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080DE818
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B570]; region 0x080Dxxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080DE918
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B570]; region 0x080Dxxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080DEBAC
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B530]; region 0x080Dxxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080DEC84
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B570]; region 0x080Dxxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x080E2848
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B5F0]; region 0x080Exxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x0814195C
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B500]; region 0x0814xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08141AF0
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B510]; region 0x0814xxxx; walker-missed"
+
+[[extra_func]]
+addr = 0x08141BB0
+mode = "thumb"
+note = "batch ag (event crawl): trial literal-pool function start; strict-push [B530]; region 0x0814xxxx; walker-missed"
+

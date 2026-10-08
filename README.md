@@ -17,14 +17,15 @@ title, new game, intro, battles, and now complete **Totema and magic summons**
 RAM-copy fixups — BRINGUP § "Summon crash") — with **every executed path
 FULLY_STATIC** (zero interpreted instructions) at last verification.
 Interactive playtest sessions are integrated through audit batch **ae**,
-plus the event-crawl batch **af** (23 batches): corpus **50,015 emitted units**,
-walker's static reach ≈ 98.4 %, pointer-pool lens ≈ 91.9 % (proxies — a route
-is done when FULLY_STATIC on
-its replay). The **offline coverage push** (speculative literal harvest) was
-trialled 2026-10-07: it reaches +4,912 units (54,404 total) but split the
-guarded LZSS decoder at an interior entry, breaking the save-menu route's
-strict replay (memory runaway) — **tabled** until a route-level golden gate
-and an interior-split policy exist (see Roadmap). The attract regression
+plus the event-crawl batches **af/ag** (24 batches): corpus **54,327 emitted
+units**, walker's static reach ≈ 97.6 %, pointer-pool lens ≈ 99.9 % (proxies —
+a route is done when FULLY_STATIC on
+its replay). The **offline coverage push**'s goal (pool reach) was then
+achieved deliberately: strict-push verified seeds (event-crawl batches
+**af/ag**) lifted the corpus to 54,327 (~99.9 % of the 54,404 trial pool)
+with the attract hash byte-exact — the blind speculative path itself stays
+off (interior-split hazard: a single split of the guarded LZSS decoder
+regressed a route). The attract regression
 gate hash has been stable since pinning. Remaining work: the annotation pass
 (next), the event/script static walk, the save-flow divergence fix (open
 investigation below — no observed hangs remain), a long-run attract contact
@@ -236,12 +237,12 @@ Current snapshot (2026-10-07, strict 1200-frame run; refresh with
 | Lens | Mapped / total | % |
 |---|---|---|
 | **Executed path** (strict 1200-frame run) | everything that ran | **100 % — FULLY_STATIC, zero interpreter fallback** |
-| **Walker's static reach** (whole-ROM scan trial) | **50,015 / 50,839** emitted units | **≈ 98.4 %** |
-| **Pointer-pool reach** (speculative-harvest trial) | **50,015 / 54,404** | **≈ 91.9 %** |
+| **Walker's static reach** (whole-ROM scan trial) | **54,327 / 55,643** emitted units | **≈ 97.6 %** |
+| **Pointer-pool reach** (speculative-harvest trial) | **54,327 / 54,404** | **≈ 99.9 %** |
 
 Rows 2–3 are proxies with different denominators (no ground-truth function
 inventory exists); a route is done when its replay is FULLY_STATIC. Corpus:
-50,015 emitted units (interior split units + IWRAM code-copy included); the
+54,327 emitted units (interior split units + IWRAM code-copy included); the
 speculative-harvest trial kept 2,122 pointer candidates out of 104,907
 PC-relative literals (`false` in `game.toml` by policy).
 
@@ -323,13 +324,13 @@ Full rules live in `AGENTS.md`; the essentials:
    (`UnitStat`, `AbilityProp`, `AbilityMpCost`, `gSongTable`, `gMPlayTable`,
    `gRngState`), m4a driver-function names, and battle/AI/audio doc
    cross-references; name-only changes, attract-gated.
-3. **Event/script static walk (breadth lever).** First batch landed
-   2026-10-07 (batch **af**): script tables validated (62 blocks /
-   213 scripts) but carry **no code pointers**; the event-family pointer
-   tables are compiler switches, not callback tables; the real lever is the
-   trial literal-pool diff scoped to the families (+523 units, attract hash
-   byte-exact, route gates clean). Tool: `tools/eventcrawl.py`. Queue: the
-   remaining strict-push candidates by region (0x0805/0x0806/0x0808/0x080A…).
+3. **Event/script static walk (breadth lever) — landed.** Batches **af/ag**
+   2026-10-07: scripts validated (62 blocks / 213 scripts, no code pointers);
+   family tables are compiler switches; 188 strict-push verified seeds from
+   the trial literal pool lifted 50,015 → 54,327 units (~99.9 % of the
+   54,404 pool), attract hash byte-exact, routes FULLY_STATIC. Tool:
+   `tools/eventcrawl.py` (`--trial-dir`). Remainder: 77 pool units + walker
+   leftovers (proxy only).
 4. **Save-flow divergence (open investigation).** No observed hangs remain:
    the relocated-stub fixups (`src/ffta_ram_dispatch.h`) and the LZSS entry
    guard (`[[mod_function_hook]]` → `ffta.lzss-guard`) closed every observed

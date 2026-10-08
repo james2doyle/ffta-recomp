@@ -106,7 +106,21 @@ def load_corpus(path):
     if not path.exists():
         return set()
     txt = path.read_text()
-    return {int(m, 16) for m in re.findall(r"gf_tfunc_(08[0-9A-Fa-f]{6})", txt)}
+    # Precise per-entry capture: the dispatch table has one row per
+    # dispatchable address (function starts AND resume points):
+    #   {0xADDRu, thumb, resume, gf_fn},
+    # Membership = any row covers the address, so named units and interior
+    # resume points are all counted (a name-only regex under-reported and
+    # leaked emitted functions back into the candidate list).
+    return {int(m, 16) for m in re.findall(r"\{0x([0-9A-Fa-f]{8})u,", txt)}
+
+
+def load_primary(path):
+    """Trial function starts only (resume=0 rows). Candidate basis: a resume
+    row is an interior pc, so only primary rows qualify as function starts."""
+    if not path.exists():
+        return set()
+    return {int(m, 16) for m in re.findall(r"\{0x([0-9A-Fa-f]{8})u, \du, 0u,", path.read_text())}
 
 
 def load_existing_toml(path):
@@ -126,6 +140,8 @@ def main():
                     help="a speculative-harvest regen dir (dispatch_table.cpp inside) giving the "
                          "literal-pool candidate universe; emits walker-missed strict-push starts "
                          "inside the event/battle families (the batch-af lever)")
+    ap.add_argument("--all-regions", action="store_true",
+                    help="with --trial-dir: lift the family scope filter (the batch-ag queue)")
     args = ap.parse_args()
 
     rom = pathlib.Path(args.rom).read_bytes()
@@ -175,13 +191,15 @@ def main():
     if args.trial_dir:
         tpath = pathlib.Path(args.trial_dir) / "dispatch_table.cpp"
         if tpath.exists():
-            trial = load_corpus(tpath)
+            trial = load_primary(tpath)
             missing_all = trial - corpus - existing
+            in_scope = ((lambda a: True) if args.all_regions
+                        else (lambda a: FAMILY_LO <= a < FAMILY_HI))
             missing = sorted(a for a in missing_all
-                             if FAMILY_LO <= a < FAMILY_HI
+                             if in_scope(a)
                              and (struct.unpack_from("<H", rom, a - ROM_BASE)[0] & 0xFF00) == 0xB500)
             print(f"\ntrial-diff: {len(missing_all)} walker-missed candidates; "
-                  f"{len(missing)} strict-push starts in event/battle families (seed batch):")
+                  f"{len(missing)} strict-push starts in scope (seed batch):")
             for a in missing:
                 sites = []
                 for pat in (struct.pack("<I", a), struct.pack("<I", a | 1)):

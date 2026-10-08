@@ -1973,3 +1973,21 @@ unaffected (route K strict FULLY_STATIC throughout).
 - Queue: remaining 174 strict-push candidates in other regions (0x0805+64,
   0x0806+22, 0x080A+21, 0x0808+13, ...) — one scoped batch at a time, same
   gates (attract + strict routes + coverage).
+
+### 2026-10-07 (cont.) — Event-crawl batch ag: remainder lifted; pool reach ~99.9%
+
+- Method refinement (tools/eventcrawl.py): candidates = trial PRIMARY starts
+  (resume=0 rows) not covered by any current dispatchable row (per-row
+  addresses, starts AND resume points — a name-based extraction under-reports
+  and leaks emitted functions back into the candidate list). 173 strict-push
+  seeds across all regions (0x0805+64, 0x0806+22, 0x080A+21, 0x0808+13, ...).
+- Regen 50,015 -> 54,327 (+4,312 cascade — within 77 units of the trial's
+  54,404); attract hash byte-exact; dispatch sanity clean; strict G/K
+  FULLY_STATIC; coverage: pool 54,327/54,404 (~99.9%), walker 54,327/55,643
+  (~97.6%; its denominator grew with the walk's own scan).
+- The speculative-harvest GOAL (pool reach) is now achieved deliberately via
+  188 reviewed seeds (af+ag) with every gate green — the blind path itself
+  stays off (interior-split hazard, preserved in README/Roadmap).
+- Remainder: 77 pool units (review individually; likely data-adjacent) and
+  walker leftovers (proxy only — the bar remains FULLY_STATIC on executed
+  paths).
