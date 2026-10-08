@@ -372,8 +372,9 @@ recomp-net @ c58f125.
   garbage-descriptor signature; hunt the record decode, not the copier).
   Repro + tooling: `tools/readseq_probe.py` (driver-call sequences on both
   engines), deterministic strict repro in BRINGUP § "Save-record scan/validate
-  divergence". Validate any external save structurally first (README §
-  external saves).
+  divergence". Validate any external save structurally first:
+  `.venv/bin/python tools/savecheck.py <save>` (raw 64 KiB images and RTN5
+  containers; checksum = the game's own CRC, reversed + verified).
 - Run examples: smoke `GBARECOMP_STRICT_STATIC=1 ./build/FFTARecomp --bios
   gbarecomp/bios/gba_bios.bin --rom game.gba --frames 2400 --no-window`;
   session replays via `tools/resolve.py`; coverage via

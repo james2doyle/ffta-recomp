@@ -2227,3 +2227,25 @@ calls, handler tables, the 0x030027D0 slot. Cycle PASS, attract byte-exact.
   capture yields 0 calls while the oracle saw >0 — the 2026-10-08
   silent-failure signature (its set_break_pc is a dispatch-entry yield and
   does not fire for mid-function pcs).
+
+### 2026-10-08 (cont.) — Save checksum reversed; savecheck tool; new labels
+
+- `save_checksum` (0x0813ADF0) decoded: standard CRC-32 table (ROM
+  0x08393318, now labeled `gSaveCrcTable`) folded into a 24-bit
+  accumulator; the validator calls it with seed=0 over the FIRST 0x2FC4
+  bytes of the 4-sector group (header sector first) after zeroing
+  +0x0C..0x10 and +0x12..0x16. Verified empirically against all three
+  known-good groups (user save + both found-save groups).
+- `tools/savecheck.py`: structural + checksum validation for raw 64 KiB
+  images and RTN5 containers (zlib + CRC32 verified); all three local saves
+  validate OK. Labels: `gSaveCrcTable` 0x08393318, `gSaveHeaderMagic`
+  0x08149FF8 ("FFTEX000", the validator's memcmp target).
+- `tests/python/test_tools.py`: +3 savecheck tests (valid OK / in-prefix
+  corruption flagged / RTN5 CRC flagged) — the corruption test caught a
+  real savecheck exit-code bug before commit. `check.py` gains a
+  `savecheck` entry (fixture must validate).
+- **route_G frontier (open)**: with the save present, the G replay aborts
+  strict at pc=0x02003CB0 (arm) around f17,950-18,000 — the flash driver's
+  epilogue pops a wrong return value (the scan-buffer address) and
+  branches into 0x02003CB0 as ARM. Oracle driver-call comparison running
+  (full-route scan); route_G stays in the gate until resolved.

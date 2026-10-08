@@ -91,5 +91,71 @@ class PrologueScanTest(unittest.TestCase):
         self.assertEqual(hits, [])
 
 
+class SaveCheckTest(unittest.TestCase):
+    """savecheck.py end-to-end on synthetic saves (real-ROM checksum table)."""
+
+    @classmethod
+    def setUpClass(cls):
+        if not (REPO / "game.gba").exists():
+            raise unittest.SkipTest("game.gba missing (checksum table needed)")
+        sys.path.insert(0, str(REPO / "tools"))
+        import savecheck
+        savecheck.crc_tab = savecheck.load_crc_table()
+        cls.savecheck = savecheck
+
+    def _raw_save(self):
+        """Valid 64 KiB image: header group in sectors 3..0 (header = 3)."""
+        f = bytearray(0x10000)
+        for i in range(16):
+            for j in range(0, 0x1000, 16):
+                f[i * 0x1000 + j] = (i * 7 + j) & 0xFF
+        hdr = 3 * 0x1000
+        f[hdr:hdr + 8] = b"FFTEX000"
+        struct.pack_into("<I", f, hdr + 0x08, 7)      # counter
+        struct.pack_into("<I", f, hdr + 0x0C, 0)      # checksum placeholder
+        f[hdr + 0x12:hdr + 0x16] = bytes([3, 2, 1, 0])
+        group = bytes().join(bytes(f[s * 0x1000:(s + 1) * 0x1000])
+                             for s in (3, 2, 1, 0))
+        struct.pack_into("<I", f, hdr + 0x0C, self.savecheck.group_checksum(group))
+        return f
+
+    def _run(self, td, data, name="t.sav"):
+        p = pathlib.Path(td) / name
+        p.write_bytes(data)
+        return subprocess.run([sys.executable, "tools/savecheck.py", str(p)],
+                              cwd=str(REPO), capture_output=True, text=True)
+
+    def test_valid_save_ok(self):
+        with tempfile.TemporaryDirectory() as td:
+            r = self._run(td, bytes(self._raw_save()))
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+            self.assertIn("checksum=0x", r.stdout)
+            self.assertIn("OK", r.stdout)
+
+    def test_corrupted_group_flagged(self):
+        with tempfile.TemporaryDirectory() as td:
+            data = self._raw_save()
+            data[0x1100] ^= 0xFF  # sector 1, inside the checksummed 0x2FC4 prefix
+            r = self._run(td, bytes(data))
+            self.assertEqual(r.returncode, 1)
+            self.assertIn("MISMATCH", r.stdout)
+
+    def test_rtn5_container_ok_and_crc_flagged(self):
+        import zlib
+        raw = bytes(self._raw_save())
+        payload = zlib.compress(raw)
+        hdr = struct.pack("<IHHIIII", 0x354E5452, 1, 1, len(raw),
+                          len(payload), 24, zlib.crc32(raw) & 0xFFFFFFFF)
+        with tempfile.TemporaryDirectory() as td:
+            r = self._run(td, hdr + payload, "c.sav")
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+            self.assertIn("RTN5", r.stdout)
+            bad = bytearray(hdr + payload)
+            bad[20] ^= 0xFF  # corrupt the stored CRC32
+            r2 = self._run(td, bytes(bad), "bad.sav")
+            self.assertEqual(r2.returncode, 1)
+            self.assertIn("CRC32 mismatch", r2.stdout)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

@@ -77,15 +77,22 @@ def strict_route(trace, frames):
     return r.returncode == 0 and "FULLY_STATIC" in cov, cov or f"exit {r.returncode}"
 
 
+def check_savecheck():
+    r = run([sys.executable, "tools/savecheck.py", str(FIXTURE_SAVE)], timeout=120)
+    line = (r.stdout.strip().splitlines() or [""])[-1]
+    return r.returncode == 0 and "savecheck: OK" in line, line
+
+
 CHECKS = {
     "unit-cpp": check_unit_cpp,
     "unit-py": check_unit_py,
+    "savecheck": check_savecheck,
     "attract": check_attract,
     "user_load": lambda: strict_route(REG / "user_load_trace.csv", 1600),
     "route_G": lambda: strict_route(REG / "sessionG_trace.csv", 19400),
     "route_K": lambda: strict_route(REG / "sessionK_trace.csv", 29884),
 }
-FAST = ["unit-cpp", "unit-py", "attract"]
+FAST = ["unit-cpp", "unit-py", "savecheck", "attract"]
 
 
 def main():

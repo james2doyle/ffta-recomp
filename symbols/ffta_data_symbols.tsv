@@ -121,3 +121,8 @@
 0x03007FFC	iwram	0x04	gUserIrqHandler
 0x03000E50	iwram	0x04	gIrqAckMask
 0x0814942C	rom	0x0C	gIrqCallbackRomTable
+
+# Section 11: save-format cells (2026-10-08; checksum reversed + verified
+# against all known-good groups — see BRINGUP and tools/savecheck.py).
+0x08393318	rom	0x400	gSaveCrcTable
+0x08149ff8	rom	0x08	gSaveHeaderMagic
