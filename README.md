@@ -34,6 +34,9 @@ sheet, and one upstream note.
 > **You must own the game and BIOS.** Both are user-supplied, hash-verified at
 > launch, and **never committed** (no ROM-derived bytes in git history, ever —
 > that includes `generated/`, `saves/`, `logs/`, patches, and frame dumps).
+> No game code, graphics, text, or audio is included — this repository is
+> tooling and notes only — and the project is unofficial: not affiliated with
+> or endorsed by Square Enix or Nintendo.
 
 - ROM: Final Fantasy Tactics Advance (USA), SHA-1
   `4ac05441f4de70a4ec3dd932116346c61b8783d9`, 16,777,216 bytes → `game.gba`
@@ -321,6 +324,17 @@ Full rules live in `AGENTS.md`; the essentials:
   FFTA_Engine_Hacks (address index), spiiin/FFTAUtils (map-data formats),
   charlie-troy/ffta-decomp (revision-exact partial decomp; **no license —
   never ingest its sources/logs, reference only**), FFHacktics forum.
+- Port credits and third-party terms: `THIRD_PARTY_ATTRIBUTION.md` (the
+  `reference/datacrystal/` pages are GFDL 1.2 — license text included
+  alongside them).
+
+## License
+
+The project's own code and documentation are licensed **PolyForm
+Noncommercial 1.0.0** (`LICENSE`) — free to use, share, and modify for
+noncommercial purposes. Third-party components keep their own terms (the
+`gbarecomp` framework: PolyForm NC; `recomp-ui`: MIT;
+`reference/datacrystal/`: GFDL 1.2) — see `THIRD_PARTY_ATTRIBUTION.md`.
 
 ## Roadmap
 

@@ -13,8 +13,10 @@
 // This hook byte-verifies the live RAM bytes against the routine's ROM source
 // before every RAM-range dispatch and runs the canonical generated body
 // instead. A reused scratch slot that no longer holds the routine falls
-// through to the normal dispatcher. Pattern follows
-// EmeraldRecomp src/emerald_ram_dispatch.h (same framework hook).
+// through to the normal dispatcher. Pattern follows EmeraldRecomp
+// src/emerald_ram_dispatch.h (same framework hook; github.com/mstan/
+// EmeraldRecomp — PolyForm Noncommercial 1.0.0; pattern only, no code
+// copied — see THIRD_PARTY_ATTRIBUTION.md).
 #include "runtime_arm.h"
 #include <cstdio>
 #include <cstdlib>

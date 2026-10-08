@@ -35,6 +35,10 @@ bytes in git history, ever (this includes generated/, saves, patches, frames).
    `gbarecomp/CLAUDE.md`, `gbarecomp/docs/TOML_SCHEMA.md`) supersede the
    bootstrap prompt on conflict. Read `gbarecomp/PRINCIPLES.md` before any
    debugging session.
+8. Public-repo hygiene: never add verbatim third-party text (guides, wiki
+   pages, docs) — summaries + attribution only; the sole exception is the
+   licensed `reference/datacrystal/` set (GFDL 1.2, license text included).
+   Keep `THIRD_PARTY_ATTRIBUTION.md` current when adding ports or patterns.
 
 ## Environment notes
 

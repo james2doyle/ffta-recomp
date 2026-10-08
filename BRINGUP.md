@@ -2433,3 +2433,45 @@ coverage json); `attract_check.py` moves its coverage json into its tempdir.
 Measured: full gate 2m40s → **1m30 / 1m41** (two runs, 7/7 both, attract
 sha256 `1EF4C118…` unchanged, routes FULLY_STATIC); `--fast --jobs 1`
 serial path OK.
+
+### 2026-10-08 (cont.) — Public-repo compliance audit
+
+Full audit before the repository goes public (read-only subagent sweeps over
+`reference/`, `symbols/`, `tools/`, `src/` + `git rev-list --objects --all`
+history scans; engineering review, not legal advice).
+
+**Clean:** no ROM-derived bytes or binary assets ever committed (history
+object scan: zero save/frame/generated/log/BIOS blobs); ROM/BIOS/saves/
+caches all ignored and user-supplied; `reference/` guide notes are
+summaries with attribution; `symbols/` rows are address/name facts with
+per-section credits; no secrets, images, or vendored third-party code in
+the tree.
+
+**Fixed:**
+- `reference/datacrystal/` — the recovered pages are verbatim Wayback
+  captures (GFDL 1.2). Per user direction the wiki content stays, now fully
+  licensed: added `LICENSE-GFDL-1.2.txt` (canonical text), rewrote the
+  README (attribution, source URLs/oldids, HTML→text modification note,
+  license segregation vs the repo's PolyForm NC). **Removed** the
+  `String Tables.txt` dump — ROM-ripped in-game text, against the project's
+  no-ROM-content rule regardless of the wiki license; the archived copy
+  (plus a full backup of the recovered set) lives outside the repo at
+  `/home/james/Git/refs/datacrystal-ffta/`.
+- Root `LICENSE`: PolyForm Noncommercial 1.0.0 (matches the gbarecomp
+  framework), per user decision.
+- `THIRD_PARTY_ATTRIBUTION.md` (new): submodules (gbarecomp PolyForm NC,
+  recomp-ui MIT), patches-to-gbarecomp note, `tools/m4a_detect.py` credit
+  (Bregalad/loveemu `sappy_detector.c`; upstream "free to redistribute with
+  credit" statement + forks), pattern credits (`attract_check.py` ←
+  WarioWareTwistedRecomp; `ffta_ram_dispatch.h` ← EmeraldRecomp), and the
+  reference-material list (facts/quotes only).
+- `tools/patches/README.md` (new): patches target gbarecomp; patched
+  copies stay under its terms.
+- README: legal block (no game content; unofficial; no Square
+  Enix/Nintendo affiliation) + License section; AGENTS rule 8 (public-repo
+  hygiene — never add verbatim third-party text again; keep attribution
+  file current).
+
+**No history rewrite** (user decision): the retained GFDL pages are
+compliant as distributed (license text + attribution included in-tree);
+commit `26b0658` stays as-is.

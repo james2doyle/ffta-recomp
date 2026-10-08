@@ -5,6 +5,14 @@ Faithful port of Bregalad/loveemu's sappy_detector.c (2012-2015) logic:
 find m4a SongMainComponent / SelectSong pattern, validate the song table
 it points to, then locate the engine header 16 or 32 bytes before m4a main
 and decode its parameters (volume, channels, DAC, rate, song table addr).
+
+Credit: Bregalad and loveemu ("GBA Mus Ripper"). Upstream states: "GBAMusRipper
+is free and open source software. Anyone is free to redistribute it (with and
+without sources) and to improve it but just give me (Bregalad) credit."
+  - https://github.com/berg8793/gba-mus-ripper        (current fork)
+  - https://github.com/CaptainSwag101/gba-mus-ripper  (archived fork)
+Cross-checked against berg8793's detector (identical signatures). See
+THIRD_PARTY_ATTRIBUTION.md.
 """
 import sys
 

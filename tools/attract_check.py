@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """attract_check.py — attract-corridor regression gate for FFTA.
 
-Pattern copied from WarioWareTwistedRecomp tools/verify-attract.ps1: run the
-native runner headless for a fixed frame count with a throwaway save, assert
-the strict-static banner, and compare the SHA-256 of the dumped frame against
-a value pinned right here (hash string only — never a committed image; frames
-are ROM-derived).
+Workflow pattern from WarioWareTwistedRecomp tools/verify-attract.ps1
+(github.com/mstan/WarioWareTwistedRecomp — PolyForm Noncommercial 1.0.0;
+pattern only, no code copied): run the native runner headless for a fixed
+frame count with a throwaway save, assert the strict-static banner, and
+compare the SHA-256 of the dumped frame against a value pinned right here
+(hash string only — never a committed image; frames are ROM-derived).
 
 The attract corridor covers BIOS + title animation and is FULLY_STATIC from
 2026-10-06 (strict 2400 verified). Any game.toml / generated / build change
