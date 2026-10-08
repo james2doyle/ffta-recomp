@@ -181,3 +181,15 @@ command so later changes cannot regress silently:
   so it provably fails on damage.
 - Make the gate one command (`tools/check.py [--fast|--only NAME]`) with
   per-check PASS/FAIL lines and a non-zero exit unless everything passes.
+- **Gate your submodule patches if you keep them.** Each patch must apply
+  to the pristine pin (or be already applied and reverse cleanly) — and
+  exports must be made with `--no-pager --no-ext-diff --no-color`: diff
+  output run through a formatter is wrapped and no longer applies
+  ("No valid patches in input" — this cost a fresh-clone morning).
+  Verify by glob (`*.patch`) so new patches are covered automatically.
+- **Game-presentation expansions need default-off evidence.** For a
+  widescreen/expanded view: the golden hash holds at the default width, the
+  expanded frame's central native region is pixel-identical to a faithful
+  render, margins decode to sane content (not wrap, not policy black), and
+  a stale env/CLI request cannot silently enable a feature the build
+  disabled.

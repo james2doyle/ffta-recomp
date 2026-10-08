@@ -2718,3 +2718,23 @@ compare for the test suite.
   +0x28/+0x2A deltas, +0x2C flag bits). 0x080006D0 left unnamed: mechanics
   clear (DISPCNT → 0x03002BBC; DISPCNT := 0x0080; REG_IE := [0x03000E50])
   but intent unpinned — "never guess". Cycle PASS; corpus unchanged.
+
+### 2026-10-08 (cont.) — Skills refresh (playbook): capture-layer bugs, state census, engine hooks, margin policy
+
+Updated `.agents/skills/gbarecomp-recomp-playbook/` with the lessons from
+the MMIO/W1b/W2 arc: tooling-and-pitfalls now covers the instruction-ring
+window's density dependence + the `--max` scan-progress semantics, the
+zero-over-zero write invisibility pitfall, the capture layer's own
+reentrancy-bug class (the MMIO split-flag story: bisect the capture path
+before blaming the guest), DMA-watch exact-address semantics, a new
+"Offline state census" subsection (parse the save-state container for
+VRAM/IO answers without running), widescreen margin-policy traps +
+expanded-path proof recipe (center pixel-identical, margins decoded,
+default-off hash), and a new "Game-owned engine hooks" subsection (hooks
+are cleared per run — install via runner callbacks; check build flags with
+`nm`; verify pins with `git ls-remote`). debugging.md gains the
+"chained-traps" writer-hunt recipe; reproducibility.md notes input replays
+key on the GUEST frame counter (absolute frames after state loads);
+verification.md gains submodule-patch gates + formatter-mangled export
+warnings and default-off evidence for presentation expansions. miss-triage
+needed no change.

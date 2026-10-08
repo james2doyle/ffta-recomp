@@ -84,13 +84,18 @@ Run this after every play session; it is the whole loop in order.
   instruction ring before concluding divergence — "engine A made 1 read, B
   made 4" can be pure instrumentation artifact.
 - **Prefer the instruction ring for per-instruction truth.** An always-on
-  ring of the last few million instructions (window ≈ the last ~120 frames;
-  size the run so the event is in-window) answers "did PC X run, and what
+  ring of the last few million instructions answers "did PC X run, and what
   did the flow do around it" with no breakpoint mechanics. Query by
-  PC/register/cycle. Two cautions: the window moves with run length, and the
-  same input applied by a stepped server vs a batch replay lands on
+  PC/register/cycle. Cautions: the window moves with run length AND shrinks
+  with execution density (an idle stretch spans ~120 frames; a busy load can
+  fill the whole ring in ~5 — size the run so the event sits near the end,
+  and take several capture slices when exploring a multi-frame sequence).
+  The same input applied by a stepped server vs a batch replay lands on
   *slightly different frames* — pick one regime per investigation and never
-  compare absolute frame numbers across regimes.
+  compare absolute frame numbers across regimes. With a hit limit (`--max N`)
+  a scan stops early: the printed cycle range is *scan progress*, not the
+  ring's extent — raise the limit before concluding "no hits". Dumps run
+  hundreds of MB each (tmpfs counts as RAM) — delete after use.
 - **Abort-on-write watchpoints are the sharpest tool for runaway/divergence
   onsets.** Gate by address, min-frame, and exact value so the abort fires on
   the *corrupted* write, not the legit one; pick the corruption's FIRST
@@ -98,7 +103,16 @@ Run this after every play session; it is the whole loop in order.
   contains the entry into the bad loop. Abort handlers dump the last N trace
   events (default small; raise it — it clamps at the ring capacity, a few
   thousand events). A long runaway flushes the window: capture the onset,
-  don't chase the aftermath.
+  don't chase the aftermath — and min-frame gating doubles as a "skip the
+  initialization fill I already understand" knob, so the abort lands on the
+  write that matters.
+- **Zero-over-zero writes are invisible to value-diff traces.** A clear or
+  fill that writes zeros over already-zero memory produces no diff entries
+  at all — an initialization step can silently "not exist" in a per-frame
+  write trace while still running every load. When hunting fills/clears
+  (scene eviction, buffer setup), use abort-on-write traps (they see the
+  stores); when a value trace shows nothing where you expected activity,
+  ask whether the expected effect is a no-op in VALUE terms.
 - **Long routes (tens of thousands of frames) are probe-able in minutes:**
   drive frames in N-frame chunks between trace events instead of one frame
   per round-trip. For hot target PCs, arm the breakpoint *late* (just before
@@ -130,6 +144,22 @@ contents on a loaded state. Fresh-boot reads and IWRAM reads are reliable
 immediately. A fresh boot shows live EWRAM within seconds — use that as the
 control when a read looks suspiciously empty.
 
+### Offline state census: parse the save-state container
+
+Save-state files are usually an **uncompressed tagged container** — magic,
+version, ROM hash, then a section table of `{tag, len, payload}` per
+subsystem (CPU/BUS/IO/AUDIO/SAVE/PPU/META are typical). Read the framework's
+`serialize()` order once (do not guess) and you can extract everything
+without running anything: the IO payload is the raw IO page (DISPCNT,
+BGxCNT, scrolls at the saved moment); the bus payload concatenates the RAM
+regions plus PAL/VRAM/OAM (e.g. EWRAM + IWRAM + PAL + VRAM + OAM, in that
+order for one framework version — verify). Answers that used to need a live
+session: "are the margin tile columns actually filled?", "which
+screenblocks hold content?", "what does this struct hold at the saved
+moment?" — a one-minute census that beats a run-and-probe loop when
+designing a fix. (Locate sections by parsing the table; a known IO
+signature — e.g. the BGxCNT byte sequence — is a quick cross-check.)
+
 ### Live sessions: window + debug port (`--tcp-observe`) and the stall watchdog
 
 Plain `--tcp` is **structurally headless** (its branch returns before window
@@ -147,6 +177,22 @@ stack window while the game is frozen). Consult the frozen registers *before*
 killing anything: this converts "it hung again" into a pc + stack + caller
 chain without any replay. The frame counter is the hang signal; the pc is
 the diagnosis.
+
+### Game-owned engine hooks: lifecycle and build flags
+
+Engines that expose hook seams (provider pointers, margin/policy flags,
+function-entry plugins) typically **clear game-owned hooks on every run
+start** so nothing leaks between sessions — installs made at process start
+are silently wiped. Install from inside the run instead: the runner's
+per-game callbacks (an "after the expanded view is authorized" init hook, a
+per-frame policy hook) or the mod activation/reset plugin lifecycle. When a
+mod/plugin API fails to *link*, check the build before blaming versions:
+several framework APIs compile only behind a build option (e.g. a mods
+flag), so `nm <runtime archive> | grep <symbol>` tells you whether the
+function is in the linked set or was never compiled in. A missing symbol
+can be a configure flag, not an older pin — and the pin itself is worth
+verifying with a live `git ls-remote` against the actual remote tip before
+planning an update.
 
 ### Coverage breadth: script/event crawl + literal-pool triage
 
@@ -182,7 +228,16 @@ path (`GBARECOMP_WS_WIP=1 --view-width N` works headless with no opt-in):
 a field BG tilemap narrower than the view does not error — the renderer
 WRAPS its edges, producing margins that look plausible but are wrong
 (mirrored edge columns). Verify margin content against the game's true
-extent before believing a wide render.
+extent before believing a wide render. Two more traps from shipping one:
+(a) **always-black margins may be a POLICY, not missing content** — engines
+commonly black out ("pillarbox") margin columns unless the game declares
+them authored, and a state-load path can force that policy on; check the
+engine's margin-policy gates before hunting VRAM for missing tiles;
+(b) the expanded path needs its own proof — the wide frame's central
+native-width region must be **pixel-identical** to a faithful render
+(crop-compare), margins decoded and sanity-checked, default-off must keep
+the golden hash, and a stale view request must not silently enable the
+feature.
 
 Runner shutdown: the window-close path can hang in teardown (observed:
 debug listener closes, then an XInput poll hits the destroyed window and a
@@ -193,16 +248,23 @@ prefer it for scripted sessions. SIGTERM may be swallowed. Verify a clean
 exit by checking that the process leaves within a few seconds and the
 wrapper's archive/flush steps ran.
 
-Finding game state and the code around it (portable): (1) save a state
-before/after an action and byte-diff the container - changed fields reveal
-the variables (camera, counters, flags); (2) query the FP ring for
-instructions whose registers hold an address/value (`--reg`, `--reg-range`)
-to find both readers/writers and generic helpers; (3) trap writers with an
-abort-on-memory-write env (+ runtime trace) for the caller chain - RAM/VRAM
-works, IO registers may not (guest-DMA and write-observer paths can bypass
-the capture ring entirely); (4) watch DMA destinations explicitly when the
-guest programs hardware DMA. Static BL scans miss pointer-table entries;
-prefer runtime traps.
+Finding game state and the code around it (portable): (1) parse the
+save-state container directly for an offline census (see below) and
+byte-diff before/after saves - changed fields reveal the variables (camera,
+counters, flags); (2) query the FP ring for instructions whose registers
+hold an address/value (`--reg`, `--reg-range`) to find both readers/writers
+and generic helpers; (3) trap writers with an abort-on-memory-write env
+(+ runtime trace) for the caller chain - RAM/VRAM works; IO-register traps
+may not fire at all; (4) for IO-path writes use the MMIO capture ring and
+watch DMA destinations explicitly - but remember the capture layer can
+itself be buggy: a one-shot "suppress nested taps" flag in the bus write
+path swallowed whole DMA transfers kicked inside its window (every
+destination write of the transfer vanished). When expected register writes
+never appear, bisect the capture path for reentrancy guards before blaming
+the guest; (5) the DMA watch matches the EXACT address as a transfer steps -
+watch a region's first word, and remember a transfer starting deeper in the
+region never prints. Static BL scans miss pointer-table entries; prefer
+runtime traps.
 
 Name discoveries in the durable index as soon as their role is verified:
 seed/symbol files propagate names into generated code (grep-able forever),

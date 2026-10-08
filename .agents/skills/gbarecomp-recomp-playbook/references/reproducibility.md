@@ -23,6 +23,14 @@ Archive the proposal at every launch next to state+trace, and treat the
 - **Frame budgets after loading a state** usually mean N frames *from the
   state*, not an absolute counter. Measure before any bisect; wrong
   assumptions cost hours.
+- **Input-replay events are keyed to the guest frame counter.** A loaded
+  state restores that counter at the state's saved frame, so events at
+  small relative numbers (0, 60, 80) all fire *immediately* at load and
+  your press never lands where you meant — a no-op that looks like "the
+  input didn't work". Author replay events as absolute guest frames ≥ the
+  state's frame (the "state loaded" log line prints it). Tool-side frame
+  counters may legitimately restart at 0 — check which counter each tool
+  keys on before correlating.
 - **Replay application differs by run mode.** Headless batch loops typically
   apply the input replay; interactive/debug stepping servers typically do
   not. If in doubt, read the key-input register at the first interesting

@@ -11,6 +11,29 @@ emulator.
 3. Apply first-divergence: find the earliest difference from a known-good
    reference and fix that; everything downstream is consequence.
 
+## Finding a writer: the chained-traps recipe
+
+When you need the code behind a memory effect you only observe as "this
+changes" (a region redraw, a register commit, a buffer refresh):
+
+1. **Where/when, cheaply** — per-frame value-diff trace the target region:
+   which bytes change, in which frames, net direction. (Blind spots: zero
+   writes and within-frame transients — see tooling pitfalls.)
+2. **Mechanism** — if the target is fed by hardware DMA, arm a DMA watch on
+   the region's first address (exact-address match as the transfer steps)
+   and log channel/src/dst for attribution; abort-on-write traps cover the
+   CPU-store case (and reveal fills the value trace cannot see).
+3. **Who** — capture the instruction ring over that window (size the run so
+   the window covers it; dense frames shrink the window — slice if needed)
+   and scan for accesses: registers holding the address (`--reg-range`),
+   filtered by cycle window; the entry record's LR is the caller.
+   Repeat one level up until the driver's inputs (a struct/camera) appear.
+
+Each level narrows: frames → instruction window → caller chain → input
+data. Do not skip straight to step 3 when the mechanism is unknown — most
+"who wrote this" hunts that stall are mechanism confusion (DMA vs CPU vs
+the capture layer's own bugs).
+
 ## Spins, hangs, wedges
 
 - A spin in **statically compiled** code is not a coverage gap; adding
