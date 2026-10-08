@@ -2372,3 +2372,19 @@ conclusion (the `_deadbeef` path it cited is fetch-only):
   matches the pinned oracle for these reads; no framework bus change is
   warranted. (The ~950-frame native-vs-oracle flow offset remains a
   separate, still-open question.)
+
+### 2026-10-08 — Batch af: session M playthrough (new 0x08019xxx cluster)
+
+Playthrough 10:48-10:53 (session M; trace `saves/trace_sessionM_1054.csv`,
+last event f9,125). No frag was flushed (session ended non-clean — the
+teardown/close path), so the missing PCs were recovered from the heal
+cache (`cache_harvest --new`; units compiled 10:49-10:50): 0x08018DAC
+plus the 0x0801928C / 0x08019398 / 0x080193CC / 0x080193FC / 0x08019430
+family — 6 prologue-verified starts + 5 runtime-dispatched interiors,
+both seeded as split-interior entries (11 total; corpus 54,327 ->
+54,355 emitted). Strict replay of the session trace: FULLY_STATIC
+(resolve needed 0 seeds); cycle PASS (attract byte-exact).
+
+Reminder: playtest sessions only flush `logs/playtest_misses.frag` on a
+clean exit — close with ESC or `tools/quit.py`; otherwise harvest the
+`recomp_cache` as done here.

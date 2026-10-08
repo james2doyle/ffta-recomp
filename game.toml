@@ -6767,3 +6767,62 @@ addr = 0x08141BB0
 mode = "thumb"
 note = "batch ag (event crawl): trial literal-pool function start; strict-push [B530]; region 0x0814xxxx; walker-missed"
 
+
+# ─── Batch af: session M (2026-10-08 10:48 playthrough; frag not flushed — cache_harvest recovery) ───
+# 11 units (recomp_cache, compiled 10:49-10:50).
+
+[[extra_func]]
+addr = 0x08018DAC
+mode = "thumb"
+note = "batch af: start [push {r4, lr}]; prologue scan"
+
+[[extra_func]]
+addr = 0x0801928C
+mode = "thumb"
+note = "batch af: start [push {lr}]; prologue scan"
+
+[[extra_func]]
+addr = 0x080192AC
+mode = "thumb"
+note = "batch af: interior of 0x0801928C (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x08019398
+mode = "thumb"
+note = "batch af: start [push {r4, r5, lr}]; prologue scan"
+
+[[extra_func]]
+addr = 0x080193B8
+mode = "thumb"
+note = "batch af: interior of 0x08019398 (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x080193CC
+mode = "thumb"
+note = "batch af: start [push {r4, r5, lr}]; prologue scan"
+
+[[extra_func]]
+addr = 0x080193E6
+mode = "thumb"
+note = "batch af: interior of 0x080193CC (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x080193FC
+mode = "thumb"
+note = "batch af: start [push {r4, r5, lr}]; prologue scan"
+
+[[extra_func]]
+addr = 0x08019404
+mode = "thumb"
+note = "batch af: interior of 0x080193FC (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x08019430
+mode = "thumb"
+note = "batch af: start [push {r4, r5, r6, lr}]; prologue scan"
+
+[[extra_func]]
+addr = 0x08019438
+mode = "thumb"
+note = "batch af: interior of 0x08019430 (runtime-dispatched); split-interior seed"
+
