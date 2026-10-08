@@ -232,3 +232,16 @@
 0x0813AE30	thumb	save_sector_scan
 0x0813B57C	thumb	save_record_validate
 0x0813ADF0	thumb	save_checksum
+
+# Section 8: BRINGUP-described additions (2026-10-08) — name-only; each role
+# is a description already verified in BRINGUP.md (Phase 0 crt0/IRQ notes,
+# Phase 3 stack pitfall, m4a detection, Phase 4 audit table).
+0x080000C0	arm	crt0
+0x080004B0	thumb	vblank_callback
+0x08000418	thumb	vblank_wait_loop
+0x08000428	thumb	vblank_wait_loop_cont
+0x081451B4	thumb	m4a_soundmain_wrapper
+0x08144510	thumb	m4a_mixer_core
+0x081443B0	thumb	memcmp
+0x03005E78	thumb	iwram_zero_fill
+0x03005EE8	thumb	iwram_ram_copy

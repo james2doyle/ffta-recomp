@@ -2199,3 +2199,15 @@ fragment's post-`rsbs` crossing) must fall through, while fresh
 two-byte-early entries are still serviced. Synthetic byte patterns only
 (no ROM-derived bytes). Framework ctest suites stay unbuilt
 (EXCLUDE_FROM_ALL) — scope runs with `-R`.
+
+### 2026-10-08 (cont.) — Annotation pass 8: BRINGUP-described rows
+
+Mined BRINGUP for verified-but-unnamed entities. Functions: `crt0`
+0x080000C0, `vblank_callback` 0x080004B0, `vblank_wait_loop`/`_cont`
+0x08000418/28, `m4a_soundmain_wrapper` 0x081451B4, `m4a_mixer_core`
+0x08144510, `memcmp` 0x081443B0 (disarm-verified word/byte diff loop),
+`iwram_zero_fill` 0x03005E78, `iwram_ram_copy` 0x03005EE8. Data:
+`gUserIrqHandler` 0x03007FFC, `gIrqAckMask` 0x03000E50,
+`gIrqCallbackRomTable` 0x0814942C. Skipped as already-named: main,
+m4a_player_info_for_song, gSongTable. Skipped as vague/interior: init-chain
+calls, handler tables, the 0x030027D0 slot. Cycle PASS, attract byte-exact.

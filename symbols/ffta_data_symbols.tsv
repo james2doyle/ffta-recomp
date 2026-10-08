@@ -113,3 +113,11 @@
 # handler the IRQ dispatcher calls (BRINGUP § "Save-load abort FIXED").
 # Extent beyond +0x0C not yet verified.
 0x030008D0	iwram	0x0C	gIrqCallbackTable
+# Section 10: BRINGUP-described cells (2026-10-08). gUserIrqHandler = the
+# BIOS IRQ-vector contract cell (crt0 stores 0x080000FC there); gIrqAckMask
+# = the cell described as an "IF-ack mask" in the vblank-audit corrections
+# (extent unverified); gIrqCallbackRomTable = the ROM source of the IRQ
+# callback table the game copies to 0x030008D0 (slot +8 = VBlank fn).
+0x03007FFC	iwram	0x04	gUserIrqHandler
+0x03000E50	iwram	0x04	gIrqAckMask
+0x0814942C	rom	0x0C	gIrqCallbackRomTable
