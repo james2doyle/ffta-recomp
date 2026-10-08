@@ -2510,3 +2510,14 @@ clean through all nine steps** — submodules checked out, both patches applied
 to the pinned submodule, BIOS 770 funcs, corpus emitted 54,355, host build
 linked the recompiled BIOS, strict 2400 `FULLY_STATIC`, attract
 `1EF4C118…` PASS. Evidence: `/tmp/fresh_verify2.log`.
+
+### 2026-10-08 (cont.) — Coverage snapshot refresh (README)
+
+Re-ran `tools/coverage_report.py` on the committed tree (strict 1200-frame
+run + cold trials): executed path **100 % FULLY_STATIC**; corpus **54,355
+emitted units**; walker's static reach **54,355 / 55,673 ≈ 97.6 %**;
+pointer-pool reach **54,355 / 54,432 ≈ 99.9 %**; harvest trial kept 2,122
+candidate pointers of 104,915 PC-relative literals. README status paragraph +
+snapshot table refreshed (was the 54,327 snapshot of 2026-10-07); AGENTS
+status line aligned. Historical landing figures for the event crawl (roadmap
+item 3) left as written.

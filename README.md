@@ -11,19 +11,19 @@ static. It is intended to be *honest*: every run reports exactly how much ran
 as statically recompiled code (`self_heal_coverage=FULLY_STATIC ...` or the
 precise miss count).
 
-**Current status (2026-10-07):** boots (BIOS LLE), plays the attract loop,
+**Current status (2026-10-08):** boots (BIOS LLE), plays the attract loop,
 title, new game, intro, battles, and now complete **Totema and magic summons**
 (the save-menu/summon stalls were fixed via the LZSS-decoder entry guard +
 RAM-copy fixups — BRINGUP § "Summon crash") — with **every executed path
 FULLY_STATIC** (zero interpreted instructions) at last verification.
 Interactive playtest sessions are integrated through audit batch **ae**,
-plus the event-crawl batches **af/ag** (24 batches): corpus **54,327 emitted
+plus the event-crawl batches **af/ag** (24 batches): corpus **54,355 emitted
 units**, walker's static reach ≈ 97.6 %, pointer-pool lens ≈ 99.9 % (proxies —
 a route is done when FULLY_STATIC on
 its replay). The **offline coverage push**'s goal (pool reach) was then
 achieved deliberately: strict-push verified seeds (event-crawl batches
-**af/ag**) lifted the corpus to 54,327 (~99.9 % of the 54,404 trial pool)
-with the attract hash byte-exact — the blind speculative path itself stays
+**af/ag**) reached ~99.9 % of the trial literal pool with the attract hash
+byte-exact — the blind speculative path itself stays
 off (interior-split hazard: a single split of the guarded LZSS decoder
 regressed a route). The attract regression
 gate hash has been stable since pinning. Remaining work: the annotation pass
@@ -399,19 +399,19 @@ GBARECOMP_INPUT_REPLAY=logs/playthrough.csv ./build/FFTARecomp ...` — expect
   not a goal; FFTA needs FULLY_STATIC on executed paths, not 100 % of a
   proxy). `--json` for machine-readable output.
 
-Current snapshot (2026-10-07, strict 1200-frame run; refresh with
+Current snapshot (2026-10-08, strict 1200-frame run; refresh with
 `.venv/bin/python tools/coverage_report.py`):
 
 | Lens | Mapped / total | % |
 |---|---|---|
 | **Executed path** (strict 1200-frame run) | everything that ran | **100 % — FULLY_STATIC, zero interpreter fallback** |
-| **Walker's static reach** (whole-ROM scan trial) | **54,327 / 55,643** emitted units | **≈ 97.6 %** |
-| **Pointer-pool reach** (speculative-harvest trial) | **54,327 / 54,404** | **≈ 99.9 %** |
+| **Walker's static reach** (whole-ROM scan trial) | **54,355 / 55,673** emitted units | **≈ 97.6 %** |
+| **Pointer-pool reach** (speculative-harvest trial) | **54,355 / 54,432** | **≈ 99.9 %** |
 
 Rows 2–3 are proxies with different denominators (no ground-truth function
 inventory exists); a route is done when its replay is FULLY_STATIC. Corpus:
-54,327 emitted units (interior split units + IWRAM code-copy included); the
-speculative-harvest trial kept 2,122 pointer candidates out of 104,907
+54,355 emitted units (interior split units + IWRAM code-copy included); the
+speculative-harvest trial kept 2,122 pointer candidates out of 104,915
 PC-relative literals (`false` in `game.toml` by policy).
 
 **Open investigation (2026-10-07):** the save **load/save flow** diverges on

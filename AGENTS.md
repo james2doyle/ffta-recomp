@@ -277,7 +277,8 @@ bounded heal-worker stop, diagnostics flushed before the worker join).
   (oracle/framediff/dualrun/attract gate/misspack/cycle/coverage_report/
   ringscan) plus playtest tooling (`play.sh`, `cache_harvest.py`,
   `resolve.py`). Sixteen sessions (batches a–u, incl. the save-path batch t):
-  corpus 23.4k → **49,492 emitted units** (22 audit batches through **ae**).
+  corpus 23.4k → **54,355 emitted units** (through the event-crawl batches
+  **af/ag**; three-lens snapshot refreshed 2026-10-08 — see README).
   The offline coverage push (speculative literal harvest) was trialled
   2026-10-07 and **tabled**: +4,912 units reachable, but it split the guarded
   LZSS decoder at an interior entry (`0x08005544`) and broke the save-menu
