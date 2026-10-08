@@ -198,3 +198,13 @@
 # disarm: thumb `push {r4,r5,lr}` prologue at 0x0812E368; already emitted)
 # (pack preserved at refs/ffta-notes-bcrobert).
 0x0812E368	thumb	get_speed_formula
+
+# Section 5: event-VM + decompressor anchors (2026-10-07; naming-only —
+# all PCs already emitted). Roles per engine-hacks patch comments +
+# ffta-decomp docs + our disassembly; interiors documented in reference/event-vm.md.
+0x0801F098	thumb	decompressor_u16len
+0x08141868	thumb	swi0c_thunk
+0x08123860	thumb	evt_healing_case
+0x08123B68	thumb	evt_death_case
+0x08123898	thumb	mission_script_trigger
+0x08125578	thumb	evt_get_character_ptr

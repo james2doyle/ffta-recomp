@@ -45,3 +45,12 @@ JP **+0x156**.
   Monsters (bank, stats), Clan (mission items, law cards), Battle (ally
   status table), Appendices (race & job modifier) — extract further
   verified-able labels in a later pass.
+
+## 26118 deep-mine — CLOSED (2026-10-07)
+
+Scanned the full 350 KB copy: every code is an **encrypted CodeBreaker pair**
+(8+8 hex); there are no raw addresses to extract (apparent "03xx" hits are
+encrypted code-word fragments, not addresses). The usable content (per-slot
+stat map) was already captured via 25621/22129, which cross-agree with it —
+see Section 7 of `symbols/ffta_data_symbols.tsv`. Re-open only if a CBA
+decryption is ever wired up; not needed today.

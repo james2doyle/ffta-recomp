@@ -341,15 +341,11 @@ Full rules live in `AGENTS.md`; the essentials:
    sheet (f6000+) and the upstream note on the bridge stop-contract runaway:
    battles and summons completed 2026-10-07; sessions remain the bug-hunter
    and the acceptance corpus.
-   - Data-region names for `symbols/ffta_data_symbols.tsv` (item/job/unit/
-     ability/mission tables; RAM fields like day/time `0x02002FBA`, mission
-     items `0x02002B08`). Names-only changes — the attract gate guards
-     behavior.
-   - Name the decompressor (`0x0801F100`) and its SWI-thunk path
-     (`0x08141868`) in notes; use as recognition aids in the battle/summon
-     hang hunts.
-   - Event-VM opcode labels (Scripting page) as a naming layer for the
-     `0x08122xxx–0x08123xxx` interpreter family.
+   - Annotation leftovers **done** (passes 3-6): data-region names (104 rows
+     in `symbols/ffta_data_symbols.tsv`), decompressor entry corrected to
+     `0x0801F098` (+ SWI thunk `0x08141868`), event-VM anchors named
+     (`symbols/ffta_symbols.tsv` § 5) with `reference/event-vm.md`; FAQ
+     26118 mine closed (all codes encrypted — no raw addresses left in it).
 6. **Android port** (research done; the app shell ships inside gbarecomp).
    Note: device builds run with self-heal disabled — the static coverage this
    loop builds is its prerequisite.

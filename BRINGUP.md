@@ -1991,3 +1991,19 @@ unaffected (route K strict FULLY_STATIC throughout).
 - Remainder: 77 pool units (review individually; likely data-adjacent) and
   walker leftovers (proxy only — the bar remains FULLY_STATIC on executed
   paths).
+
+### 2026-10-07 (cont.) — Annotation pass 6: event-VM anchors, decompressor entry, 26118 closed
+
+- `reference/event-vm.md` (new): script storage (62 blocks / 213 scripts,
+  validated), VM register roles from engine-hacks hooks, verified anchor
+  table (op13 arg 0x08122680; op70 0x08122AAA; battle spawn 0x08123670;
+  healing 0x08123860/6C; death 0x08123B68/7C; mission trigger 0x08123898;
+  char ptr 0x08125578), decompressor family (0x0801F098 = REAL entry — the
+  old 0x0801F100 anchor was an interior; 0x08141868 = SWI 0x0C thunk;
+  0x0800543C = the guarded LZSS).
+- `symbols/ffta_symbols.tsv` § 5: six name-only rows for the emitted
+  primaries (attract gate guards the rename; no coverage change).
+- FAQ 26118 deep-mine CLOSED: the full copy is encrypted CodeBreaker pairs
+  (no raw addresses; "03xx" hits are code-word fragments). Its usable
+  content was already captured via 25621/22129 (cross-agree, data-symbols
+  § 7). Re-open only if CBA decryption is ever wanted.
