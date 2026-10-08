@@ -308,6 +308,9 @@ recomp-net @ c58f125.
   Pinned TCP surface: `step`/`run_frames`/`set_keyinput`/`screenshot`/
   `registers`/`state_hash` + memory reads exist; `run_to_pc`/`get_registers`/
   `call_stack`/`rdb_*` do not.
+- Copy-family RAM-dispatch decisions: `FFTA_DISPATCH_LOG=1` (see
+  `src/ffta_ram_dispatch.h`) logs every hook branch (enter/case1/case2/
+  resume-passthru/fall) with registers to stderr.
 - `tools/disarm.py` halts silently at the first undecodable halfword —
   use narrow windows anchored on known boundaries.
 - `GBARECOMP_INPUT_REPLAY` is applied by the headless `--frames` loop only —
