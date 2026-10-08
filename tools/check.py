@@ -109,8 +109,10 @@ def check_patches():
     dev tree. Catches mangled/empty exports (2026-10-08 regression)."""
     details = []
     ok = True
-    for name in ("oracle-save-autoload.patch",
-                 "selfheal-journal-close-hardening.patch"):
+    names = sorted(p.name for p in (REPO / "tools" / "patches").glob("*.patch"))
+    if not names:
+        return False, "no *.patch files found"
+    for name in names:
         p = REPO / "tools/patches" / name
         if not p.exists():
             ok = False

@@ -16,6 +16,8 @@ Grep the names, not the hex:
   row (section 8 has the field map).
 - The scroll-register apply has **no named entry** (guest DMA helpers at
   0x08001300-0x08001420, pointer-reached); search this doc for that range.
+- The per-frame display-register commit (39-halfword DMA block copy, kick pc
+  ~0x0800073C) also has no named entry — see § "Scroll register apply".
 
 Named units (all already emitted; names assigned 2026-10-08):
 
@@ -79,11 +81,19 @@ descriptor (load/backup copy).
   then polls bit 31) and appears with DAD values 0x04000010/12/14/16
   (BG0/1 HOFS/VOFS) in the FP ring. Entries are reached via pointers, not
   BLs (scan found no static callers).
-- Capture caveat: these writes do not appear in the `GBARECOMP_MMIO_CAP`
-  ring. `heal_gate.cpp`'s Journal is the registered `BusWriteObserver`
-  (gba_irq-side scan) and is the prime suspect for the capture gap — check
-  `heal_gate.cpp:171 on_bus_write` before relying on mmio_cap for
-  guest-DMA/register traffic.
+- **Capture (FIXED 2026-10-08):** these writes now appear in
+  `GBARECOMP_MMIO_CAP`. The `heal_gate` Journal suspicion was wrong — the
+  cause was `gba_io.cpp`'s write32 split-suppression flag: a 32-bit store of
+  the DMA CNT field (kick pc 0x0800073C; the 0x0800072x-3C sequence sets the
+  channel up, helper form `str r0,[r2,#8]` at 0x080013E0) executes the whole
+  transfer while the flag is set, so every destination write was swallowed.
+  Fixed by per-call record control — patch
+  `tools/patches/mmio-cap-dma-reentrancy.patch`; see BRINGUP § "MMIO cap gap".
+- **What the fixed cap shows** (world-map recenter repro): the display commit
+  is a per-frame **DMA block copy** of a shadow struct — 39 halfwords
+  `0x04000008..0x04000054` (BGxCNT/HOFS/VOFS, affine, windows, blend), one
+  copy per frame, kick pc 0x0800073C; during the pan the copied VOFS values
+  step 0x97→0xA1 in lockstep with the camera ease.
 
 ## W1b — the strip drawer (still open; leads)
 

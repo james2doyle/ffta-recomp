@@ -2549,3 +2549,33 @@ resolution, and main-game content moved under Landed. The offline-push item
 notes that condition (a), the route-level gate, is now satisfied by the
 `check.py` route replays, with (b) (interior-split policy) still the
 re-trial trigger. AGENTS "Remaining" aligned.
+
+### 2026-10-08 (cont.) — MMIO cap gap: guest-DMA register writes now recorded (fixed)
+
+The W1 `GBARECOMP_MMIO_CAP` caveat is resolved; it was our bug, not the
+Journal's. `GbaIo::write32` decomposes 32-bit IO stores into two 16-bit calls
+and set a file-local `g_mmio_split` flag so the ring records ONE size-4 entry
+(peer to the oracle) instead of the synthetic halves. But a 32-bit store of
+the DMA CNT field — FFTA's display commit at 0x0800073C (`str r1,[r0]`, the
+0x0800072x-3C channel setup; helper form `str r0,[r2,#8]` at 0x080013E0) —
+kicks the whole transfer from the CNT_H half, i.e. INSIDE the flagged window:
+every destination write of the transfer was swallowed.
+
+Repro: world map (`game.state2`, frame 51,827) + Down recenter via input
+trace; WRAM/IO value traces proved the registers DID update (VOFS stepping
+0x97→0xA1 with the camera ease) while the cap held 0 writes to 0x04000010-16.
+After the fix: 36,117 → 51,678 cap entries; the newly visible set is the
+per-frame display-commit DMA block copy — 39 halfwords
+0x04000008..0x04000054 (BGxCNT/HOFS/VOFS, affine, windows, blend), one copy
+per frame, kick pc 0x0800073C, 39×399 entries; pan-phase VOFS values in
+lockstep. The 32-bit single-entry behavior is preserved (0x040000B8 count
+unchanged at 1,596).
+
+Fix: per-call record control (`write16_commit(off, v, bool record)` in
+gba_io.{h,cpp}); synthetic halves pass record=false, while reentrant writes
+(DMA transfers, side effects) keep recording; `g_mmio_split` removed. Patch:
+`tools/patches/mmio-cap-dma-reentrancy.patch` (re-export after submodule
+updates). `tools/check.py`'s patches check now globs `*.patch` so the new
+file is covered (reverse-ok, as all three). Gate: `.venv/bin/python
+tools/check.py` — 8/8 PASS; attract 1EF4C118… byte-exact. Candidate for the
+upstream issue (with the bridge stop-contract + relocated-stub classes).
