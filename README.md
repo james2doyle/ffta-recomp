@@ -534,16 +534,15 @@ noncommercial purposes. Third-party components keep their own terms (the
 
 **Open / next**
 
-1. **Widescreen — W2 milestone 1 landed (2026-10-08).** Run it:
-   `--view-width 320` (default stays faithful 240). Field margins now render
-   from the guest's own 512-wide ring (authored margins + OBJ native clip,
-   installed via `extended_view_init`; capability declared as
-   `opts.max_view_width = 320`): battle/pub margins fill 100 %, the center
-   240 is pixel-identical to the faithful render, and pans keep up. World-map
-   margins are its 256-px map's wrapped edge → **W3** per-scene policy
-   (`extended_view_frame` seam: pillarbox menus/world map or clamp), margin
-   polish, and wider validated widths. Protocol notes + EmeraldRecomp
-   cross-reference: `reference/widescreen.md`.
+1. **Widescreen — W2+W3 landed (2026-10-08).** Run it: `--view-width 320`
+   (default stays faithful 240). Field margins render from the guest's own
+   512-wide rings; the world map **pillarboxes** (its margins are the
+   256-px wrap); 256-wide UI layers are confined to the native span. Battle
+   and pub margins fill 100 % with the center 240 pixel-identical to the
+   faithful render; attract byte-exact; gate 8/8. Next: transition polish,
+   384/448 validation + `--resize-view`, an Emerald-style smoke test, and
+   moving the install to the activation-plugin lifecycle. Protocol notes +
+   EmeraldRecomp cross-reference: `reference/widescreen.md`.
 2. **Offline coverage push — re-trial gated.** The speculative literal
    harvest reaches +4,912 units, but it split the guarded LZSS decoder at an
    interior entry (`0x08005544`): the save-menu route resumes into the

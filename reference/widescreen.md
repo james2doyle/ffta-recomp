@@ -163,11 +163,13 @@ WS hooks:
   savestate loads then keep the pillarbox policy off.
 - `g_ws_obj_native_clip = 1` — parked off-screen OAM stays out of margins.
 
-Verified (headless, --view-width 320): battle at rest, battle pans
-(f100/f150), pub interior post-load — margins 100 % filled with the ring's
-own content; center fidelity: wide center `[40..280)` == faithful 240
-render, pixel-identical (0/38,400). World map: margins render, but as the
-256-px map's **wrapped edge** (a UI-chip tail leaks) → W3 policy case.
+Verified (headless, --view-width 320): battle at rest + pans (f100/f150) —
+margins 100 % filled with the ring's own content; center fidelity: wide
+center `[40..280)` == faithful 240 render, pixel-identical (0/38,400).
+**Correction (2026-10-08, W3 session):** the W2-era "pub" check ran without
+`GBARECOMP_INPUT_REPLAY` set, so it never left the world map — it was a
+world-map wrap check, not the pub. The pub was re-verified under W3 (below).
+World map: margins are its 256-px map's **wrapped edge** → pillarboxed in W3.
 
 Reference notes (2026-10-08):
 - **EmeraldRecomp** (`docs/WIDESCREEN_EXPERIMENT.md`,
@@ -179,20 +181,37 @@ Reference notes (2026-10-08):
   tools. FFTA needs no provider machinery for field scenes; the
   UI-anchoring model is the reference if HUD stays wide.
 - **WarioWareTwistedRecomp** has no widescreen implementation.
-- Engine-pin note: this pinned gbarecomp does not link `mod_runtime.cpp`
-  (`gba_mod_register_activation_plugin` etc. missing). Usable seams:
+- Engine note: `mod_runtime.cpp` (activation/reset plugins,
+  `gba_mod_set_view_width`) links only when the build enables its mods
+  option — adopted here 2026-10-08 (`-DGBARECOMP_ENABLE_MODS=ON`); the pin
+  itself is the latest main (`git ls-remote` verified). Seams used:
   RunOptions `extended_view_init` / `extended_view_frame` + fn-entry plugins.
 
-## W3 next
+## W3 — per-scene margin policy: LANDED (milestone 1, 2026-10-08)
 
-1. Per-scene margin policy via `opts.extended_view_frame` (runs before
-   scanline 0 of each frame): world map → pillarbox or clamp; menus and
-   transitions → pillarbox; field/battle → wide.
-2. Margin polish during transitions (load fades, pub entry, world-map
-   fade-in slide); confirm no stale ring columns leak mid-recenter.
-3. Wider validated widths (384 / 448) and the `--resize-view` path.
-4. Tests: Emerald-style smoke compare (center-vs-faithful every N frames +
-   memory checkpoints + "stale env var must not enable the feature" check).
+Implemented in `src/main.cpp` via `RunOptions::extended_view_frame` (runs at
+every emulated frame start, before scanline 0):
+
+- **Pillarbox policy:** scenes whose field BGs are 256-px tilemaps
+  (BG0/BG1 size=2 — the world map) get `g_ws_pillarbox = 1`; the 512-wide
+  ring scenes (battle/pub, size=1) keep authored margins (pillarbox off).
+- **UI-layer margin skip:** BG2/BG3 (256-wide UI screens: menus, funds,
+  dialogue panels) return "no pixel" outside the native 240 span via
+  `g_ws_bg_x_provider` (+ `..._layers = (1<<2)|(1<<3)`), so their edges can
+  never wrap into the margins.
+
+Verified matrix (headless, --view-width 320): battle — margins 100 %
+(filled through pan replays); pub — margins 100 % and CLEAN after the UI
+skip (menu/funds fragments gone; center vs faithful 0/38,400 differing);
+world map — black pillarbox bars (0 non-black margin pixels); attract gate
+byte-exact; `check.py` 8/8; routes FULLY_STATIC. Spot check: battle at 384
+fills its 72-px margins too (full validation pending).
+
+Remaining W3: transition polish (load fades, world-map fade-in, ring
+recenters), full 384/448 validation + `--resize-view`, an Emerald-style
+smoke test (center-crop compare + margins + stale-request guard), and
+migrating the WS install to the activation-plugin lifecycle now that the
+build links the mod APIs.
 
 ## Probe recipes used (reproducible)
 

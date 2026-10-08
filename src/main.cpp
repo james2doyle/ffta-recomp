@@ -82,6 +82,14 @@ GBA_MOD_CONSTRUCTOR(register_ffta_lzss_guard) {
 // are live in whichever process runs the game.
 extern "C" int g_ws_authored_margin_layers;
 extern "C" int g_ws_obj_native_clip;
+extern "C" int g_ws_pillarbox;
+extern "C" int (*g_ws_bg_x_provider)(int, int, int, int*);
+extern "C" unsigned g_ws_bg_x_provider_layers;
+std::uint32_t g_ws_frame_left = 0;
+std::uint32_t g_ws_frame_right = 0;
+void ffta_ws_install_margin_hooks(std::uint32_t extra_left,
+                                  std::uint32_t extra_right);
+int ffta_ws_bg_x_provider(int bg, int x, int y, int* hw_x);
 // ── Widescreen (W2): authored margins (see reference/widescreen.md) ─────────
 // FFTA's field BGs are 512-wide tilemap rings, so the columns the
 // expanded-view compositor samples for margin pixels are the guest's own
@@ -96,7 +104,41 @@ void ffta_ws_install_margin_hooks(std::uint32_t extra_left,
     (void)extra_right;
     g_ws_authored_margin_layers = 1;
     g_ws_obj_native_clip = 1;
+    g_ws_bg_x_provider = ffta_ws_bg_x_provider;
+    g_ws_bg_x_provider_layers = (1u << 2) | (1u << 3);  // BG2/BG3 (UI)
     std::fprintf(stderr, "[ffta] ws: margin hooks installed (extended_view_init)\n");
+}
+
+// ── Widescreen (W3): per-scene margin policy ───────────────────────────────
+// The world map's field BGs are 256-px-wide tilemaps (size=2), so its margin
+// samples land on the tilemap's wrapped edge — pillarbox those scenes.
+// Field / battle / pub scenes keep their 512-wide rings (size=1) authored, so
+// the margins stay real content. Runs at every emulated frame start, before
+// scanline 0; inert at native width (only the wide compositor reads these).
+void ffta_ws_margin_policy(const gbarecomp::ExtendedViewFrameInfo* frame) {
+    if (!frame || !frame->io || frame->io_size < 0x10) return;
+    g_ws_frame_left = frame->extra_left;
+    g_ws_frame_right = frame->extra_right;
+    if (frame->extra_left == 0 && frame->extra_right == 0) return;
+    const std::uint8_t* io = frame->io;
+    const unsigned bg0 = io[0x08] | (io[0x09] << 8);
+    const unsigned bg1 = io[0x0A] | (io[0x0B] << 8);
+    const bool world_map_tilemaps =
+        ((bg0 >> 14) & 3u) == 2u && ((bg1 >> 14) & 3u) == 2u;
+    g_ws_pillarbox = world_map_tilemaps ? 1 : 0;
+}
+
+// UI layers must not paint into margin columns: BG2/BG3 are 256-wide screens
+// (menus, funds, dialogue panels) and would show wrapped edge fragments.
+// Skip those layers wherever the output x is outside the native 240 span.
+int ffta_ws_bg_x_provider(int bg, int x, int y, int* hw_x) {
+    (void)y;
+    (void)hw_x;
+    if (bg >= 2) {
+        const int left = static_cast<int>(g_ws_frame_left);
+        if (x < left || x >= left + 240) return -1;  // handled: no pixel
+    }
+    return 0;
 }
 
 }  // namespace
@@ -120,6 +162,7 @@ int main(int argc, char** argv) {
     // with --view-width up to 320 (or --resize-view). Default stays 240.
     opts.max_view_width = 320;
     opts.extended_view_init = ffta_ws_install_margin_hooks;
+    opts.extended_view_frame = ffta_ws_margin_policy;
     opts.builtin_rom_sha1 = "4ac05441f4de70a4ec3dd932116346c61b8783d9";
     opts.launcher_region = "USA";
     opts.launcher_game_config = "game.toml";

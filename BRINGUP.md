@@ -2738,3 +2738,27 @@ key on the GUEST frame counter (absolute frames after state loads);
 verification.md gains submodule-patch gates + formatter-mangled export
 warnings and default-off evidence for presentation expansions. miss-triage
 needed no change.
+
+### 2026-10-08 (cont.) — Widescreen W3 milestone 1: per-scene margin policy (+ W2 pub-check correction)
+
+`src/main.cpp` now installs `opts.extended_view_frame = ffta_ws_margin_policy`
+(per-frame, pre-scanline): world-map scenes (BG0/BG1 size=2 = 256-px
+tilemaps) set `g_ws_pillarbox = 1` (black bars — their margins are the wrap
+edge); ring scenes (size=1: battle/pub) stay wide. BG2/BG3 (256-wide UI
+screens) return no-pixel outside the native 240 span via
+`g_ws_bg_x_provider` (+ mask `(1<<2)|(1<<3)`) so menu/funds/dialogue edges
+can no longer wrap into the margins (this was visible in the pub before
+the fix: "ME/Ru/Qu/Lea" fragments in the right margin).
+
+Verified with --view-width 320: battle margins 12800/12800; pub margins
+12800/12800 CLEAN (UI fragments gone; center vs faithful 0/38400); world
+margins 0/12800 (pillarbox); attract byte-exact; check.py 8/8; routes
+FULLY_STATIC. Battle @384 spot check: 72-px margins filled (full validation
+pending).
+
+CORRECTION (documented per discipline): the W2-era "pub interior post-load
+— margins 100 %" verification had run without `GBARECOMP_INPUT_REPLAY` set,
+so that run never left the world map — it was a world-map wrap check, not
+the pub. Found during the W3 re-check (the pub "failed" the new pillarbox
+detector precisely because the scene was the world map all along). The pub
+is now genuinely verified (above); reference/widescreen.md + README updated.
