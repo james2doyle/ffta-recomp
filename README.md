@@ -49,34 +49,112 @@ sheet, and one upstream note.
 
 - Linux x86-64 (developed on Arch; other unixes untested)
 - CMake ≥ 3.20 + Ninja, GCC or Clang (C++17), SDL2 (dev), git
+  - Arch: `sudo pacman -S --needed cmake ninja gcc sdl2 git uv`
+  - Debian/Ubuntu: `sudo apt install cmake ninja-build g++ libsdl2-dev git python3-venv`
 - Python 3.10+ with `capstone`, installed into a repo-local `.venv/`
+  (`uv` recommended; plain `python3 -m venv` works too)
+- Your own dumps: the FFTA (USA) ROM and a GBA BIOS dump — both
+  hash-verified at launch (see the block above) and never committed
 - Optional: a system mGBA install (`mgba-qt`) for side-by-side eyeballing
 
-## Setup
+## Setup (fresh clone → running game)
 
+The sequence below was verified end-to-end from a fresh clone on 2026-10-08
+(submodules → tools → patches → BIOS → corpus → build → strict smoke +
+attract gate).
+
+**1. Clone with submodules.**
 ```sh
 git clone <repo-url> ffta-recompiled && cd ffta-recompiled
 git submodule update --init --recursive
+# If a submodule worktree comes up empty, re-run with --checkout --recursive
+```
 
-# Python venv for the tooling (disassembler, audit harness)
+**2. Python venv for the tooling** (disassembler, audit harness):
+```sh
 uv venv .venv && uv pip install --python .venv capstone
 #   (or: python3 -m venv .venv && .venv/bin/pip install capstone)
+```
 
-# 1. framework tools (one-time; re-run only after submodule changes)
+**3. Build the framework tools** (one-time; re-run only after submodule
+changes):
+```sh
 cmake -S gbarecomp -B gbarecomp/build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build gbarecomp/build --target gba_recompile gba_scan --parallel 8
+```
 
-# 2. place game.gba (repo root) and gbarecomp/bios/gba_bios.bin
-#    (launch fails loudly if either hash is wrong)
+**4. Place your dumps** — `game.gba` at the repo root (FFTA USA) and
+`gbarecomp/bios/gba_bios.bin` (your own BIOS dump). Launch verifies both
+hashes and fails loudly if either is wrong or missing.
 
-# 3. the game binary
+**5. Apply the local framework patches** (recommended — the tooling below
+assumes them; diffs kept on top of the pinned submodule):
+```sh
+cd gbarecomp
+git apply ../tools/patches/oracle-save-autoload.patch
+git apply ../tools/patches/selfheal-journal-close-hardening.patch
+cd ..
+```
+`tools/check.py --only patches` guards their validity.
+
+**6. Recompile the BIOS (one-time).** Run it *from `gbarecomp/`* so the
+output lands in `gbarecomp/src/runtime/generated_bios/`, and pass the
+project's BIOS config — it seeds the 770 named BIOS functions and
+identity-checks the dump (without it only 666 are discovered and strict
+runs abort on a miss at pc `0x300`):
+```sh
+cd gbarecomp && ./build/gba_recompile --bios bios/gba_bios.bin \
+  --config bios/gba_bios.toml && cd ..
+```
+
+**7. Generate the game's static code corpus** (also after every `game.toml`
+change — `tools/cycle.py` wraps this with the sanity checks and the attract
+gate):
+```sh
+./gbarecomp/build/gba_recompile --rom game.gba --config game.toml \
+  --symbols symbols/ffta_symbols.tsv --data-symbols symbols/ffta_data_symbols.tsv \
+  --out generated --max-functions 65536
+```
+
+**8. Configure and build the game binary:**
+```sh
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build --target FFTARecomp --parallel 8
+```
 
-# 4. smoke: strict, headless, no input — expect FULLY_STATIC in the banner
+**9. Sanity.** Strict, headless, no input — expect `FULLY_STATIC` in the
+banner:
+```sh
 GBARECOMP_STRICT_STATIC=1 ./build/FFTARecomp \
   --bios gbarecomp/bios/gba_bios.bin --rom game.gba --frames 2400 --no-window
 ```
+And optionally the attract gate, which pins the exact frame hash:
+```sh
+.venv/bin/python tools/attract_check.py    # PASS + exit 0 expected
+```
+
+Then play — `tools/play.sh` (see the playtest guide below).
+
+<details>
+<summary>Troubleshooting</summary>
+
+- `gba_recompile: command not found` → step 3 was not run in this checkout.
+- `generated_bios/` stays empty / BIOS never loads → step 6 was run from the
+  wrong directory (`cd gbarecomp` first). If strict runs instead abort with
+  a dispatch miss near pc `0x300`, step 6 ran without
+  `--config bios/gba_bios.toml`.
+- Launch aborts with an identity/hash error → wrong or missing dump; compare
+  the SHA-1s listed at the top of this README.
+- CMake cannot find SDL2 → install the dev package (see Requirements).
+- `import capstone` fails in tools → step 2's venv (use
+  `.venv/bin/python tools/...`).
+- A submodule directory is empty after cloning → step 1's retry line.
+- Window refuses to close, or a session wedges → `tools/quit.py <port>`; see
+  the playtest guide below.
+- After `game.toml` edits: regenerate (step 7) → rebuild → attract gate, i.e.
+  `.venv/bin/python tools/cycle.py`.
+
+</details>
 
 Optional — the mGBA oracle used by the frame-diff harness (needs network
 once; distinct from a system mGBA):
@@ -87,50 +165,118 @@ cd gbarecomp && bash oracle/setup-mgba.sh \
   && cmake --build build --target gbarecomp_oracle --parallel 8
 ```
 
-Regeneration after `game.toml` edits (normally `tools/cycle.py` does this
-plus the sanity checks and the attract gate):
-
-```sh
-./gbarecomp/build/gba_recompile --rom game.gba --config game.toml \
-  --symbols symbols/ffta_symbols.tsv --data-symbols symbols/ffta_data_symbols.tsv \
-  --out generated --max-functions 65536
-cmake --build build --target FFTARecomp --parallel 8
-```
-
 ## Run it
 
 ```sh
-tools/play.sh                     # windowed, instrumented (see the loop below)
-tools/play.sh --scale 8           # bigger window: Nx240 x Nx160 (1-8; 8 = 1920x1280)
-tools/play.sh --fullscreen        # borderless desktop fullscreen
-tools/play.sh --tcp-observe 19850 # window + live debug port (tools/keyprobe.py 19850)
-GBARECOMP_WS_WIP=1 tools/play.sh --scale 4 --view-width 320  # widescreen dev override;
-                                      # margins wrap — see reference/widescreen.md
-# close a session: press ESC in-game (verified clean), or script it:
-.venv/bin/python tools/quit.py 19850  # clean close (see BRINGUP § "Close-hang investigation")
+tools/play.sh                     # windowed, instrumented — the normal way to play
+tools/play.sh --scale 8           # windowed, bigger (playtest guide below)
+
 ./build/FFTARecomp --bios gbarecomp/bios/gba_bios.bin --rom game.gba \
   --frames 6000 --no-window       # headless; add --dump-png out.png for a frame
 ```
 
-- **Keyboard:** the map lives in `build/keybinds.ini` (next to the exe; SDL
-  scancode names = physical QWERTY positions). A verified all-letters example
-  is `tools/playtest_keybinds.ini.example` (`a=X b=Z select=Q start=D l=W
-  r=R`, arrows for the D-pad). Letters are deliberate: on desktops with an
-  input-method daemon (IBus on GNOME), special keys like Enter/Backspace can
-  be swallowed inside game windows.
-- **Savestates:** `Shift+F1..F9` = save slot, `F1..F9` = load. Slot files are
-  `game.state1..9` next to the ROM; per-session copies are archived under
-  `saves/` by play.sh at launch.
-- **Battery save:** Flash 64 KB at `saves/playtest.sav` (via play.sh).
-- **External saves:** any raw 64 KiB flash image (e.g. another emulator's
-  `.sav`, or a community container unpacked to raw) can be played by passing
-  it last — `tools/play.sh --save-path saves/<file>.sav` (last-wins over
-  play.sh's default). Work on a copy: in-game saves rewrite the file.
-- **Window size:** `--scale N` (1–8). `--view-width` is NOT a window-size
-  flag — it is the widescreen *view* feature and FFTA clamps it to 240 by
-  design.
-- **Debug:** `--tcp` is structurally headless; use `--tcp-observe PORT` for a
-  windowed session with the debug port.
+Headless runs are for scripts and gates; use `tools/play.sh` for anything
+interactive. Session recording, controls, savestates, debug ports and clean
+shutdown are covered next.
+
+## Playtesting & debugging with `tools/play.sh`
+
+`tools/play.sh` launches the windowed build with the session instrumentation
+already on (input recording, live miss journaling, persistent battery save)
+and archives the previous session's artifacts at launch, so back-to-back
+playtests cannot clobber each other.
+
+### Launch options
+
+| Command | What you get |
+|---|---|
+| `tools/play.sh` | windowed game, instrumentation on |
+| `tools/play.sh --scale N` | bigger window (1–8; 8 = 1920×1280) |
+| `tools/play.sh --fullscreen` | borderless desktop fullscreen |
+| `tools/play.sh --launcher` | run the settings UI first |
+| `tools/play.sh --tcp-observe PORT` | window + read-only debug port (see below) |
+| `tools/play.sh --save-path saves/copy.sav` | play a different battery save (last flag wins; work on a copy — in-game saves rewrite the file) |
+
+Notes:
+- `--tcp` (without `-observe`) is structurally headless — the TCP branch
+  returns before window init. For a windowed session always use
+  `--tcp-observe PORT`.
+- `--view-width` is the widescreen *view* feature, not a window size — FFTA
+  clamps it to 240 by design. Dev override: `GBARECOMP_WS_WIP=1` (see
+  `reference/widescreen.md`).
+- Extra flags pass straight through to `FFTARecomp`; the build must exist
+  (`build/FFTARecomp`) before launching.
+
+### Controls, savestates, saves
+
+- **Keymap:** `build/keybinds.ini` (next to the exe; SDL scancode names =
+  physical QWERTY positions). Install the verified all-letters example:
+  `cp tools/playtest_keybinds.ini.example build/keybinds.ini`
+  (`a=X b=Z select=Q start=D l=W r=R` + arrows). Letters are deliberate — on
+  desktops with an input-method daemon (IBus/GNOME) Enter/Backspace can be
+  swallowed inside game windows. Relaunch after edits.
+- **Savestates:** `Shift+F1..F9` saves into slot 1–9; `F1..F9` loads. Slot
+  files are `game.state1..9` at the repo root; play.sh archives the previous
+  session's as `saves/stateN_prev_<ts>.state`.
+- **Battery save:** Flash 64 KB, default `saves/playtest.sav` (see
+  `--save-path` above for external saves).
+
+### What a session records (live)
+
+| Artifact | What it is |
+|---|---|
+| `logs/playthrough.csv` | exact `(frame, keys)` trace — replayable with `GBARECOMP_INPUT_REPLAY` |
+| `logs/playtest_misses.frag` | TOML proposals for every code miss — journaled to disk the moment each miss is recorded (a hang or kill cannot lose it); rewritten with final counts at clean exit |
+| `recomp_cache/…` | each miss healed on the fly into native code — the game keeps running; the frag is the offline seed queue |
+
+A clean close (**ESC** in-game, or `tools/quit.py`) also flushes the exit
+diagnostics. If the window ever refuses to close, `.venv/bin/python
+tools/quit.py <port>` closes remotely and flushes exactly the same
+artifacts.
+
+### Debugging from a second terminal
+
+`--tcp-observe PORT` serves a read-only debug surface to one client — keep a
+single long-lived watcher per session.
+
+| Tool | Use |
+|---|---|
+| `.venv/bin/python tools/keyprobe.py PORT` | live KEYINPUT monitor (active-low) — verifies host keys reach the guest. Click the window once (focus) first. |
+| `.venv/bin/python tools/livewatch.py PORT` | frame-stall watchdog — snapshots registers, state hash and an IWRAM stack window to `/tmp/hang_*.json` the moment the frame counter stops advancing |
+| `.venv/bin/python tools/quit.py PORT` | clean remote close (archives + flushes) |
+| raw TCP reads | memory/register reads for ad-hoc questions — see `gbarecomp/TCP.md`; observe mode has no stepping |
+
+For deeper captures (no code changes): `GBARECOMP_INSN_TRACE=1` +
+`GBARECOMP_FP_SAVE=file` (per-instruction ring; query with
+`tools/ringscan.py`), `GBARECOMP_WRAM_TRACE` (+`_LO`/`_HI`),
+`GBARECOMP_MISS_IWRAM_DUMP` — details in `AGENTS.md`.
+
+### Recipes
+
+- **A hang.** Leave the window frozen and run `livewatch.py` — the snapshot
+  names the pc/state. Close with `quit.py`, then reproduce offline:
+  `tools/spinhunt.py <trace> <save> <frames>` bisects strict replays; the
+  frag/cache shows what to seed. (Crash classes: the table in the next
+  section.)
+- **A missing-coverage stretch.** Just play — every miss is journaled; then
+  run the healing loop below (harvest → misspack → merge → resolve →
+  cycle).
+- **Save flows / external saves.** Play on a copy (`--save-path`), validate
+  structurally with `tools/savecheck.py`; oracle comparisons:
+  `tools/dualrun.py probe saveflow`.
+- **Long sessions.** Supported — present-in-place + background healing keep
+  long runs stable, and the frag stays current throughout.
+- **Widescreen experiments.** `GBARECOMP_WS_WIP=1 tools/play.sh --scale 4
+  --view-width 320` — margins are wrapped BG columns, not content;
+  `reference/widescreen.md` tracks the state of play.
+
+### Housekeeping
+
+- Don't run builds or second game instances while a session is live —
+  background heal compilation competes for CPU.
+- `logs/` and `saves/` are gitignored — never force-add session captures.
+- After a session, gate the tree before calling it good:
+  `.venv/bin/python tools/check.py` (see Verification & regression).
 
 ## The playtest → healing loop
 
@@ -236,12 +382,18 @@ GBARECOMP_INPUT_REPLAY=logs/playthrough.csv ./build/FFTARecomp ...` — expect
   attract run; it runs inside `cycle.py` after every `game.toml` change.
   `--repin` only for deliberate visual changes.
 - **Full gate:** `.venv/bin/python tools/check.py` — host unit tests
-  (C++ + Python), the attract gate, and strict route replays (user
+  (C++ + Python), patch validity, the attract gate, and strict route
+  replays (user
   save-load, sessions G/K) against frozen fixtures in `saves/regress/`
   (sha-pinned). Run it before declaring "no regressions"; checks run
   concurrently by default (`--jobs N`; auto = min(8, CPUs) — `--jobs 1` for
   serial) with per-run save/coverage isolation; `--fast` for the quick
   subset. `tools/savecheck.py` validates raw/RTN5 saves offline.
+  The `saves/regress/` fixtures are local-only (never redistributed), so a
+  fresh clone has nothing to replay: use `--only unit-cpp`,
+  `--only unit-py`, `--only attract` (or `tools/attract_check.py`) until you
+  have regenerated routes by playing + resolving; `--fast` also needs the
+  fixture for its `savecheck` step.
 - **Coverage lenses:** `tools/coverage_report.py` reports executed path
   (ground truth), walker's static reach, and pointer-pool reach (a proxy —
   not a goal; FFTA needs FULLY_STATIC on executed paths, not 100 % of a

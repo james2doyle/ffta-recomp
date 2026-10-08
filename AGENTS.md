@@ -126,8 +126,9 @@ resolve each segment. Accumulated seeds land in
 a proposal file (game.toml is never auto-edited) — merge them, then run a
 normal `tools/cycle.py` + strict replay as the acceptance.
 
-Interactive playtest (the healing loop's front end — README § "The playtest
-→ healing loop"): `tools/play.sh [--scale N | --fullscreen | --tcp-observe
+Interactive playtest (the healing loop's front end — README §§ "Playtesting
+& debugging with `tools/play.sh`" and "The playtest → healing loop"):
+`tools/play.sh [--scale N | --fullscreen | --tcp-observe
 PORT]`. Letter-key keymap in `build/keybinds.ini` (example:
 `tools/playtest_keybinds.ini.example`); records `logs/playthrough.csv`,
 proposes to `logs/playtest_misses.frag` (journaled live as misses occur —
@@ -240,7 +241,7 @@ two retracted claims".)
 | `inputs/` | Deterministic keyinput traces (`<frame>,0x<hex>` active-low, sticky) — `title_to_newgame.csv`, `session2_battle_trace.csv` |
 | `symbols/` | Curated symbol seeds + data names (charlie-troy/ffta-decomp facts + engine-hacks-derived, attributed); consumed via `--symbols` / `--data-symbols` |
 | `BRINGUP.md` | Decision log — the project's memory |
-| `README.md` | Setup, run instructions, the playtest/healing loop, contribution guide |
+| `README.md` | Setup + newcomer build guide, run instructions, the playtest/debug cookbook and healing loop, contribution guide |
 | `game.gba` | Retail ROM, gitignored |
 
 Submodule pins (2026-10-06): gbarecomp @ `ecc9c55` (main; newer than the
@@ -364,9 +365,11 @@ bounded heal-worker stop, diagnostics flushed before the worker join).
   fullscreen. Live fullscreen/window-size keys are system hotkeys bound in
   `config.ini` `[KeyMap]` (rebindable in the launcher).
 
-- BIOS recompile must run with cwd = `gbarecomp/` (or output lands in the
-  wrong `src/runtime/generated_bios/`); after generating, **re-run CMake
-  configure** (not just build) so the framework re-detects
+- BIOS recompile must run with cwd = `gbarecomp/` **and pass
+  `--config bios/gba_bios.toml`** (or output lands in the wrong
+  `src/runtime/generated_bios/`, or only 666 of 770 functions are discovered
+  and strict runs abort on a miss at pc=`0x300`); after generating, **re-run
+  CMake configure** (not just build) so the framework re-detects
   `bios_recompiled.cpp`.
 - Linux stack: host main thread needs RLIMIT_STACK raised (src/main.cpp
   raise_stack_limit does this; hard limit must be unlimited).
@@ -404,11 +407,11 @@ bounded heal-worker stop, diagnostics flushed before the worker join).
   `tools/`; use it instead of hand-rolling probes (`tools/dualrun.py`,
   `tools/misspack.py`).
 - Full gate before declaring a state good:
-  `.venv/bin/python tools/check.py` (host unit tests + attract + strict
-  route replays over frozen fixtures in `saves/regress/`; runs concurrently
-  by default — `--jobs N` / `--jobs 1` — with per-run save + coverage
-  isolation; `--fast` for the quick subset). Freeze every new route worth
-  guarding as a fixture.
+  `.venv/bin/python tools/check.py` (host unit tests + patch validity +
+  attract + strict route replays over frozen fixtures in `saves/regress/`;
+  runs concurrently by default — `--jobs N` / `--jobs 1` — with per-run save
+  + coverage isolation; `--fast` for the quick subset). Freeze every new
+  route worth guarding as a fixture.
 - After every playtest session: harvest (the `.frag` is current either way;
   `tools/cache_harvest.py` as a second source) → merge reviewed seeds →
   `tools/resolve.py` on the session trace until FULLY_STATIC →

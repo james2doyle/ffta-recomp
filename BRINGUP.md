@@ -2475,3 +2475,32 @@ the tree.
 **No history rewrite** (user decision): the retained GFDL pages are
 compliant as distributed (license text + attribution included in-tree);
 commit `26b0658` stays as-is.
+
+### 2026-10-08 (cont.) — Fresh-clone newcomer verification (2 real blockers found)
+
+Ran the README build path end-to-end from a scratch clone (`/tmp/ffta_fresh`:
+clone → submodules → venv → framework tools → dumps → patches → BIOS
+recompile → corpus → host build → strict smoke + attract). It caught two
+things the dev checkout never could:
+
+**Blocker 1 — `tools/patches/oracle-save-autoload.patch` was not a diff.**
+Committed as a side-by-side/formatter view of the change (same class as the
+old "`git diff` through a formatter" lesson); `git apply` rejected it ("No
+valid patches in input") — never apply-able in committed form. Fixed:
+regenerated via `git --no-pager -C gbarecomp diff --no-ext-diff --no-color
+-- oracle/main.cpp`, verified forward on a pristine pinned submodule and
+reverse on the dev tree. Hardened: `tools/check.py` gained a `patches` check
+(forward-or-reverse apply must succeed; included in `--fast`) — the class
+had no gate before.
+
+**Blocker 2 — BIOS recompile needs `--config bios/gba_bios.toml`.**
+Without it only 666 BIOS functions are discovered (vs **770** with it; the
+setup text omitted the flag). The truncated BIOS aborts strict runs with
+`dispatch miss for pc=0x00000300 (arm)` (attract gate exit -6 on a fresh
+build). With the config, the fresh-clone `bios_recompiled.cpp` is
+**byte-identical** to this checkout's (`c3e2cfb4…`); strict 2400 =
+FULLY_STATIC and attract PASS (`1EF4C118…`). README step 6 + troubleshooting
+and the AGENTS BIOS note updated.
+
+Evidence: `/tmp/fresh_resume.log`, `/tmp/fresh_bios2.log`,
+`/tmp/fresh_smoke2.log` (scratch clone at `/tmp/ffta_fresh`).

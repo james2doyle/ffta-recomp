@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """One-command regression gate for the FFTA recomp worktree.
 
-Runs: host unit tests (C++ + Python) -> attract golden gate -> strict route
-replays (user save-load repro, session G, session K) against the frozen
-fixtures in saves/regress/.
+Runs: host unit tests (C++ + Python) -> patch validity -> attract golden
+gate -> strict route replays (user save-load repro, session G, session K)
+against the frozen fixtures in saves/regress/.
 
 The checks are independent processes, so they run concurrently by default
 (--jobs; auto = min(8, cpus)). Each game run gets isolated outputs — its own
@@ -103,16 +103,44 @@ def check_savecheck():
     return r.returncode == 0 and "savecheck: OK" in line, line
 
 
+def check_patches():
+    """tools/patches/*.patch must be real diffs matching the pinned submodule:
+    apply-able forward to a pristine gbarecomp, or reversible from the patched
+    dev tree. Catches mangled/empty exports (2026-10-08 regression)."""
+    details = []
+    ok = True
+    for name in ("oracle-save-autoload.patch",
+                 "selfheal-journal-close-hardening.patch"):
+        p = REPO / "tools/patches" / name
+        if not p.exists():
+            ok = False
+            details.append(f"{name}: missing")
+            continue
+        fwd = run(["git", "-C", "gbarecomp", "apply", "--check", str(p)])
+        if fwd.returncode == 0:
+            details.append(f"{name}: forward-ok")
+            continue
+        rev = run(["git", "-C", "gbarecomp", "apply", "--check",
+                   "--reverse", str(p)])
+        if rev.returncode == 0:
+            details.append(f"{name}: reverse-ok (applied)")
+        else:
+            ok = False
+            details.append(f"{name}: INVALID")
+    return ok, " ".join(details)
+
+
 CHECKS = {
     "unit-cpp": check_unit_cpp,
     "unit-py": check_unit_py,
     "savecheck": check_savecheck,
+    "patches": check_patches,
     "attract": check_attract,
     "user_load": lambda: strict_route(REG / "user_load_trace.csv", 1600),
     "route_G": lambda: strict_route(REG / "sessionG_trace.csv", 19400),
     "route_K": lambda: strict_route(REG / "sessionK_trace.csv", 29884),
 }
-FAST = ["unit-cpp", "unit-py", "savecheck", "attract"]
+FAST = ["unit-cpp", "unit-py", "savecheck", "patches", "attract"]
 
 
 def main():
