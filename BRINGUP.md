@@ -2418,3 +2418,18 @@ FULLY_STATIC); zero-miss smoke: no journal write, banner + coverage JSON
 intact; framework `selfheal_cluster_test` passes. The record-time journal's
 positive path is exercised by the next session that misses a PC — watch
 `logs/playtest_misses.frag` mtime update mid-session.
+
+### 2026-10-08 (cont.) — check.py: parallel gate
+
+The gate's checks are independent processes, so `tools/check.py` now runs
+them concurrently (`--jobs N`; default auto = min(8, cpus); `--jobs 1` = the
+old serial order) and prints results as they complete; crashes/timeouts are
+reported as FAIL instead of killing the run. Parallel safety needed two
+isolations: each strict route gets its own battery-save copy in /tmp (the
+runner flushes "<save>.tmp" → rename; a shared path would race) and a unique
+`GBARECOMP_COVERAGE_JSON` path (runs previously clobbered the repo-root
+coverage json); `attract_check.py` moves its coverage json into its tempdir.
+
+Measured: full gate 2m40s → **1m30 / 1m41** (two runs, 7/7 both, attract
+sha256 `1EF4C118…` unchanged, routes FULLY_STATIC); `--fast --jobs 1`
+serial path OK.

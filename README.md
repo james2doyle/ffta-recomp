@@ -235,8 +235,10 @@ GBARECOMP_INPUT_REPLAY=logs/playthrough.csv ./build/FFTARecomp ...` — expect
 - **Full gate:** `.venv/bin/python tools/check.py` — host unit tests
   (C++ + Python), the attract gate, and strict route replays (user
   save-load, sessions G/K) against frozen fixtures in `saves/regress/`
-  (sha-pinned). Run it before declaring "no regressions"; `--fast` for the
-  quick subset. `tools/savecheck.py` validates raw/RTN5 saves offline.
+  (sha-pinned). Run it before declaring "no regressions"; checks run
+  concurrently by default (`--jobs N`; auto = min(8, CPUs) — `--jobs 1` for
+  serial) with per-run save/coverage isolation; `--fast` for the quick
+  subset. `tools/savecheck.py` validates raw/RTN5 saves offline.
 - **Coverage lenses:** `tools/coverage_report.py` reports executed path
   (ground truth), walker's static reach, and pointer-pool reach (a proxy —
   not a goal; FFTA needs FULLY_STATIC on executed paths, not 100 % of a

@@ -88,6 +88,7 @@ def main() -> int:
     with tempfile.TemporaryDirectory(prefix="ffta_attract_") as td:
         png = Path(td) / "attract_frame.png"
         sav = Path(td) / "throwaway.sav"
+        env["GBARECOMP_COVERAGE_JSON"] = str(Path(td) / "coverage.json")
         cmd = [args.exe, "--config", str(REPO / "game.toml"),
                "--bios", args.bios, "--rom", args.rom,
                "--frames", str(frames), "--no-window",

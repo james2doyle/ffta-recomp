@@ -1,9 +1,15 @@
 #!/usr/bin/env python3
 """One-command regression gate for the FFTA recomp worktree.
 
-Runs, in order: host unit tests (C++ + Python) -> attract golden gate ->
-strict route replays (user save-load repro, session G, session K) against
-the frozen fixtures in saves/regress/.
+Runs: host unit tests (C++ + Python) -> attract golden gate -> strict route
+replays (user save-load repro, session G, session K) against the frozen
+fixtures in saves/regress/.
+
+The checks are independent processes, so they run concurrently by default
+(--jobs; auto = min(8, cpus)). Each game run gets isolated outputs — its own
+battery-save copy and its own GBARECOMP_COVERAGE_JSON path in the temp dir —
+so concurrent runs can't race on the shared fixture save or the repo-root
+coverage file. Use --jobs 1 for the old serial order.
 
 Every check prints PASS/FAIL with a one-line summary; exit 0 only if all
 pass. Fixtures are local-only (gitignored, like all saves/traces). The save
@@ -11,16 +17,20 @@ fixture is sha-verified so an accidental overwrite fails loudly instead of
 silently redefining the baseline.
 
 Usage:
-  .venv/bin/python tools/check.py            # everything (~6 min)
+  .venv/bin/python tools/check.py            # everything (~1.5-2 min)
   .venv/bin/python tools/check.py --fast     # unit tests + attract only
+  .venv/bin/python tools/check.py --jobs 1   # serial
   .venv/bin/python tools/check.py --only NAME
 """
 import argparse
+import concurrent.futures
 import hashlib
 import os
 import pathlib
+import shutil
 import subprocess
 import sys
+import tempfile
 import time
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
@@ -69,8 +79,18 @@ def strict_route(trace, frames):
     env = clean_env()
     env["GBARECOMP_STRICT_STATIC"] = "1"
     env["GBARECOMP_INPUT_REPLAY"] = str(trace)
+    # Parallel safety: each run gets its own save copy (the runner flushes
+    # "<save>.tmp" then renames; runs sharing one path would race) and its own
+    # coverage-json path (runs otherwise clobber recomp_coverage_*.json in the
+    # repo root).
+    save = FIXTURE_SAVE
+    if FIXTURE_SAVE.exists():
+        save = pathlib.Path(tempfile.gettempdir()) / f"ffta_check_{trace.stem}.sav"
+        shutil.copyfile(FIXTURE_SAVE, save)
+    env["GBARECOMP_COVERAGE_JSON"] = str(
+        pathlib.Path(tempfile.gettempdir()) / f"ffta_check_{trace.stem}_cov.json")
     r = run([str(EXE), "--bios", str(BIOS), "--rom", str(ROM),
-             "--save-path", str(FIXTURE_SAVE), "--frames", str(frames),
+             "--save-path", str(save), "--frames", str(frames),
              "--no-window"], env=env, timeout=1800)
     cov = next((l for l in r.stdout.splitlines()
                 if "self_heal_coverage" in l), "")
@@ -99,6 +119,9 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--fast", action="store_true")
     ap.add_argument("--only", choices=sorted(CHECKS))
+    ap.add_argument("--jobs", type=int, default=0,
+                    help="concurrent checks (default: auto = min(8, cpus); "
+                         "1 = serial)")
     a = ap.parse_args()
     if not EXE.exists():
         print(f"check: {EXE} missing - build the game first (see AGENTS.md)")
@@ -111,13 +134,26 @@ def main():
                   "before trusting results")
             return 1
     names = [a.only] if a.only else (FAST if a.fast else list(CHECKS))
-    results = []
-    for n in names:
+    jobs = a.jobs if a.jobs > 0 else min(8, os.cpu_count() or 4)
+    jobs = max(1, min(jobs, len(names)))
+    print(f"check: {len(names)} check(s), jobs={jobs}", flush=True)
+
+    def run_one(name):
         t0 = time.time()
-        ok, detail = CHECKS[n]()
-        print(f"[{'PASS' if ok else 'FAIL'}] {n:9s} {time.time() - t0:6.1f}s  {detail}",
-              flush=True)
-        results.append((n, ok))
+        try:
+            ok, detail = CHECKS[name]()
+        except Exception as exc:  # keep the gate summarizing on crashes/timeouts
+            ok, detail = False, f"exception: {exc}"
+        return name, ok, detail, time.time() - t0
+
+    results = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as pool:
+        futures = [pool.submit(run_one, n) for n in names]
+        for fut in concurrent.futures.as_completed(futures):
+            n, ok, detail, dt = fut.result()
+            print(f"[{'PASS' if ok else 'FAIL'}] {n:9s} {dt:6.1f}s  {detail}",
+                  flush=True)
+            results.append((n, ok))
     failed = [n for n, ok in results if not ok]
     print(f"check: {'ALL PASS' if not failed else 'FAILED: ' + ', '.join(failed)} "
           f"({len(results) - len(failed)}/{len(results)})")

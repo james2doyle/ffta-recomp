@@ -89,10 +89,12 @@ cmake --build build --target ffta_unit_tests --parallel 8
 ctest --test-dir build -R ram_dispatch --output-on-failure
 ```
 
-Full regression gate (host tests + attract + strict route replays, ~6 min):
+Full regression gate (host tests + attract + strict route replays; checks
+run concurrently unless --jobs 1):
 
 ```sh
 .venv/bin/python tools/check.py            # --fast = units + attract only
+.venv/bin/python tools/check.py --jobs 1   # serial
 ```
 
 Run (needs BIOS + ROM paths; both must hash-verify):
@@ -399,8 +401,10 @@ bounded heal-worker stop, diagnostics flushed before the worker join).
   `tools/misspack.py`).
 - Full gate before declaring a state good:
   `.venv/bin/python tools/check.py` (host unit tests + attract + strict
-  route replays over frozen fixtures in `saves/regress/`; `--fast` for the
-  quick subset). Freeze every new route worth guarding as a fixture.
+  route replays over frozen fixtures in `saves/regress/`; runs concurrently
+  by default — `--jobs N` / `--jobs 1` — with per-run save + coverage
+  isolation; `--fast` for the quick subset). Freeze every new route worth
+  guarding as a fixture.
 - After every playtest session: harvest (the `.frag` is current either way;
   `tools/cache_harvest.py` as a second source) → merge reviewed seeds →
   `tools/resolve.py` on the session trace until FULLY_STATIC →
