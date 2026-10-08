@@ -284,7 +284,7 @@ bounded heal-worker stop, diagnostics flushed before the worker join).
   LZSS decoder at an interior entry (`0x08005544`) and broke the save-menu
   route's strict replay (memory runaway; reverted — re-trial needs a
   route-level golden gate + an interior-split policy; README § Roadmap
-  item 1). Every executed path is FULLY_STATIC (strict replays: boot→newgame;
+  item 2). Every executed path is FULLY_STATIC (strict replays: boot→newgame;
   the summon route f29,384; session battle/save routes) and the attract hash
   is unchanged since pinning. **Save/summon hangs FIXED (2026-10-07):**
   relocated-stub canonicalization + sentinel/count fixups
