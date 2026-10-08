@@ -2521,3 +2521,18 @@ candidate pointers of 104,915 PC-relative literals. README status paragraph +
 snapshot table refreshed (was the 54,327 snapshot of 2026-10-07); AGENTS
 status line aligned. Historical landing figures for the event crawl (roadmap
 item 3) left as written.
+
+### 2026-10-08 (cont.) — Save-flow investigation: closed for docs (repro re-verified)
+
+Re-ran the classic found-save strict repro now that the ram-dispatch resume
+fix (cont.2) has landed: `GBARECOMP_STRICT_STATIC=1` + trace
+`sessionL_1736.csv` + save copy (2,600 frames) → **FULLY_STATIC, exit 0**
+(previously `dispatch miss pc=0x700200F2` at f ≤ 1,272; `unmapped=18`, the
+oracle-identical open-bus reads). Together with route_G/K + user_load
+strict-green in the gate, every deterministic save repro is now clean. The
+2026-10-07 "descriptor zeroed / validator divergence" theory is superseded by
+the cont.2 root cause (our hook's mid-copy re-entry — the stack tear produced
+the garbage calls and the wrong epilogue pop). Remaining open-minor: the
+~950-frame native-vs-oracle flow offset (cont.4 note). Docs updated: README
+(open-investigation paragraph, acceptance list, roadmap item 4), AGENTS
+gotcha bullet.

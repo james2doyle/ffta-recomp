@@ -27,8 +27,7 @@ byte-exact — the blind speculative path itself stays
 off (interior-split hazard: a single split of the guarded LZSS decoder
 regressed a route). The attract regression
 gate hash has been stable since pinning. Remaining work: the annotation pass
-(next), the event/script static walk, the save-flow divergence fix (open
-investigation below — no observed hangs remain), a long-run attract contact
+(next), the event/script static walk, a long-run attract contact
 sheet, and one upstream note.
 
 > **You must own the game and BIOS.** Both are user-supplied, hash-verified at
@@ -414,25 +413,30 @@ inventory exists); a route is done when its replay is FULLY_STATIC. Corpus:
 speculative-harvest trial kept 2,122 pointer candidates out of 104,915
 PC-relative literals (`false` in `game.toml` by policy).
 
-**Open investigation (2026-10-07):** the save **load/save flow** diverges on
-certain save contents — the oracle builds the decoded save-slot descriptor
-at guest `0x02000000` during the load; our build leaves it zeroed, and the
-later in-game save then reads garbage descriptors and runs away (a copy loop
-called with `source = ~count`; the same signature as a downloaded save's
-load stall). The validator (`0x0813B57C` + checksum `0x0813ADF0`) and the
-read loop are proven identical on both engines (verified with the
-instruction ring — earlier read-count asymmetry was a probe artifact). A
-deterministic repro + tooling (`tools/readseq_probe.py`, `tools/dualrun.py`)
-are in place — see BRINGUP § "Save-flow divergence narrowed…"; root cause in
-progress.
+**Save flows — resolved (2026-10-08).** The 2026-10-07 stall/runaway class on
+certain save contents was root-caused to a bug on OUR side, not a guest
+divergence: the save driver re-plants its byte-copy helper per call, and a
+mid-copy IRQ resume could byte-match a fresh plant and re-run the canonical
+body (stack tear → the driver's epilogue popped a scan-buffer pointer as a
+return address; aborts like `pc=0x02003CB0` / `0x700200F2`). The ram-dispatch
+hook now passes every `r2 == 0xFFFFFFFF` resume through to the fixed table's
+resume labels (commit `1eeb60f`): the save flow completes, the found-save
+repro (`saves/found_save.mGBA.sav` + `saves/trace_sessionL_1736.csv`) and all
+save routes replay strict-clean, and the open-bus reads the fix exposed are
+oracle-identical (BRINGUP §§ cont.2–cont.4; driver-call tooling:
+`tools/readseq_probe.py`). Remaining minor observation: a ~950-frame
+native-vs-oracle offset for the same flow (open; no state divergence in the
+compared windows).
 - **Oracle frame-diff:** `tools/framediff.py --lo 4 --hi 300` (native vs the
   framework's mGBA oracle; bounded band diffs on animated content are
   expected and documented in BRINGUP § "park-phase semantics") and
   `tools/dualrun.py` for lockstep region/pixel probes.
 - **Acceptance replays in the repo today:** boot → new game
   (`inputs/title_to_newgame.csv`, 6000 f), the battle continuation
-  (`inputs/session2_battle_trace.csv` + a matching state), and each session's
-  own trace (via `resolve.py`). All strict-clean as of the last commit.
+  (`inputs/session2_battle_trace.csv` + a matching state), each session's
+  own trace (via `resolve.py`), and the found-save load repro
+  (`saves/found_save.mGBA.sav` + `saves/trace_sessionL_1736.csv`). All
+  strict-clean as of the last commit.
 
 ## Repository layout
 
@@ -548,12 +552,14 @@ noncommercial purposes. Third-party components keep their own terms (the
    54,404 pool), attract hash byte-exact, routes FULLY_STATIC. Tool:
    `tools/eventcrawl.py` (`--trial-dir`). Remainder: 77 pool units + walker
    leftovers (proxy only).
-4. **Save-flow divergence (open investigation).** No observed hangs remain:
-   the relocated-stub fixups (`src/ffta_ram_dispatch.h`) and the LZSS entry
-   guard (`[[mod_function_hook]]` → `ffta.lzss-guard`) closed every observed
-   stall, and the summon routes replay strict-clean. The underlying
-   stale-frame divergence in the save-scan/load flow is still to be
-   root-caused upstream; watch for subtle degradations around in-game saves.
+4. **Save-flow divergence — RESOLVED (2026-10-08).** The aborts were a
+   ram-dispatch bug, not a guest divergence: a mid-copy IRQ resume could
+   byte-match a fresh re-plant of the driver's byte-copy helper and re-run
+   the canonical body (stack tear → wrong epilogue return). `r2 == 0xFFFFFFFF`
+   resumes now pass through to the fixed table's resume labels
+   (`src/ffta_ram_dispatch.h`, commit `1eeb60f`); the save flow completes and
+   every save repro/route replays strict-clean. Open-minor: ~950-frame
+   native-vs-oracle flow offset (BRINGUP cont.4).
 5. Main-game content (play → harvest → resolve) plus long-run attract contact
    sheet (f6000+) and the upstream note on the bridge stop-contract runaway:
    battles and summons completed 2026-10-07; sessions remain the bug-hunter

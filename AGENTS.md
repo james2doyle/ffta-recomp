@@ -291,11 +291,10 @@ bounded heal-worker stop, diagnostics flushed before the worker join).
   (`src/ffta_ram_dispatch.h`) and the LZSS decoder entry guard
   (`[[mod_function_hook]]` → `ffta.lzss-guard`, `src/main.cpp`); first full
   Totema summons completed (BRINGUP § "Summon crash"). Remaining: the
-  annotation pass (next), the event/script static walk, the save-flow
-  divergence (open investigation; no observed hangs remain), the
-  offline-push re-trial (route-level gate + interior-split policy), f6000+
-  attract contact sheet, upstream note on the bridge stop-contract runaway,
-  and the Android port — see README § Roadmap for the full list. Crash playbook:
+  annotation pass (next), the event/script static walk, the offline-push
+  re-trial (route-level gate + interior-split policy), f6000+ attract
+  contact sheet, upstream note on the bridge stop-contract runaway, and the
+  Android port — see README § Roadmap for the full list. Crash playbook:
   BRINGUP § "Battle-session crash" / "Crash #2" (harvest → merge → resolve
   → cycle).
 - Reference projects (mstan's Emerald/FRLG/RS/MinishCap/WWT clones) ship
@@ -386,15 +385,13 @@ bounded heal-worker stop, diagnostics flushed before the worker join).
   generated body. When a new copied-routine family shows up, add its template
   there — don't register only a fixed address (BRINGUP § "Load-hang root
   cause & fix").
-- Battery-save flows still hide divergences: the record scan/validate loop
-  (`0x0813B57C` + checksum `0x0813ADF0`) mishandles some save contents — both
-  observed stalls end in a byte-copy called with `source = ~count` (a
-  garbage-descriptor signature; hunt the record decode, not the copier).
-  Repro + tooling: `tools/readseq_probe.py` (driver-call sequences on both
-  engines), deterministic strict repro in BRINGUP § "Save-record scan/validate
-  divergence". Validate any external save structurally first:
-  `.venv/bin/python tools/savecheck.py <save>` (raw 64 KiB images and RTN5
-  containers; checksum = the game's own CRC, reversed + verified).
+- Save flows are stable since the ram-dispatch resume fix (2026-10-08,
+  `r2 == 0xFFFFFFFF` passthru, commit `1eeb60f`): the found-save repro and
+  all save routes replay strict-clean; the open-bus reads that fix exposed
+  are oracle-identical (BRINGUP cont.2–4). Open-minor: ~950-frame
+  native-vs-oracle flow offset. Validate any external save structurally
+  first: `.venv/bin/python tools/savecheck.py <save>` (raw 64 KiB images and
+  RTN5 containers; checksum = the game's own CRC, reversed + verified).
 - Run examples: smoke `GBARECOMP_STRICT_STATIC=1 ./build/FFTARecomp --bios
   gbarecomp/bios/gba_bios.bin --rom game.gba --frames 2400 --no-window`;
   session replays via `tools/resolve.py`; coverage via
