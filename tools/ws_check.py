@@ -9,6 +9,9 @@ headless twice: once at the target width, once at faithful 240. Checks:
   margins — census of non-black pixels in the two margin strips; policy:
             ring scenes (battle/pub) must be filled, the world map must be
             exact black (pillarbox), enforced by the per-scene policy.
+  fade    — transition frames: margins may be black or dim with the scene,
+            but never brighter than the center (no bright bars against a
+            dark fade).
   stale   — battle_idle vs battle_pan margin strips must differ: the margins
             carry live scene content, not a frozen capture (Emerald-style
             stale-request guard).
@@ -53,6 +56,12 @@ CASES: dict[str, dict] = {
                         desc="world map at rest, guest 51917 (256-px tilemaps -> pillarbox)"),
     "pub_idle":    dict(state="game.state2", csv="inputs/ws_pub_enter.csv",
                         frames=240, expect="filled", desc="pub interior, guest 52067"),
+    "pub_fade":    dict(state="game.state2", csv="inputs/ws_pub_enter.csv",
+                        frames=200, expect="fade",
+                        desc="mid-fade world->pub, guest 52027 (screen fully black)"),
+    "pub_exit":    dict(state="game.state2", csv="inputs/ws_pub_exit.csv",
+                        frames=520, expect="pillar",
+                        desc="world map again after leaving the pub, guest 52347"),
     "battle_idle": dict(state="game.state1", csv=None, frames=60, expect="filled",
                         desc="battle overview at rest, guest 24782"),
     "battle_pan":  dict(state="game.state1", csv="inputs/ws_pan_right.csv",
@@ -118,22 +127,36 @@ def analyze(path: pathlib.Path) -> dict:
     left_px = right_px = left_nb = right_nb = 0
     margin_bytes = bytearray()
     center = []
+    margin_max = center_max = 0
     for line in rows:
         for x in range(extra_left):
             off = x * bpp
             left_px += 1
-            if line[off] or line[off + 1] or line[off + 2]:
+            mx = max(line[off], line[off + 1], line[off + 2])
+            if mx:
                 left_nb += 1
+            if mx > margin_max:
+                margin_max = mx
         for x in range(w - extra_right, w):
             off = x * bpp
             right_px += 1
-            if line[off] or line[off + 1] or line[off + 2]:
+            mx = max(line[off], line[off + 1], line[off + 2])
+            if mx:
                 right_nb += 1
+            if mx > margin_max:
+                margin_max = mx
         margin_bytes += line[0:extra_left * bpp]
         margin_bytes += line[(w - extra_right) * bpp:]
         center.append(line[extra_left * bpp:(extra_left + NATIVE_W) * bpp])
+    for line_bytes in center:
+        for x in range(NATIVE_W):
+            off = x * bpp
+            mx = max(line_bytes[off], line_bytes[off + 1], line_bytes[off + 2])
+            if mx > center_max:
+                center_max = mx
     return dict(w=w, extra_left=extra_left, extra_right=extra_right,
                 left_px=left_px, left_nb=left_nb, right_px=right_px, right_nb=right_nb,
+                margin_max=margin_max, center_max=center_max,
                 margin_bytes=bytes(margin_bytes), center=center)
 
 
@@ -270,6 +293,13 @@ def main() -> int:
                     if lf < FILLED_MIN_FRAC or rf < FILLED_MIN_FRAC:
                         failures.append(f"{name}@{width}: margins not filled "
                                         f"({lf*100:.1f}% / {rf*100:.1f}%)")
+                elif case["expect"] == "fade":
+                    # Transition invariant: margins may be black or dim with
+                    # the scene, but never brighter than the center (no bright
+                    # bars against a dark fade).
+                    if wide["margin_max"] > wide["center_max"] + 8:
+                        failures.append(f"{name}@{width}: margins brighter than center "
+                                        f"during fade ({wide['margin_max']} > {wide['center_max']}+8)")
 
         # stale-request guard across the battle pair, per width
         if not a.report_only and all(n in names for n in STALE_PAIR):

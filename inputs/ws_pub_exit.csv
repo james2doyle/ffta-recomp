@@ -1,0 +1,9 @@
+# gbarecomp-keyinput-v1
+# frame,keyinput_active_low
+0,0x03FF
+51880,0x03FE
+51900,0x03FF
+52000,0x03FE
+52020,0x03FF
+52120,0x03FD
+52140,0x03FF

@@ -88,6 +88,18 @@ else()
     target_link_options(FFTARecomp PRIVATE -Wl,-z,noexecstack)
 endif()
 
+# Ship the game-owned, default-enabled mod catalog beside the executable
+# (mirrors the reference repos; the widescreen plugin is a trusted built-in
+# referenced by the manifest but resolved from the linked registrations).
+set(FFTA_PRELOADED_MODS "${CMAKE_CURRENT_SOURCE_DIR}/mods/preloaded")
+if(NOT ANDROID AND EXISTS "${FFTA_PRELOADED_MODS}/packages")
+    add_custom_command(TARGET FFTARecomp POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${FFTA_PRELOADED_MODS}"
+            "$<TARGET_FILE_DIR:FFTARecomp>/mods"
+        COMMENT "Preloading the FFTA mod catalog")
+endif()
+
 # ── host unit tests for src/ custom code ────────────────────────────
 option(FFTA_BUILD_TESTS "Build host unit tests for src/ custom code" ON)
 if(FFTA_BUILD_TESTS)

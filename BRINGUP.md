@@ -2832,3 +2832,30 @@ again; no re-investigation per the standing direction.
   marathons (~3 min/run); corrected runs ~1 s.
 - Gate: `check.py` gains `ws_smoke` — ALL PASS 9/9; cycle PASS; attract
   byte-exact. Remaining W3: transition polish + plugin-lifecycle migration.
+
+### 2026-10-08 (cont.) — W3 m3: transitions verified + plugin-lifecycle migration (W3 COMPLETE)
+
+- Transitions: world->pub entry fades through full black (guest 52027) and
+  fades in with margins dimming with the center (52067: margin max == center
+  max); leaving the pub (B@52120, new fixture `inputs/ws_pub_exit.csv`)
+  fades through black and the world map returns pillarboxed (52347: margins
+  exactly 0). Ring pans/recenters keep margins fresh (stale guard). Margins
+  sample the same layers through the same compositor, so fades apply
+  uniformly — no policy change needed; the invariant is now gated
+  (pub_fade case: margins never brighter than center +8).
+- Smoke test: 6 cases x 3 widths PASS (world_idle, pub_idle, pub_fade,
+  pub_exit, battle_idle, battle_pan + stale guard).
+- Lifecycle: all game-owned hooks install through the trusted activation
+  pass — reset callback (clears presentation state; re-arms the lzss entry
+  guard after the engine's disable-all) + activation plugin
+  `ffta.widescreen` (margin hooks). New default-enabled manifest
+  `mods/preloaded/packages/ffta.enhancement.widescreen/1.0.0`, shipped to
+  `<exe>/mods` by CMake; `opts.mod_game_id = "ffta-us"`; `extended_view_init`
+  dropped (per-frame policy stays as `extended_view_frame`). Feature-off
+  fallback verified (engine-default sampling; game runs; policy applies).
+- Framework race patched: concurrent launches collided on the shared
+  `state.toml.tmp` (rename ENOENT whose retry deleted the published
+  output) — `tools/patches/mod-state-publish-race.patch` (unique per-PID
+  temp); 4/4 parallel smoke runs clean after.
+- Gates: cycle PASS (attract byte-exact); `check.py` 9/9 (4 patches
+  validated); routes FULLY_STATIC. **W3 backlog complete.**

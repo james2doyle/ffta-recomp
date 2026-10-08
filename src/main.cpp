@@ -67,19 +67,19 @@ int ffta_lzss_entry_guard(uint32_t addr, int thumb, ArmCpuState* cpu) {
     return 0;  // plausible call: decline (CPU writes discarded, body runs)
 }
 
-GBA_MOD_CONSTRUCTOR(register_ffta_lzss_guard) {
-    gba_mod_register_function_entry_plugin("ffta.lzss-guard", 0x0800543Cu, 1,
-                                           ffta_lzss_entry_guard);
-}
+// ── Trusted plugins: mods lifecycle (see reference/widescreen.md) ──────────
+// Game-owned hooks install through the trusted-plugin activation pass
+// (mods/preloaded catalog, feature "widescreen", default-enabled). The pass
+// resets game-owned state — including a disable-all of entry hooks — then
+// runs reset callbacks, then the committed plugins, so ordering against
+// run_game()'s own WS cleanup is structural, not incidental.
 
 // ── Widescreen (W2): authored margins (see reference/widescreen.md) ─────────
 // FFTA's field BGs are 512-wide tilemap rings, so the columns the
 // expanded-view compositor samples for margin pixels are the guest's own
-// authored world (BRINGUP § W1b). Declare that (savestate loads keep the
-// pillarbox policy off) and clip OBJ to the native viewport so parked
-// sprites never leak into margins. Inert in faithful runs: only the
-// expanded-view compositor reads these. Set from a mod constructor so they
-// are live in whichever process runs the game.
+// authored world (BRINGUP § W1b). Clipping OBJ to the native viewport keeps
+// parked sprites out of margins. Inert in faithful runs: only the
+// expanded-view compositor reads these.
 extern "C" int g_ws_authored_margin_layers;
 extern "C" int g_ws_obj_native_clip;
 extern "C" int g_ws_pillarbox;
@@ -87,26 +87,38 @@ extern "C" int (*g_ws_bg_x_provider)(int, int, int, int*);
 extern "C" unsigned g_ws_bg_x_provider_layers;
 std::uint32_t g_ws_frame_left = 0;
 std::uint32_t g_ws_frame_right = 0;
-void ffta_ws_install_margin_hooks(std::uint32_t extra_left,
-                                  std::uint32_t extra_right);
 int ffta_ws_bg_x_provider(int bg, int x, int y, int* hw_x);
-// ── Widescreen (W2): authored margins (see reference/widescreen.md) ─────────
-// FFTA's field BGs are 512-wide tilemap rings, so the columns the
-// expanded-view compositor samples for margin pixels are the guest's own
-// authored world (BRINGUP § W1b). run_game() clears game-owned WS hooks on
-// entry, so they are installed from the runner's extended_view_init callback
-// (called once after the wide view is authorized — after that cleanup).
-// Clipping OBJ to the native viewport keeps parked sprites out of margins.
-// Inert in faithful runs: only the expanded-view compositor reads these.
-void ffta_ws_install_margin_hooks(std::uint32_t extra_left,
-                                  std::uint32_t extra_right) {
-    (void)extra_left;
-    (void)extra_right;
+// Reset callback: fires in every activation pass (after the engine's
+// disable-all of entry hooks), so it re-arms the correctness guard and
+// clears our presentation state; the activation plugin opts back in below.
+static void ffta_mod_reset() {
+    g_ws_authored_margin_layers = 0;
+    g_ws_obj_native_clip = 0;
+    g_ws_bg_x_provider = nullptr;
+    g_ws_bg_x_provider_layers = 0;
+    g_ws_pillarbox = 0;
+    g_ws_frame_left = 0;
+    g_ws_frame_right = 0;
+    gba_mod_set_function_hook_enabled("ffta.lzss-guard", 1);
+}
+
+// Activation plugin "ffta.widescreen" (manifest:
+// mods/preloaded/packages/ffta.enhancement.widescreen). Installs the
+// authored-margin hooks after the runner's game-owned cleanup; a disabled
+// feature simply leaves the engine-default margin policy in place.
+static void ffta_ws_activate() {
     g_ws_authored_margin_layers = 1;
     g_ws_obj_native_clip = 1;
     g_ws_bg_x_provider = ffta_ws_bg_x_provider;
     g_ws_bg_x_provider_layers = (1u << 2) | (1u << 3);  // BG2/BG3 (UI)
-    std::fprintf(stderr, "[ffta] ws: margin hooks installed (extended_view_init)\n");
+    std::fprintf(stderr, "[ffta] ws: margin hooks installed (ffta.widescreen)\n");
+}
+
+GBA_MOD_CONSTRUCTOR(register_ffta_mod_plugins) {
+    gba_mod_register_function_entry_plugin("ffta.lzss-guard", 0x0800543Cu, 1,
+                                           ffta_lzss_entry_guard);
+    gba_mod_register_reset_callback(ffta_mod_reset);
+    gba_mod_register_activation_plugin("ffta.widescreen", ffta_ws_activate);
 }
 
 // ── Widescreen (W3): per-scene margin policy ───────────────────────────────
@@ -157,14 +169,15 @@ int main(int argc, char** argv) {
 
     gbarecomp::RunOptions opts;
     opts.builtin_game_name = "Final Fantasy Tactics Advance";
-    // Widescreen (W2/W3): validated capability — the mod (register_ffta_widescreen)
-    // authors the field margins from the guest's 512-wide rings; users opt in
-    // with --view-width up to 448 (matrix validated by tools/ws_check.py) or
+    // Widescreen (W2/W3): validated capability — the trusted plugin
+    // "ffta.widescreen" (mods/preloaded catalog, default-enabled) authors the
+    // field margins from the guest's 512-wide rings; users opt in with
+    // --view-width up to 448 (matrix validated by tools/ws_check.py) or
     // --resize-view (window-aspect driven, same ceiling). Default stays 240.
+    opts.mod_game_id = "ffta-us";
     opts.max_view_width = 448;
     opts.resize_driven_view = true;
     opts.max_resize_view_width = 448;
-    opts.extended_view_init = ffta_ws_install_margin_hooks;
     opts.extended_view_frame = ffta_ws_margin_policy;
     opts.builtin_rom_sha1 = "4ac05441f4de70a4ec3dd932116346c61b8783d9";
     opts.launcher_region = "USA";
@@ -177,8 +190,9 @@ int main(int argc, char** argv) {
     // BRINGUP § Phase 5 save-flow). Cleared by run_game() on every return path.
     g_runtime_ram_dispatch_hook = &ffta::ram_dispatch;
 
-    // Enable the LZSS entry guard registered above (the activation plugin
-    // re-enables it if the launcher's plugin lifecycle resets hooks).
+    // Belt and braces: enable the LZSS entry guard at startup too. The mods
+    // activation pass disables all entry hooks each launch and re-arms via
+    // the reset callback; this covers run paths that skip the pass.
     gba_mod_set_function_hook_enabled("ffta.lzss-guard", 1);
 
 #if defined(GBAGAME_RECOMP_UI)

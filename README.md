@@ -384,10 +384,12 @@ GBARECOMP_INPUT_REPLAY=logs/playthrough.csv ./build/FFTARecomp ...` — expect
 - **Widescreen smoke:** `tools/ws_check.py` — for each scene fixture x view
   width it compares the wide render's center against a faithful 240 render
   (must be pixel-identical), censuses the margins against the per-scene
-  policy (ring scenes filled, world map pillarboxed), and guards against
-  stale margins (idle-vs-pan must differ). Needs the local
-  `game.state1`/`game.state2` savestates; runs in parallel (`--jobs`);
-  320/384/448 matrix in seconds. Exit 2 = fixtures missing.
+  policy (ring scenes filled, world map pillarboxed), guards against stale
+  margins (idle-vs-pan must differ), and covers the scene transitions
+  (mid-fade: margins never brighter than the center; pub exit: pillarbox
+  restored). Needs the local `game.state1`/`game.state2` savestates; runs
+  in parallel (`--jobs`); 6 cases x 320/384/448 in seconds. Exit 2 =
+  fixtures missing.
 - **Full gate:** `.venv/bin/python tools/check.py` — host unit tests
   (C++ + Python), patch validity, the attract gate, the widescreen smoke,
   and strict route
@@ -455,6 +457,7 @@ compared windows).
 | `src/` | Host integration: `main.cpp`, launcher boot, stack setup |
 | `tests/` | Host unit tests for `src/` custom code: `ctest --test-dir build -R ram_dispatch` (or run `./build/ffta_unit_tests` directly) |
 | `generated/` | Recompiler output — gitignored, **never edited** |
+| `mods/` | Preloaded mod catalog shipped beside the exe — the default-enabled `ffta.enhancement.widescreen` manifest activating the linked `ffta.widescreen` plugin |
 | `gbarecomp/`, `recomp-ui/` | Pinned framework submodules (see `AGENTS.md` for pins) |
 | `tools/` | The whole harness: `play.sh`, `check.py` (regression gate), `savecheck.py` (save validation), `resolve.py`, `cache_harvest.py`, `cycle.py`, `attract_check.py`, `misspack.py`, `coverage_report.py`, `framediff.py`, `dualrun.py`, `ringscan.py`, `keyprobe.py`, `trace_split.py`, `disarm.py`, … |
 | `.agents/skills/` | Project-local agent skills — `gbarecomp-recomp-playbook`, a portable healing-loop/audit playbook with task-grouped references |

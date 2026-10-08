@@ -207,9 +207,9 @@ world map — black pillarbox bars (0 non-black margin pixels); attract gate
 byte-exact; `check.py` 8/8; routes FULLY_STATIC. Spot check: battle at 384
 fills its 72-px margins too (full validation pending).
 
-Remaining W3: transition polish (load fades, world-map fade-in, ring
-recenters) and migrating the WS install to the activation-plugin lifecycle
-now that the build links the mod APIs.
+(The W3 polish + lifecycle items that were still open — transition fades,
+world-map fade-in, ring recenters, and the activation-plugin migration —
+landed as milestone 3 at the end of this file.)
 
 ## W3 milestone 2: smoke test + full 320/384/448 matrix — LANDED (2026-10-08)
 
@@ -236,6 +236,44 @@ now that the build links the mod APIs.
   guest end frame). The first calibration pass ran 51,917-frame marathons
   (~3 min/run) because of this reading; corrected runs are ~1 s.
 - Gate integration: `check.py` gains `ws_smoke` (9 checks total).
+
+## W3 milestone 3: transitions + lifecycle migration — LANDED (2026-10-08) — W3 COMPLETE
+
+- **Transitions verified (probe frames recorded per case):** world->pub entry
+  fades through full black (guest 52027: center and margins all 0), then the
+  pub fades in with the margins dimming *with* the center (guest 52067:
+  margin max 249 = center max 249, means track). Leaving the pub (B@52120,
+  fixture `inputs/ws_pub_exit.csv`) fades through black again and the world
+  map returns pillarboxed (guest 52347: margins exactly 0, center mean 179).
+  Ring pans/recenters refresh the margins (stale guard). The margins sample
+  the same BG layers through the same compositor as the center, so
+  engine-wide effects (BLDY fades) apply uniformly — no transition-specific
+  policy needed; the smoke test locks the invariant in: margins may be black
+  or dim with the scene, never brighter than the center (+8 tolerance).
+- **Smoke test now 6 cases x 3 widths:** world_idle, pub_idle, **pub_fade**
+  (transition invariant), **pub_exit** (pillarbox restored after leaving the
+  pub), battle_idle, battle_pan + stale guard.
+- **Lifecycle migration:** game-owned hooks install through the trusted
+  activation pass — `gba_mod_register_reset_callback` (clears presentation
+  state, then re-arms the lzss entry guard after the engine's disable-all)
+  and `gba_mod_register_activation_plugin("ffta.widescreen", ...)` (installs
+  the authored-margin hooks). Manifest
+  `mods/preloaded/packages/ffta.enhancement.widescreen/1.0.0/manifest.toml`
+  (feature `widescreen`, default-enabled, target `ffta-us` + ROM SHA-1),
+  shipped to `<exe>/mods` by a CMake POST_BUILD rule; `opts.mod_game_id =
+  "ffta-us"` enables the pass. `extended_view_init` is gone; the per-frame
+  policy stays as `extended_view_frame` (game code, not a hook the runner
+  clears). Feature-disabled fallback verified: engine-default margin
+  sampling returns (the OBJ clip + UI-layer skip are the plugin-owned
+  polish); the game runs and the per-scene policy still applies.
+- **Framework race fixed (patched):** parallel launches each publish
+  `mods/state.toml`; the shared `state.toml.tmp` name let one process's
+  rename consume another's file (ENOENT), whose retry then removed the
+  freshly published output. Patch
+  `tools/patches/mod-state-publish-race.patch` (unique per-PID temp;
+  exported + reverse-checked); 4/4 parallel smoke runs clean after.
+- Gates: `cycle` PASS (attract byte-exact); `check.py` 9/9 (the patches
+  check now validates 4 patch files); `ws_smoke` 6 cases x 3 widths PASS.
 
 ## Probe recipes used (reproducible)
 
