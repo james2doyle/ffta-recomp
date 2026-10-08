@@ -2119,3 +2119,30 @@ unaffected (route K strict FULLY_STATIC throughout).
   full backtrace is needed, one-time `sudo sysctl kernel.yama.ptrace_scope=0`
   then gdb attach.
 - Interim close (unchanged): `tools/quit.py <port>` / TCP `quit`.
+
+### 2026-10-08 (cont.) — Close-hang SOLVED: not a teardown bug — the close EVENT is never delivered
+
+- User tip paid off: `ydotool` (uinput) can inject input into Wayland
+  windows. ESC closes the game CLEANLY and reproducibly (2/2, rc=0,
+  teardown ~2 s, verified at the title screen via the watcher probe).
+- Alt+F4 (the same xdg close request as the titlebar X) does NOTHING: the
+  game keeps running, TCP stays up. Combined with the clean ESC exit, the
+  earlier "teardown hang" framing is WRONG for the user's daily case: the
+  quit/teardown machinery is healthy; the WM close request never reaches
+  the runtime.
+- Prime suspect: the binary links `libSDL2-2.0` from **sdl2-compat
+  2.32.74 (= an SDL3 shim)** — SDL3's Wayland close-requested event is not
+  being translated into the SDL2 events the pump handles (SDL_QUIT /
+  SDL_WINDOWEVENT_CLOSE; both ARE handled in host_window.cpp ~2742/2761).
+  (The one-shot 2026-10-07 X11 repro hang stays as a separate, rarer
+  anomaly.)
+- Workarounds SHIPPED/documented: press **ESC** to close (interactive;
+  README playtest block + AGENTS gotcha); `tools/quit.py <port>` for
+  scripted closes. Both leave play.sh's archive/flush intact.
+- Tooling facts for future sessions: `ydotool key 1:1 1:0` = ESC (Linux
+  keycode 1); the observe TCP server serves ONE client at a time
+  (concurrent watcher + probe connections time out — disconnect first); a
+  minimal SDL2 test program against the same lib is the proposed
+  upstream-report follow-up for the sdl2-compat close translation.
+- Leftover cleanup note: killing a watcher mid-connection can make a
+  pending quit.py round-trip time out — the quit is still processed.

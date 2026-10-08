@@ -219,3 +219,12 @@ a reproduced hang alive until its state is captured. Prefer an
 in-protocol quit command over signals for closing sessions (desktop signal
 handlers may not exist at all), and remember window-close teardown can
 differ per video backend — test the one the players actually use.
+
+Window-close "hangs" debug recipe: test the app's OWN quit keybind first
+(here: ESC). If that exits cleanly, the quit machinery is fine and the CLOSE
+EVENT is the bug — check which SDL the binary actually links (`sdl2-compat`
+is an SDL3 shim whose event translation can drop backend close requests).
+Inject test input with `ydotool` on Wayland (uinput-level; ESC = keycode 1;
+`ydotool key 1:1 1:0`). Watchdog probes: a runner's debug server may serve
+ONE client at a time — disconnect other watchers before issuing commands or
+they will time out (a timed-out quit can still land moments later).

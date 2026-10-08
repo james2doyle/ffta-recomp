@@ -303,14 +303,15 @@ recomp-net @ c58f125.
 - `--tcp` mode also does NOT process `--load-state` — the load is silently
   skipped (no `savestate_loaded` line). Load over TCP with
   `savestate_load {path}` (GBAS container; refuses wrong SHA-1/version).
-- Window-close can hang in the runner's teardown on the Wayland backend
-  (X11/XWayland closes tested clean; framework bug — BRINGUP § "Close-hang
-  investigation"). Close cleanly with `.venv/bin/python tools/quit.py
-  <tcp-observe port>` — play.sh still archives savestates/traces and
-  flushes the miss frag. SIGTERM/SIGINT are not reliable (no handlers;
-  the windowed process survives them). If it hangs, LEAVE IT RUNNING
-  until inspected (`ps -L`, /proc/<pid>/task/*/wchan need no ptrace) —
-  don't force-kill before the state is read.
+- Close sessions with **ESC in-game** (verified clean, rc=0, ~2s teardown).
+  The titlebar X / Alt+F4 close request is NOT delivered to the runtime
+  under the current SDL stack (binary links `sdl2-compat` = an SDL3 shim;
+  see BRINGUP § "Close-hang investigation") — the game just keeps running.
+  Scripted fallback: `.venv/bin/python tools/quit.py <tcp-observe port>`
+  (play.sh archives savestates/traces and flushes the miss frag on either
+  path). SIGTERM/SIGINT are not close mechanisms (no handlers; the windowed
+  process survives them). The observe TCP server serves ONE client at a
+  time — disconnect watchers before probing or your commands will time out.
 - `[[code_copy]]` maps decoding only; runtime entry PCs inside a copied span
   still need `[[extra_func]]` entries (seed via tools/misspack + a
   source-side prologue scan of the copied span).
