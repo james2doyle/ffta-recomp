@@ -210,3 +210,12 @@ data-symbol files carry RAM-struct names + a field comment block, and a
 reference doc holds the deep detail with probe recipes. Cross-link the
 three. This turns one session's archaeology into the next session's
 starting point instead of a repeat expedition.
+
+Hanging GUI runner? Inspect before killing. `ps -L` thread states and
+/proc/<pid>/task/*/wchan are ptrace-free and usually name the stuck thread
+(futex_wait = a join or lock; poll/epoll = a server or event wait); gdb
+attach needs either being an ancestor or kernel.yama.ptrace_scope=0. Keep
+a reproduced hang alive until its state is captured. Prefer an
+in-protocol quit command over signals for closing sessions (desktop signal
+handlers may not exist at all), and remember window-close teardown can
+differ per video backend — test the one the players actually use.

@@ -2099,3 +2099,23 @@ unaffected (route K strict FULLY_STATIC throughout).
   (4) DMA_WATCH_ADDR for DMA attribution.
 - Artifacts: logs/fp_pan.bin (671 MB ring of the pan run; query, don't
   commit), /tmp/ws_{before,after}.state, reference/widescreen.md (new).
+
+### 2026-10-08 (cont.) — Close-hang update: narrowed to the Wayland close path
+
+- X11/XWayland window close tested CLEAN twice (windowclose -> exit < 5 s);
+  the user's Wayland-native closes hang consistently (4+ sessions) -> the
+  teardown bug is in the SDL Wayland close path (or Wayland-specific
+  teardown ordering), not in the generic quit logic.
+- The earlier one-shot X11 hang (2026-10-07 repro2: listener closed, XInput
+  BadWindow on the destroyed window, `terminate called without an active
+  exception`, process lingered) did NOT re-reproduce under X11 -> either
+  transient or a second, rarer path. Keep it in mind if a hung X11 close
+  ever appears again.
+- Signal probe (headless): no SIGTERM/SIGINT handlers registered (SigCgt
+  only carries SIG32); the windowed process survives SIGTERM entirely ->
+  signals are not a close mechanism here.
+- Next diagnostic (agreed with the user): leave the next Wayland hang
+  RUNNING; read `ps -L` + /proc/<pid>/task/*/wchan live (ptrace-free); if a
+  full backtrace is needed, one-time `sudo sysctl kernel.yama.ptrace_scope=0`
+  then gdb attach.
+- Interim close (unchanged): `tools/quit.py <port>` / TCP `quit`.

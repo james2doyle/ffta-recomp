@@ -303,11 +303,14 @@ recomp-net @ c58f125.
 - `--tcp` mode also does NOT process `--load-state` — the load is silently
   skipped (no `savestate_loaded` line). Load over TCP with
   `savestate_load {path}` (GBAS container; refuses wrong SHA-1/version).
-- Window-close can hang in the runner's teardown (framework bug; BRINGUP §
-  "Close-hang investigation"). Close cleanly with
-  `.venv/bin/python tools/quit.py <tcp-observe port>` — play.sh still
-  archives savestates/traces and flushes the miss frag. SIGTERM is also not
-  reliable (swallowed).
+- Window-close can hang in the runner's teardown on the Wayland backend
+  (X11/XWayland closes tested clean; framework bug — BRINGUP § "Close-hang
+  investigation"). Close cleanly with `.venv/bin/python tools/quit.py
+  <tcp-observe port>` — play.sh still archives savestates/traces and
+  flushes the miss frag. SIGTERM/SIGINT are not reliable (no handlers;
+  the windowed process survives them). If it hangs, LEAVE IT RUNNING
+  until inspected (`ps -L`, /proc/<pid>/task/*/wchan need no ptrace) —
+  don't force-kill before the state is read.
 - `[[code_copy]]` maps decoding only; runtime entry PCs inside a copied span
   still need `[[extra_func]]` entries (seed via tools/misspack + a
   source-side prologue scan of the copied span).
