@@ -245,3 +245,4 @@
 0x081443B0	thumb	memcmp
 0x03005E78	thumb	iwram_zero_fill
 0x03005EE8	thumb	iwram_ram_copy
+0x080CA1BC	thumb	name_ptr_resolve

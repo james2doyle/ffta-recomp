@@ -131,3 +131,11 @@
 0x08393318	rom	0x400	gSaveCrcTable
 0x08149ff8	rom	0x08	gSaveHeaderMagic
 0x02003CB0	ewram	0x4000	gSaveRecordStage
+
+# Section 12: name-pointer resolver tables (2026-10-08; from the unmapped=46
+# investigation — accessor 0x080CA1BC dispatches on record+0x106:
+# mode 1 -> gNamePtrTableA[field], mode 0 -> gNamePtrTableB[field],
+# else -> 0x02001F1C (gPartyNameBuffer). Entry counts verified by walking
+# until the first non-ROM-pointer word.)
+0x085516D0	rom	0x1AC	gNamePtrTableA
+0x085680DC	rom	0x800	gNamePtrTableB

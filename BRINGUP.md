@@ -2305,3 +2305,36 @@ are green.
   chained crossing forms. New label: `gSaveRecordStage` 0x02003CB0
   (0x4000; readseq evidence, shared-scratch caveat in the tsv note).
   `tools/check.py` 7/7.
+
+### 2026-10-08 (cont.3) — unmapped=46: unit-walk name resolution reads above the bus
+
+The 46 open-bus accesses unlocked by the route_G fix (strict G 19,400;
+window f17,760-17,800 = the record-read/validation burst) are the game's
+own name-pointer resolver, called once per unit record by the save
+cluster:
+
+- Accessor 0x080CA1BC (thumb; instruction-ring verified): r1 = [r0];
+  mode = byte[r0+0x106]; mode 1 -> *(0x085516D0 + (r1<<2)); mode 0 ->
+  *(0x085680DC + (r1<<2)); else -> 0x02001F1C (party name-ptr array).
+  Caller loop 0x0813B4B6..CA walks records with stride 0x108 and stores
+  each result at r7+0x80+r6.
+- The walked records' first words are NOT indexes: mode-1 units hold
+  string-region pointers (0x0856C4A8..0x0856D39B; one is 0x085512C7 =
+  name-table entry #8, Montblanc's string); mode-0 units hold code-like
+  words (0x07084708 = bytes `08 47 08 47`). `table + (ptr<<2)` therefore
+  lands above the 28-bit bus (0x24xxxxxx/0x29xxxxxx): 22 reads repeat one
+  address, 24 are distinct (46 total).
+- Engine responses differ by design: ours returns open-bus prefetch
+  (0x47084708); mGBA (src: `address >> 24` -> region 41 -> default
+  `_deadbeef`) returns the constant 0xE710B710; real hardware (A28-A31
+  not decoded) would mirror into ROM. The caller stores these values, so
+  a hidden engine-value divergence exists in this path.
+- Open: why the walk's inputs hold pointers (writer not traced; the
+  ~950-frame native-vs-oracle flow offset blocks same-frame state diffs).
+- Options: (a) framework bus parity for A28+ reads (mGBA's _deadbeef
+  constant) — scoped, no other route reads above 28 bits today; (b) true
+  hardware mirror model (drop A28+) if retail accuracy beats oracle
+  parity.
+
+Symbols added: `name_ptr_resolve` 0x080CA1BC; `gNamePtrTableA`
+0x085516D0 (107 entries); `gNamePtrTableB` 0x085680DC (512).
