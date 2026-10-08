@@ -37,6 +37,19 @@ Named units (all already emitted; names assigned 2026-10-08):
 To re-derive from scratch (other scenes/axes), use the probe recipes at the
 bottom of this file (savestate diff → abort trace → FP ring).
 
+## Operational index (run + validate)
+
+- Run wide: `--view-width 320|384|448` or `--resize-view` (windowed; same
+  ceiling). Validate: `tools/ws_check.py` — 6 cases x 3 widths; needs the
+  local **sha-pinned** `game.state1`/`game.state2` savestates (gitignored,
+  game-derived; the frame budgets + CSV event frames are pinned to these
+  exact states — exit 2 when missing or changed) plus the committed
+  `inputs/ws_*.csv`. Also runs inside `check.py` as `ws_smoke`.
+- Plugin + manifest: `src/main.cpp` (`register_ffta_mod_plugins` /
+  `ffta_ws_activate`), `mods/preloaded/packages/ffta.enhancement.widescreen/1.0.0/`
+  (shipped to `<exe>/mods` by a CMake POST_BUILD rule). Framework race fix
+  for parallel launches: `tools/patches/mod-state-publish-race.patch`.
+
 ## Display facts (world map + battle, mode 0)
 
 - **World map:** BG0/BG1 = field layers, tilemaps 256x512 (size=2): BG0 at
@@ -147,16 +160,18 @@ churn around that address was this overlap.
   the engine already handles >=512-px-wide maps internally; the visible
   window is 256 px.
 - W2 hooks are now concrete: extend at `strip_blit` / the descriptor walk
-  (materialize extra columns) rather than at the decoder.
+  (materialize extra columns) rather than at the decoder. *(Superseded:
+  W2 m1 landed by sampling the ring's authored columns directly — no strip
+  extension was needed.)*
 
 ## W2 — authored margins: LANDED (milestone 1, 2026-10-08)
 
 Run it: `./build/FFTARecomp … --view-width 320` (default stays faithful 240;
-capability = `opts.max_view_width = 320` in `src/main.cpp`;
-`GBARECOMP_WS_WIP` is no longer needed for 320). The game installs margin
-hooks from `RunOptions::extended_view_init` — called once after the wide view
-is authorized, and after `run_game()`'s entry cleanup that clears game-owned
-WS hooks:
+capability = `opts.max_view_width` in `src/main.cpp` — raised to **448** in
+W3 m2; `GBARECOMP_WS_WIP` is no longer needed at any supported width). The
+game installs margin hooks from the trusted activation plugin
+(`ffta.widescreen`, W3 m3 — this replaced the original
+`RunOptions::extended_view_init` install, which no longer exists):
 
 - `g_ws_authored_margin_layers = 1` — margin columns render from the guest's
   own BGs (the 512-wide field rings) instead of the pillarbox policy black;
@@ -185,7 +200,9 @@ Reference notes (2026-10-08):
   `gba_mod_set_view_width`) links only when the build enables its mods
   option — adopted here 2026-10-08 (`-DGBARECOMP_ENABLE_MODS=ON`); the pin
   itself is the latest main (`git ls-remote` verified). Seams used:
-  RunOptions `extended_view_init` / `extended_view_frame` + fn-entry plugins.
+  reset/activation plugins (W3 m3 — `extended_view_init` was the pre-m3
+  seam, now removed) + `RunOptions::extended_view_frame` for the per-frame
+  policy + fn-entry plugins.
 
 ## W3 — per-scene margin policy: LANDED (milestone 1, 2026-10-08)
 
@@ -205,7 +222,7 @@ Verified matrix (headless, --view-width 320): battle — margins 100 %
 skip (menu/funds fragments gone; center vs faithful 0/38,400 differing);
 world map — black pillarbox bars (0 non-black margin pixels); attract gate
 byte-exact; `check.py` 8/8; routes FULLY_STATIC. Spot check: battle at 384
-fills its 72-px margins too (full validation pending).
+fills its 72-px margins too (completed in W3 m2 — full 320/384/448 matrix).
 
 (The W3 polish + lifecycle items that were still open — transition fades,
 world-map fade-in, ring recenters, and the activation-plugin migration —

@@ -16,15 +16,17 @@ headless twice: once at the target width, once at faithful 240. Checks:
             carry live scene content, not a frozen capture (Emerald-style
             stale-request guard).
 
-Fixtures: game.state1 (mid-battle overview) / game.state2 (world map) are
-local-only savestates (game-derived, never committed); the input traces are
-committed under inputs/ws_*.csv. NOTE: --frames is the frame count run
-AFTER the state loads; replay events key on absolute guest frames, so each
-case's budget must cover its CSV events (guest end noted per case). Rendered
-frames are ROM-derived — written to a temp dir and deleted unless --keep.
-PNG decoding is dependency-free (zlib + unfilter, 8-bit RGB/RGBA). Engine
-invocations run in parallel (--jobs, default 8) with isolated dump/save
-paths.
+Fixtures: game.state1 (mid-battle overview, frame 24722) / game.state2
+(world map, frame 51827) are local-only savestates (game-derived, gitignored,
+never committed) and SHA-256-pinned: the per-case frame budgets and the
+CSV's absolute guest frames depend on these exact states. Exit 2 when they
+are missing or changed. Input traces are committed under inputs/ws_*.csv.
+NOTE: --frames is the frame count run AFTER the state loads; replay events
+key on absolute guest frames, so each case's budget must cover its CSV
+events (guest end noted per case). Rendered frames are ROM-derived — written
+to a temp dir and deleted unless --keep. PNG decoding is dependency-free
+(zlib + unfilter, 8-bit RGB/RGBA). Engine invocations run in parallel
+(--jobs, default 8) with isolated dump/save paths.
 
 Exit: 0 pass, 1 fail, 2 fixtures missing (skip; fresh clone).
 """
@@ -33,6 +35,7 @@ from __future__ import annotations
 
 import argparse
 import concurrent.futures
+import hashlib
 import json
 import os
 import pathlib
@@ -68,6 +71,14 @@ CASES: dict[str, dict] = {
                         frames=130, expect="filled", desc="battle mid-pan, guest 24852"),
 }
 STALE_PAIR = ("battle_idle", "battle_pan")
+
+# Local-only savestate fixtures, sha256 prefixes: the frame budgets below and
+# the CSV event frames are pinned to these exact states; a silent substitution
+# would make every result meaningless, so treat a hash change as "no fixture".
+FIXTURE_STATES = {
+    "game.state1": "2066d61ccb0d",   # mid-battle overview, frame 24722
+    "game.state2": "0163a908c073",   # world map, frame 51827
+}
 
 
 def read_png(path: pathlib.Path):
@@ -219,6 +230,18 @@ def main() -> int:
     missing = [str(p.relative_to(REPO)) for p in needed if not p.exists()]
     if missing:
         print("ws_check: SKIP — fixtures missing: " + ", ".join(sorted(set(missing))))
+        return 2
+    changed = []
+    for rel, prefix in FIXTURE_STATES.items():
+        p = REPO / rel
+        if p.exists():
+            h = hashlib.sha256(p.read_bytes()).hexdigest()
+            if not h.startswith(prefix):
+                changed.append(f"{rel} sha256 {h[:12]}... != pinned {prefix}...")
+    if changed:
+        print("ws_check: SKIP — pinned fixture changed: " + "; ".join(changed) +
+              " (frame budgets and CSV event frames are pinned to these states; "
+              "regenerate the expectations deliberately)")
         return 2
 
     widths = [int(w) for w in a.widths.split(",")]

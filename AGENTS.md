@@ -106,7 +106,8 @@ replays; checks run concurrently unless --jobs 1):
 ```
 
 Widescreen smoke alone (center-crop + margin census + stale guard; needs the
-local game.state1/state2 savestates):
+local, sha-pinned game.state1/state2 savestates — gitignored by design, exit
+2 when missing/changed):
 `.venv/bin/python tools/ws_check.py` (`--report-only`, `--widths`, `--jobs`).
 
 Run (needs BIOS + ROM paths; both must hash-verify):

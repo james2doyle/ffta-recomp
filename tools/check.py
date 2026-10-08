@@ -105,7 +105,9 @@ def check_ws_smoke():
     r = run([sys.executable, "tools/ws_check.py", "--jobs", "4"], timeout=1800)
     line = (r.stdout.strip().splitlines() or [""])[-1]
     if r.returncode == 2:
-        return False, "missing fixtures (game.state1/state2 - local savestates)"
+        # Missing or sha-changed local savestate fixtures; the tool's SKIP
+        # line carries the reason (fresh clones have no states by design).
+        return False, line or "fixtures missing (game.state1/state2 - local savestates)"
     return r.returncode == 0, line or f"exit {r.returncode}"
 
 

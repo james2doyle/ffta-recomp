@@ -387,8 +387,9 @@ GBARECOMP_INPUT_REPLAY=logs/playthrough.csv ./build/FFTARecomp ...` — expect
   policy (ring scenes filled, world map pillarboxed), guards against stale
   margins (idle-vs-pan must differ), and covers the scene transitions
   (mid-fade: margins never brighter than the center; pub exit: pillarbox
-  restored). Needs the local `game.state1`/`game.state2` savestates; runs
-  in parallel (`--jobs`); 6 cases x 320/384/448 in seconds. Exit 2 =
+  restored). Needs the local `game.state1`/`game.state2` savestates
+  (gitignored, game-derived, sha-pinned — exit 2 when missing or changed);
+  runs in parallel (`--jobs`); 6 cases x 320/384/448 in seconds. Exit 2 =
   fixtures missing.
 - **Full gate:** `.venv/bin/python tools/check.py` — host unit tests
   (C++ + Python), patch validity, the attract gate, the widescreen smoke,
