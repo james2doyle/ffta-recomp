@@ -101,6 +101,8 @@ tools/play.sh                     # windowed, instrumented (see the loop below)
 tools/play.sh --scale 8           # bigger window: Nx240 x Nx160 (1-8; 8 = 1920x1280)
 tools/play.sh --fullscreen        # borderless desktop fullscreen
 tools/play.sh --tcp-observe 19850 # window + live debug port (tools/keyprobe.py 19850)
+GBARECOMP_WS_WIP=1 tools/play.sh --scale 4 --view-width 320  # widescreen dev override;
+                                      # margins wrap — see reference/widescreen.md
 .venv/bin/python tools/quit.py 19850  # clean close (use when window close hangs;
                                       # see BRINGUP § "Close-hang investigation")
 ./build/FFTARecomp --bios gbarecomp/bios/gba_bios.bin --rom game.gba \
