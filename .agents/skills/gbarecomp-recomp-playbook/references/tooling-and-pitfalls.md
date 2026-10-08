@@ -147,3 +147,22 @@ stack window while the game is frozen). Consult the frozen registers *before*
 killing anything: this converts "it hung again" into a pc + stack + caller
 chain without any replay. The frame counter is the hang signal; the pc is
 the diagnosis.
+
+### Coverage breadth: script/event crawl + literal-pool triage
+
+- Game script bytecode usually carries **no code pointers** (opcodes only);
+  scanning script bytes for ROM-address-looking u32s is noise (operand
+  collisions). Don't seed from it.
+- Data tables full of code pointers split into two classes: compiler
+  **switch tables** (case dispatch — tightly clustered, often repeated
+  targets that do NOT start with a prologue) and real **callback/handler
+  tables** (targets = function starts). Discriminator: the **exact
+  first-instruction test** — the halfword at the target must be
+  `push {..., lr}` (thumb 0xB5xx). Loose "scan forward for a prologue"
+  checks get fooled by the next function in line.
+- Strongest breadth candidates: diff a **speculative literal-pool regen**
+  (trial config, cold cache, scratch dir) against the live corpus, filter to
+  strict-push starts, then seed in small scoped batches (one region/family
+  per batch) with evidence notes. The attract gate + strict route replays
+  arbitrate — one bad interior split can regress a route. Cascades are
+  common: a handful of island seeds can pull in hundreds of units.

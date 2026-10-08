@@ -16,9 +16,10 @@ title, new game, intro, battles, and now complete **Totema and magic summons**
 (the save-menu/summon stalls were fixed via the LZSS-decoder entry guard +
 RAM-copy fixups — BRINGUP § "Summon crash") — with **every executed path
 FULLY_STATIC** (zero interpreted instructions) at last verification.
-Interactive playtest sessions are integrated through audit batch **ae**
-(22 batches): corpus **49,492 emitted units**, walker's static reach ≈ 98.4 %,
-pointer-pool lens ≈ 91.0 % (proxies — a route is done when FULLY_STATIC on
+Interactive playtest sessions are integrated through audit batch **ae**,
+plus the event-crawl batch **af** (23 batches): corpus **50,015 emitted units**,
+walker's static reach ≈ 98.4 %, pointer-pool lens ≈ 91.9 % (proxies — a route
+is done when FULLY_STATIC on
 its replay). The **offline coverage push** (speculative literal harvest) was
 trialled 2026-10-07: it reaches +4,912 units (54,404 total) but split the
 guarded LZSS decoder at an interior entry, breaking the save-menu route's
@@ -235,12 +236,12 @@ Current snapshot (2026-10-07, strict 1200-frame run; refresh with
 | Lens | Mapped / total | % |
 |---|---|---|
 | **Executed path** (strict 1200-frame run) | everything that ran | **100 % — FULLY_STATIC, zero interpreter fallback** |
-| **Walker's static reach** (whole-ROM scan trial) | **49,492 / 50,316** emitted units | **≈ 98.4 %** |
-| **Pointer-pool reach** (speculative-harvest trial) | **49,492 / 54,404** | **≈ 91.0 %** |
+| **Walker's static reach** (whole-ROM scan trial) | **50,015 / 50,839** emitted units | **≈ 98.4 %** |
+| **Pointer-pool reach** (speculative-harvest trial) | **50,015 / 54,404** | **≈ 91.9 %** |
 
 Rows 2–3 are proxies with different denominators (no ground-truth function
 inventory exists); a route is done when its replay is FULLY_STATIC. Corpus:
-49,492 emitted units (interior split units + IWRAM code-copy included); the
+50,015 emitted units (interior split units + IWRAM code-copy included); the
 speculative-harvest trial kept 2,122 pointer candidates out of 104,907
 PC-relative literals (`false` in `game.toml` by policy).
 
@@ -322,10 +323,13 @@ Full rules live in `AGENTS.md`; the essentials:
    (`UnitStat`, `AbilityProp`, `AbilityMpCost`, `gSongTable`, `gMPlayTable`,
    `gRngState`), m4a driver-function names, and battle/AI/audio doc
    cross-references; name-only changes, attract-gated.
-3. **Event/script static walk (breadth lever).** Lift the event-VM script
-   tables (DataCrystal scripting + spiiin map data) and seed the unplayed
-   mission handlers offline — content that playing 350 missions would only
-   reach slowly.
+3. **Event/script static walk (breadth lever).** First batch landed
+   2026-10-07 (batch **af**): script tables validated (62 blocks /
+   213 scripts) but carry **no code pointers**; the event-family pointer
+   tables are compiler switches, not callback tables; the real lever is the
+   trial literal-pool diff scoped to the families (+523 units, attract hash
+   byte-exact, route gates clean). Tool: `tools/eventcrawl.py`. Queue: the
+   remaining strict-push candidates by region (0x0805/0x0806/0x0808/0x080A…).
 4. **Save-flow divergence (open investigation).** No observed hangs remain:
    the relocated-stub fixups (`src/ffta_ram_dispatch.h`) and the LZSS entry
    guard (`[[mod_function_hook]]` → `ffta.lzss-guard`) closed every observed

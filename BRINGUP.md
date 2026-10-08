@@ -1950,3 +1950,26 @@ from legitimate interior calls; the corrupted call is produced UPSTREAM by the
 still-open save-flow divergence. Fix the divergence and this class disappears.
 Evidence: `logs/found_{strict,strict2,ring3,warm2}.log`. Player's own saves
 unaffected (route K strict FULLY_STATIC throughout).
+
+### 2026-10-07 (cont.) — Event/script static walk: first batch (af) — +523 units, gates green
+
+- `tools/eventcrawl.py`: script tables validated (62 blocks / 213 unique
+  scripts, 0x089A5E6C..0x089C12C3). Scripts carry NO code pointers
+  (353 distinct 0x08-patterns in script bytes = operand collisions; 1
+  false-positive push; 0 real) — code is reached via opcodes only.
+- Family pointer tables (0x0810-0x0813): 22 found; ALL are compiler switch
+  tables (targets = interior case bodies, often repeated); zero survive the
+  exact first-instruction `push {.., lr}` test. Loose forward prologue
+  scans mislabel these (they find the NEXT function) — do not use them
+  for seeding decisions.
+- Lever: trial literal-pool diff (speculative regen vs corpus) = 4,695
+  walker-missed candidates; 189 strict-push starts; 15 inside the
+  event/battle families sit in un-walked islands (0x081288BA-0x0812A060,
+  0x0812BD42-0x0812C510, 0x08126108-0x0812638C). Sampled 0x081288C8 =
+  loader calling the (guarded) LZSS decoder 0x0800543C.
+- Batch af = those 15 seeds: regen 49,492 -> 50,015 (+523 cascade);
+  attract hash byte-exact; strict G/K FULLY_STATIC; coverage: walker
+  50,015/50,839 (~98.4%), pointer-pool 50,015/54,404 (~91.9%).
+- Queue: remaining 174 strict-push candidates in other regions (0x0805+64,
+  0x0806+22, 0x080A+21, 0x0808+13, ...) — one scoped batch at a time, same
+  gates (attract + strict routes + coverage).

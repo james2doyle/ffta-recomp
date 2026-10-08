@@ -5816,3 +5816,84 @@ addr = 0x080F243A
 mode = "thumb"
 note = "batch ae: interior of 0x080F21E8 (runtime-dispatched)"
 
+
+# ─── Batch af: event-crawl breadth (2026-10-07) ───
+# 15 literal-pool candidates inside the event/battle families (0x0810-0x0813):
+# walker-missed function starts in un-walked islands (0x081288BA-0x0812A060 etc.),
+# harvested by the trial literal pool; strict first-instruction prologue verified.
+
+[[extra_func]]
+addr = 0x08126118
+mode = "thumb"
+note = "batch af (event crawl): trial literal-pool candidate in event/battle family; start [B5F0]; unplayed-content island; covers script/battle-family code never walked"
+
+[[extra_func]]
+addr = 0x081288C8
+mode = "thumb"
+note = "batch af (event crawl): trial literal-pool candidate in event/battle family; start [B570]; unplayed-content island; covers script/battle-family code never walked"
+
+[[extra_func]]
+addr = 0x08128968
+mode = "thumb"
+note = "batch af (event crawl): trial literal-pool candidate in event/battle family; start [B5F0]; unplayed-content island; covers script/battle-family code never walked"
+
+[[extra_func]]
+addr = 0x08128B4C
+mode = "thumb"
+note = "batch af (event crawl): trial literal-pool candidate in event/battle family; start [B570]; unplayed-content island; covers script/battle-family code never walked"
+
+[[extra_func]]
+addr = 0x08128C3C
+mode = "thumb"
+note = "batch af (event crawl): trial literal-pool candidate in event/battle family; start [B530]; unplayed-content island; covers script/battle-family code never walked"
+
+[[extra_func]]
+addr = 0x08128E40
+mode = "thumb"
+note = "batch af (event crawl): trial literal-pool candidate in event/battle family; start [B5F0]; unplayed-content island; covers script/battle-family code never walked"
+
+[[extra_func]]
+addr = 0x08128EE0
+mode = "thumb"
+note = "batch af (event crawl): trial literal-pool candidate in event/battle family; start [B5F0]; unplayed-content island; covers script/battle-family code never walked"
+
+[[extra_func]]
+addr = 0x08128FC4
+mode = "thumb"
+note = "batch af (event crawl): trial literal-pool candidate in event/battle family; start [B5F0]; unplayed-content island; covers script/battle-family code never walked"
+
+[[extra_func]]
+addr = 0x0812949C
+mode = "thumb"
+note = "batch af (event crawl): trial literal-pool candidate in event/battle family; start [B5F0]; unplayed-content island; covers script/battle-family code never walked"
+
+[[extra_func]]
+addr = 0x081295C8
+mode = "thumb"
+note = "batch af (event crawl): trial literal-pool candidate in event/battle family; start [B5F0]; unplayed-content island; covers script/battle-family code never walked"
+
+[[extra_func]]
+addr = 0x08129D90
+mode = "thumb"
+note = "batch af (event crawl): trial literal-pool candidate in event/battle family; start [B5F0]; unplayed-content island; covers script/battle-family code never walked"
+
+[[extra_func]]
+addr = 0x0812C030
+mode = "thumb"
+note = "batch af (event crawl): trial literal-pool candidate in event/battle family; start [B5F0]; unplayed-content island; covers script/battle-family code never walked"
+
+[[extra_func]]
+addr = 0x0812C170
+mode = "thumb"
+note = "batch af (event crawl): trial literal-pool candidate in event/battle family; start [B5F0]; unplayed-content island; covers script/battle-family code never walked"
+
+[[extra_func]]
+addr = 0x0812C2B8
+mode = "thumb"
+note = "batch af (event crawl): trial literal-pool candidate in event/battle family; start [B5F0]; unplayed-content island; covers script/battle-family code never walked"
+
+[[extra_func]]
+addr = 0x0812E368
+mode = "thumb"
+note = "batch af (event crawl): trial literal-pool candidate in event/battle family; start [B530]; unplayed-content island; covers script/battle-family code never walked"
+
