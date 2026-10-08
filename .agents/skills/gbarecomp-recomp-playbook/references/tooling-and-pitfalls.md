@@ -244,3 +244,12 @@ not fire for the probed address class (dispatch-entry yields never see
 mid-function PCs), or a fixtured input file that no longer exists. Make
 capture tools fail loudly on the empty/ambiguous case, and scale guards
 with the requested window instead of using constants.
+
+Relocated-code hooks that byte-verify a helper against its ROM source can be
+fooled when the game re-plants the same helper at a stack address that a
+mid-run resume PC also occupies: a byte-match then looks like a fresh call,
+and re-running the canonical body (second prologue push + setup re-run)
+tears the caller's stack by one frame — the caller's epilogue then pops a
+stale local as a return address. Key entry identity on the live loop
+sentinel register (e.g. r2 == -1 means the copy is already in progress) and
+fall through to the resume labels instead of re-entering the body.

@@ -2264,3 +2264,35 @@ calls, handler tables, the 0x030027D0 slot. Cycle PASS, attract byte-exact.
   the same-looking flows (prior desync vs native-only extra flow). Next:
   dual-engine IWRAM/EWRAM diff at f17,940 to decide, then first-divergence
   hunt if desynced.
+
+### 2026-10-08 (cont.2) — route_G FIXED: mid-copy resume must not re-enter the body
+
+ROOT CAUSE (route_G strict abort pc=0x02003CB0; same class as the
+found_save repro): the save driver re-plants its byte-copy helper at its
+own stack pointer per call, so a mid-copy IRQ-resume PC can coincide with a
+fresh plant and byte-match the routine start. The hook's case-1 treated the
+resume as a fresh call and re-ran the canonical body: second push, setup
+re-run (r4 <- r0 = stale), full loop — a stack tear; the driver's epilogue
+then popped the scan-buffer pointer (0x02003CB0) as a return address and
+branched into it (ARM) -> strict miss; non-strict -> runaway.
+
+EVIDENCE: `FFTA_DISPATCH_LOG` decision trail (kept; env-gated): record-read
+call at plant 0x03007D74 (r2=0x1000) -> body -> loop; IRQ resume at
+0x03007D74 (r2=-1, r3=0x0D5F, r1 mid-record) -> case1 re-entry -> second
+push -> loop completes with clobbered r4 -> abort (window bisected to
+f17,700-17,800). Oracle cross-checks: engines delta-in-sync at f17,700
+(per-frame transition comparison, handler-run shifted); oracle runs the
+record reads at f18,742; 0x02003CB0 is shared EWRAM scratch (unstable watch
+target — scene clears write it too).
+
+FIX: `ram_dispatch` falls through for every r2==0xFFFFFFFF dispatch
+(resume-passthru) before any byte-match case — a mid-copy state must never
+run the canonical body; the fixed table's loop-unit resume labels
+(0x03007D72..0x03007D7E) continue with the live registers. The old
+0x03007D72-only guard is subsumed and removed.
+
+RESULT: strict G 19,400 = FULLY_STATIC (steps 11,895 -> 31,199 — the save
+flow now completes); `tools/check.py` 7/7 PASS, attract byte-exact.
+Observation for follow-up: the extended flow reports unmapped=46 (open-bus
+accesses in newly-reached code) — not chased yet; run completes and gates
+are green.
