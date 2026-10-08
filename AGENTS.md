@@ -97,13 +97,17 @@ cmake --build build --target ffta_unit_tests --parallel 8
 ctest --test-dir build -R ram_dispatch --output-on-failure
 ```
 
-Full regression gate (host tests + attract + strict route replays; checks
-run concurrently unless --jobs 1):
+Full regression gate (host tests + attract + widescreen smoke + strict route
+replays; checks run concurrently unless --jobs 1):
 
 ```sh
 .venv/bin/python tools/check.py            # --fast = units + attract only
 .venv/bin/python tools/check.py --jobs 1   # serial
 ```
+
+Widescreen smoke alone (center-crop + margin census + stale guard; needs the
+local game.state1/state2 savestates):
+`.venv/bin/python tools/ws_check.py` (`--report-only`, `--widths`, `--jobs`).
 
 Run (needs BIOS + ROM paths; both must hash-verify):
 
@@ -295,8 +299,10 @@ bounded heal-worker stop, diagnostics flushed before the worker join).
   (`src/ffta_ram_dispatch.h`) and the LZSS decoder entry guard
   (`[[mod_function_hook]]` → `ffta.lzss-guard`, `src/main.cpp`); first full
   Totema summons completed (BRINGUP § "Summon crash"). Remaining: widescreen
-  polish + validation (run wide with `--view-width 320`; per-scene policy
-  landed — world map pillarboxes, UI layers confined to the native span),
+  transition polish + plugin-lifecycle migration (W3 m1+m2 landed:
+  `--view-width` up to 448, per-scene policy — world map pillarboxes, UI
+  layers confined to the native span — and the `tools/ws_check.py` matrix;
+  see reference/widescreen.md),
   the offline-push re-trial (gated on an interior-split policy),
   f6000+ attract contact sheet, upstream note on the bridge stop-contract
   runaway, and the Android port — see README § Roadmap for the full list.
@@ -358,18 +364,18 @@ bounded heal-worker stop, diagnostics flushed before the worker join).
   `GBARECOMP_INPUT_RECORD` or `tools/keyprobe.py`.
 - Window size: `--scale N` (1–8; window = N×240 × N×160; `--scale 8` =
   1920×1280, the max). `--view-width` is the *widescreen view* feature, not
-  window size — unsupported games (FFTA) clamp it to 240 and it does
-  nothing; the runtime prints `extended view requested ... but this game
-  has not opted in` when asked (`--quiet` hides it). `GBARECOMP_WS_WIP=1`
-  is the dev override that engages the wide PPU path anyway (renders wide
-  headless; FFTA margins are **wrapped BG columns**, not real content —
-  BRINGUP § "Widescreen investigation"). Adaptive /
-  resize-driven view (`--resize-view`) is likewise game-owned
-  (`RunOptions::max_view_width` / `resize_driven_view`, defaults 240/false
-  in the runner; only a mod can opt in — `gba_mod_view_width` /
-  `gba_mod_adaptive_view_enabled`). `--fullscreen` = borderless desktop
-  fullscreen. Live fullscreen/window-size keys are system hotkeys bound in
-  `config.ini` `[KeyMap]` (rebindable in the launcher).
+  window size — games opt in; FFTA does, up to 448 (`tools/ws_check.py`
+  validates the 320/384/448 matrix: ring scenes fill their margins, the
+  world map pillarboxes, UI layers stay inside the native span). Unsupported
+  games clamp it to 240 and print `extended view requested ... but this
+  game has not opted in` (`--quiet` hides it); `GBARECOMP_WS_WIP=1` is the
+  dev override that engages the wide PPU path anyway (BRINGUP
+  § "Widescreen investigation"). Adaptive / resize-driven view
+  (`--resize-view`) follows the window aspect up to the same 448 ceiling
+  (`RunOptions::max_resize_view_width`; windowed only by design).
+  `--fullscreen` = borderless desktop fullscreen. Live fullscreen/
+  window-size keys are system hotkeys bound in `config.ini` `[KeyMap]`
+  (rebindable in the launcher).
 
 - BIOS recompile must run with cwd = `gbarecomp/` **and pass
   `--config bios/gba_bios.toml`** (or output lands in the wrong

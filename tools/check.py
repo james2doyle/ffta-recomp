@@ -2,8 +2,10 @@
 """One-command regression gate for the FFTA recomp worktree.
 
 Runs: host unit tests (C++ + Python) -> patch validity -> attract golden
-gate -> strict route replays (user save-load repro, session G, session K)
-against the frozen fixtures in saves/regress/.
+gate -> widescreen smoke (margin census / center-crop / stale guard, needs
+the local game.state1/state2 fixtures) -> strict route replays (user
+save-load repro, session G, session K) against the frozen fixtures in
+saves/regress/.
 
 The checks are independent processes, so they run concurrently by default
 (--jobs; auto = min(8, cpus)). Each game run gets isolated outputs — its own
@@ -97,6 +99,16 @@ def strict_route(trace, frames):
     return r.returncode == 0 and "FULLY_STATIC" in cov, cov or f"exit {r.returncode}"
 
 
+def check_ws_smoke():
+    # Inner --jobs stays small: this check runs inside the outer pool, so
+    # 8x8 nested engine runs would oversubscribe the machine.
+    r = run([sys.executable, "tools/ws_check.py", "--jobs", "4"], timeout=1800)
+    line = (r.stdout.strip().splitlines() or [""])[-1]
+    if r.returncode == 2:
+        return False, "missing fixtures (game.state1/state2 - local savestates)"
+    return r.returncode == 0, line or f"exit {r.returncode}"
+
+
 def check_savecheck():
     r = run([sys.executable, "tools/savecheck.py", str(FIXTURE_SAVE)], timeout=120)
     line = (r.stdout.strip().splitlines() or [""])[-1]
@@ -138,6 +150,7 @@ CHECKS = {
     "savecheck": check_savecheck,
     "patches": check_patches,
     "attract": check_attract,
+    "ws_smoke": check_ws_smoke,
     "user_load": lambda: strict_route(REG / "user_load_trace.csv", 1600),
     "route_G": lambda: strict_route(REG / "sessionG_trace.csv", 19400),
     "route_K": lambda: strict_route(REG / "sessionK_trace.csv", 29884),

@@ -157,10 +157,13 @@ int main(int argc, char** argv) {
 
     gbarecomp::RunOptions opts;
     opts.builtin_game_name = "Final Fantasy Tactics Advance";
-    // Widescreen (W2): validated capability — the mod (register_ffta_widescreen)
+    // Widescreen (W2/W3): validated capability — the mod (register_ffta_widescreen)
     // authors the field margins from the guest's 512-wide rings; users opt in
-    // with --view-width up to 320 (or --resize-view). Default stays 240.
-    opts.max_view_width = 320;
+    // with --view-width up to 448 (matrix validated by tools/ws_check.py) or
+    // --resize-view (window-aspect driven, same ceiling). Default stays 240.
+    opts.max_view_width = 448;
+    opts.resize_driven_view = true;
+    opts.max_resize_view_width = 448;
     opts.extended_view_init = ffta_ws_install_margin_hooks;
     opts.extended_view_frame = ffta_ws_margin_policy;
     opts.builtin_rom_sha1 = "4ac05441f4de70a4ec3dd932116346c61b8783d9";

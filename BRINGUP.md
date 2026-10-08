@@ -2811,3 +2811,24 @@ resolve iter 0 = FULLY_STATIC; corpus 55,103 (+5 incl. cascade); attract
 55,103/56,333 ≈ 97.8 %, pool 55,103/55,515 ≈ 99.3 %). The close issue
 recurred (third session in a row) — the live journal preserved the frag
 again; no re-investigation per the standing direction.
+
+### 2026-10-08 (cont.) — W3 m2: widescreen smoke + full 320/384/448 matrix
+
+- `tools/ws_check.py` (new): per scene fixture x view width — headless
+  engine runs in parallel (`--jobs`, isolated dump/save/coverage/frag
+  paths); checks center-crop equality vs the faithful 240 render, the
+  margin census against the per-scene policy, and an idle-vs-pan stale
+  guard on the margins. Fixtures: local `game.state1`/`game.state2` +
+  committed `inputs/ws_{pub_enter,pan_right}.csv`; exit 2 when missing.
+- Full matrix PASS (4 cases x 3 widths, ~2.6 s): world map margins 0 %
+  (pillarbox exact), pub/battle 100 % filled, center 0/38,400 differing
+  everywhere, stale guard 96.2/92.2/81.4 % idle-vs-pan change.
+- Capability raised: `opts.max_view_width` 320 -> 448 and resize-driven
+  view enabled (`max_resize_view_width = 448`); `--resize-view` now
+  authorized (windowed only by design). Default stays faithful 240.
+- Gotcha recorded (reference/widescreen.md): `--frames` = frames to RUN
+  after a state load, not an absolute guest target; budgets must cover the
+  CSV's absolute-frame events. First calibration ran 51,917-frame
+  marathons (~3 min/run); corrected runs ~1 s.
+- Gate: `check.py` gains `ws_smoke` — ALL PASS 9/9; cycle PASS; attract
+  byte-exact. Remaining W3: transition polish + plugin-lifecycle migration.

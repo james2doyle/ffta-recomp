@@ -381,8 +381,16 @@ GBARECOMP_INPUT_REPLAY=logs/playthrough.csv ./build/FFTARecomp ...` — expect
 - **Attract gate:** `tools/attract_check.py` pins the SHA-256 of a 1200-frame
   attract run; it runs inside `cycle.py` after every `game.toml` change.
   `--repin` only for deliberate visual changes.
+- **Widescreen smoke:** `tools/ws_check.py` — for each scene fixture x view
+  width it compares the wide render's center against a faithful 240 render
+  (must be pixel-identical), censuses the margins against the per-scene
+  policy (ring scenes filled, world map pillarboxed), and guards against
+  stale margins (idle-vs-pan must differ). Needs the local
+  `game.state1`/`game.state2` savestates; runs in parallel (`--jobs`);
+  320/384/448 matrix in seconds. Exit 2 = fixtures missing.
 - **Full gate:** `.venv/bin/python tools/check.py` — host unit tests
-  (C++ + Python), patch validity, the attract gate, and strict route
+  (C++ + Python), patch validity, the attract gate, the widescreen smoke,
+  and strict route
   replays (user
   save-load, sessions G/K) against frozen fixtures in `saves/regress/`
   (sha-pinned). Run it before declaring "no regressions"; checks run

@@ -208,10 +208,34 @@ byte-exact; `check.py` 8/8; routes FULLY_STATIC. Spot check: battle at 384
 fills its 72-px margins too (full validation pending).
 
 Remaining W3: transition polish (load fades, world-map fade-in, ring
-recenters), full 384/448 validation + `--resize-view`, an Emerald-style
-smoke test (center-crop compare + margins + stale-request guard), and
-migrating the WS install to the activation-plugin lifecycle now that the
-build links the mod APIs.
+recenters) and migrating the WS install to the activation-plugin lifecycle
+now that the build links the mod APIs.
+
+## W3 milestone 2: smoke test + full 320/384/448 matrix — LANDED (2026-10-08)
+
+- **`tools/ws_check.py`** — per scene fixture x view width: headless engine
+  runs in parallel (`--jobs`, isolated dump/save/coverage/frag paths);
+  checks (a) the wide render's center `[extra_left, +240)` is pixel-identical
+  to the faithful 240 render, (b) the margin census matches the per-scene
+  policy (ring scenes filled >=99 %, world map exact black), (c) an
+  idle-vs-pan stale guard on the margins (must differ >=2 %). Fixtures:
+  local `game.state1`/`game.state2` savestates + committed
+  `inputs/ws_pub_enter.csv` / `inputs/ws_pan_right.csv`; exit 2 = fixtures
+  missing (fresh clone). `--report-only` prints the census for calibration.
+- **Matrix result (PASS, 4 cases x 3 widths, ~2.6 s wall):** world map
+  margins 0 % (pillarbox exact) at every width; pub and battle 100 % filled;
+  center 0/38,400 differing everywhere; stale guard 96.2 / 92.2 / 81.4 %
+  idle-vs-pan margin change at 320/384/448.
+- **Capability raised:** `opts.max_view_width` 320 -> 448 plus resize-driven
+  view enabled (`resize_driven_view = true`, `max_resize_view_width = 448`).
+  `--resize-view` is now authorized (windowed by design; headless stays
+  faithful 240). Default remains 240.
+- **Gotcha (fixture budgets):** `--frames` is the frame count run AFTER a
+  state load, NOT an absolute guest target; the budget must cover the input
+  CSV's absolute-guest-frame events (each case in `ws_check.py` notes its
+  guest end frame). The first calibration pass ran 51,917-frame marathons
+  (~3 min/run) because of this reading; corrected runs are ~1 s.
+- Gate integration: `check.py` gains `ws_smoke` (9 checks total).
 
 ## Probe recipes used (reproducible)
 
