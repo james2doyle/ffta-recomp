@@ -66,7 +66,18 @@ inline int ram_dispatch(uint32_t pc, int thumb) {
     if (ram_matches_rom(pc, 0x08141AF0u, 0x24u)) { copy_entry_fixup(pc); gf_tfunc_03007D64(); return 1; }
     // Observed corrupted re-entries dispatch two bytes BEFORE a fresh plant
     // (pc=0x03007D72, routine at 0x03007D74): treat as the copy too.
-    if (pc == 0x03007D72u && ram_matches_rom(pc + 2u, 0x08141AF0u, 0x24u)) {
+    //
+    // GUARD: r2==0xFFFFFFFF means this dispatch is the setup fragment's own
+    // mid-body fall-through (its `rsbs` already ran) — e.g. an entry at a
+    // 0x03007D74 plant runs gf_tfunc_03007D64, which ends by dispatching
+    // 0x03007D72 with r2==-1. Re-entering the setup there recursed
+    // infinitely (8-byte stack leak per cycle, IRQ fired mid-march, save-load
+    // abort 0x700200F2). Mid-run crossings must fall through to the fixed
+    // table: 0x03007D72 = the loop-body unit, whose entry registers are
+    // exactly the routine's loop state (r2=-1, r3=count-1, r4=src, r1=dst)
+    // -> loop -> 0x03007D80 tail pops and returns to the driver.
+    if (pc == 0x03007D72u && g_cpu.R[2] != 0xFFFFFFFFu &&
+        ram_matches_rom(pc + 2u, 0x08141AF0u, 0x24u)) {
         copy_entry_fixup(pc); gf_tfunc_03007D64(); return 1;
     }
     // iwram_byte_compare.

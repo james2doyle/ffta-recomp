@@ -228,3 +228,11 @@ Inject test input with `ydotool` on Wayland (uinput-level; ESC = keycode 1;
 `ydotool key 1:1 1:0`). Watchdog probes: a runner's debug server may serve
 ONE client at a time — disconnect other watchers before issuing commands or
 they will time out (a timed-out quit can still land moments later).
+
+Canonicalizer hooks that dispatch into generated fragments can recurse on
+split-boundary crossings: when a relocated routine was cut into units
+(setup/loop/tail) and your hook matches by "bytes at pc or pc+2", the setup
+unit's fall-through re-dispatch of the cut address arrives with mid-run
+registers and satisfies the pc+2 match again. Gate pc+2-style matches on
+fresh-entry register state (or run a full canonical body) so crossings fall
+through to the fixed table instead of re-entering the setup.

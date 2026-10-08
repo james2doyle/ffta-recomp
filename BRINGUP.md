@@ -2146,3 +2146,30 @@ unaffected (route K strict FULLY_STATIC throughout).
   upstream-report follow-up for the sdl2-compat close translation.
 - Leftover cleanup note: killing a watcher mid-connection can make a
   pending quit.py round-trip time out — the quit is still processed.
+
+### 2026-10-08 — Save-load abort FIXED: copy-hook recursion on split-boundary crossings
+
+- Reproduced the user's fresh-boot "loading my save" abort deterministically:
+  strict + boot + saves trace (user menu-nav trace) + their flash save ->
+  abort `pc=0x700200F2` (torn IRQ-table slot) after a call storm at
+  `0x03007D72`.
+- **Root cause**: `ffta::ram_dispatch`'s 2-bytes-early branch re-fired on the
+  setup fragment's OWN mid-body fall-through. With the copy planted at
+  `0x03007D74`: entry -> `gf_tfunc_03007D64` (setup fragment; its span ends
+  at 0x03007D72) -> `runtime_dispatch(0x03007D72)` with `r2=0xFFFFFFFF` (its
+  own `rsbs` just ran) -> the branch condition (`pc==0x03007D72 && bytes@pc+2
+  == copy-starts`) matched again -> re-ran the setup -> INFINITE recursion:
+  8 stack bytes per cycle, zero bytes copied -> VBlank fired mid-march ->
+  IRQ table torn read -> `bx 0x700200F3` -> abort.
+- **Fix** (src/ffta_ram_dispatch.h): guard the 2-early branch with
+  `r2 != 0xFFFFFFFF`. Mid-run crossings now fall through to the fixed table:
+  `0x03007D72` = loop unit, `0x03007D80` = tail (pops + bx) — correct code,
+  no recursion. Fresh 2-early entries (r2 = real count) still serviced.
+- **Verified**: user repro strict = FULLY_STATIC, 1600 f, exit 0 (was abort);
+  dumped frame shows the loaded game (in-game menu); attract gate byte-exact;
+  strict G FULLY_STATIC. The old found-save + old-trace repro now passes the
+  storm and stops at a DIFFERENT frontier (strict miss `0x02003CB0` arm) —
+  remaining follow-up, separate from this fix.
+- Note: the earlier "torn IRQ table / hunt the record decode" framing was a
+  downstream symptom of this recursion (timing + stack march), not the
+  scan/validate divergence itself.
