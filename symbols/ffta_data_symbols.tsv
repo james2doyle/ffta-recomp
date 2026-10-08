@@ -139,3 +139,9 @@
 # until the first non-ROM-pointer word.)
 0x085516D0	rom	0x1AC	gNamePtrTableA
 0x085680DC	rom	0x800	gNamePtrTableB
+
+# Section 13: display-register shadow (2026-10-08; literal-verified DMA0
+# source of display_regs_commit — 39 halfwords = the register block
+# 0x04000008..0x04000054; watched SAD=0x03000942, CNT_L=39, one copy per
+# frame — BRINGUP § "MMIO cap gap").
+0x03000942	iwram	0x4E	gDisplayRegShadow

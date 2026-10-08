@@ -2579,3 +2579,18 @@ updates). `tools/check.py`'s patches check now globs `*.patch` so the new
 file is covered (reverse-ok, as all three). Gate: `.venv/bin/python
 tools/check.py` — 8/8 PASS; attract 1EF4C118… byte-exact. Candidate for the
 upstream issue (with the bridge stop-contract + relocated-stub classes).
+
+### 2026-10-08 (cont.) — Annotation: display commit + shadow named (from the MMIO-cap work)
+
+The fixed cap + DMA watch pinned the per-frame display commit precisely:
+DMA0, SAD = IWRAM 0x03000942 (literal @ 0x0800075C), DAD = 0x04000008,
+CNT = 0x80000027 (39x 16-bit), busy-poll after; routine start 0x08000718
+(prologue; already emitted). Added symbols:
+- `display_regs_commit` 0x08000718 (thumb) — Section 13, ffta_symbols.tsv.
+- `gDisplayRegShadow` 0x03000942 (iwram, 0x4E) — Section 13, data symbols
+  (watched SAD + CNT_L=39).
+Section-6 note updated: the 0x08001300-0x08001420 sequences are inline
+program+poll sites inside larger pointer-reached routines (0x080012BC fills
+1024 B at 0x07000000, then runs them; role unpinned — not named).
+reference/widescreen.md index updated. Regenerated (names-only; corpus
+54,355 unchanged) + cycle PASS: attract 1EF4C118… byte-exact.

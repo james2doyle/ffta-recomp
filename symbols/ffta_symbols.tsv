@@ -217,9 +217,12 @@
 0x080376A2	thumb	worldmap_camera_coord_write
 0x080328BA	thumb	worldmap_camera_head
 0x0804C044	thumb	worldmap_camera_flags_read
-# Note: the scroll registers are applied by guest hardware-DMA helpers at
-# 0x08001300-0x08001420 (SAD/DAD/CNT program + bit31 poll; reached via
-# pointers — no static entry to seed). See reference/widescreen.md.
+# Note: the scroll/display registers are applied by guest hardware DMA —
+# the per-frame commit is display_regs_commit (Section 13). The sequences
+# at 0x08001300-0x08001420 are inline SAD/DAD/CNT program + bit31 poll
+# sites inside larger pointer-reached routines (e.g. 0x080012BC, which
+# fills 1024 B at 0x07000000 then runs them; role unpinned) — no
+# standalone entry to seed. See reference/widescreen.md.
 
 # Section 7: save/flash driver cluster (2026-10-08) — name-only; verified by
 # disarm + live traces (BRINGUP § "Save-load abort FIXED" / "Load-hang root
@@ -246,3 +249,11 @@
 0x03005E78	thumb	iwram_zero_fill
 0x03005EE8	thumb	iwram_ram_copy
 0x080CA1BC	thumb	name_ptr_resolve
+
+# Section 13: display-register commit (2026-10-08; found via the fixed
+# MMIO cap + DMA watch — BRINGUP § "MMIO cap gap"). display_regs_commit
+# kicks DMA0 per frame: SAD = gDisplayRegShadow (0x03000942, IWRAM),
+# DAD = 0x04000008, CNT = 0x80000027 (39x 16-bit), then polls the busy
+# bit. Literals verified at 0x0800075C-68; kick pc 0x0800073C; block =
+# BGxCNT/scroll/affine/window/blend, one copy per frame on the repro.
+0x08000718	thumb	display_regs_commit

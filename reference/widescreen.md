@@ -16,8 +16,9 @@ Grep the names, not the hex:
   row (section 8 has the field map).
 - The scroll-register apply has **no named entry** (guest DMA helpers at
   0x08001300-0x08001420, pointer-reached); search this doc for that range.
-- The per-frame display-register commit (39-halfword DMA block copy, kick pc
-  ~0x0800073C) also has no named entry — see § "Scroll register apply".
+- `grep display_regs_commit symbols/ffta_symbols.tsv` — the per-frame
+  39-halfword display-register commit (DMA0 from `gDisplayRegShadow`;
+  § "Scroll register apply").
 
 Named units (all already emitted; names assigned 2026-10-08):
 
@@ -84,8 +85,9 @@ descriptor (load/backup copy).
 - **Capture (FIXED 2026-10-08):** these writes now appear in
   `GBARECOMP_MMIO_CAP`. The `heal_gate` Journal suspicion was wrong — the
   cause was `gba_io.cpp`'s write32 split-suppression flag: a 32-bit store of
-  the DMA CNT field (kick pc 0x0800073C; the 0x0800072x-3C sequence sets the
-  channel up, helper form `str r0,[r2,#8]` at 0x080013E0) executes the whole
+  the DMA CNT field (kick pc 0x0800073C, now named `display_regs_commit`
+  0x08000718; the 0x0800072x-3C sequence sets the channel up, helper form
+  `str r0,[r2,#8]` at 0x080013E0) executes the whole
   transfer while the flag is set, so every destination write was swallowed.
   Fixed by per-call record control — patch
   `tools/patches/mmio-cap-dma-reentrancy.patch`; see BRINGUP § "MMIO cap gap".
