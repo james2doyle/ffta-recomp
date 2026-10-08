@@ -1918,3 +1918,35 @@ route in the harness (the 1.2k-frame attract gate cannot catch this class);
 (b) an **interior-split policy** (extend guards to interior roots, or exclude
 the guarded span from speculation). The harvest itself looks sound (K stayed
 static, attract unchanged); the blocker is policy, not seed accuracy.
+
+### 2026-10-07 (cont.) — Found-save load: characterized to the root; fix belongs at the save-flow divergence
+
+The imported save (`saves/found_save.mGBA.sav`, sha256 59bb5d47…) hangs on
+load. Deterministic strict repro: found save +
+`saves/trace_sessionL_1736.csv` (872 events) → `dispatch miss for pc=0x700200F2`
+at f≤1,272. The failed call = the relocated byte-copy stub entered at its
+2-before-plant artifact `0x03007D72` with the driver's read-shaped args
+(r0=flash sector, r1=buffer, r2=0xFFFFFFFF, r3=count−1, lr=0x08141BA5).
+Baseline behavior there: the RAM hook's byte-check declines (plant stale or
+mid-write) → the static interior unit at 0x03007D72 self-re-enters under the
+frame-boundary yield (ring: prologue pushes only; stack descends 2 words per
+frame) → garbage dispatch. The same address at boot is benign: the plant
+matches the ROM stub and the hook canonicalizes to the body.
+
+Shims tried and REVERTED (all defeated by a gate; build restored to baseline,
+attract hash `1EF4C118…` exact):
+- unconditional 0x03007D72 → canonical body: livelocks at the load (nested
+  body yields after its prologue at frame boundaries; the unwind restores
+  pre-dispatch registers). Framework yield-suppression attempted; the boot
+  scan's *legitimate* interior calls then livelock too.
+- hook-side C byte-copy for the shape: completes without yield points but with
+  ZERO guest cycles vs the body's ~13/byte → attract timeline changes
+  (the golden gate caught it; cycles matter).
+- r2 == 0xFFFFFFFF as corruption marker: invalid — the interior loop
+  legitimately runs with r2 == −1, so boot matches that shape too.
+
+Conclusion: no register-level predicate separates the corrupted load-time call
+from legitimate interior calls; the corrupted call is produced UPSTREAM by the
+still-open save-flow divergence. Fix the divergence and this class disappears.
+Evidence: `logs/found_{strict,strict2,ring3,warm2}.log`. Player's own saves
+unaffected (route K strict FULLY_STATIC throughout).
