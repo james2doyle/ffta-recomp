@@ -2249,3 +2249,18 @@ calls, handler tables, the 0x030027D0 slot. Cycle PASS, attract byte-exact.
   epilogue pops a wrong return value (the scan-buffer address) and
   branches into 0x02003CB0 as ARM. Oracle driver-call comparison running
   (full-route scan); route_G stays in the gate until resolved.
+
+- **route_G frontier — updated evidence (oracle scans + native probes):**
+  both engines run a record/save flow reading the user-save group (sectors
+  9,8,7,6 into 0x02003CB0): oracle at **f18,742** (`src=0x0e009000
+  dst=0x02003cb0 n=0x1000 ... lr=0x0813b60d`, four calls, the last n=0xFC4
+  via lr=0x0813B623); oracle driver-call scans over 15,000-18,000 = ZERO
+  calls, 250-900 = only the f253 boot-scan (0x80-byte sector header reads
+  into IWRAM 0x03007DF8, helper planted at 0x03007D64). The native aborts
+  during its version of the flow at ~f17,95x; a first-write probe showed
+  0x02003CB0 is ALSO general EWRAM scratch (a scene-clear at f17,789 wrote
+  it from ROM 0x0800537A while the BIOS cleared VRAM), so watch-target
+  probes on it are ambiguous. Open question: the ~790-frame offset between
+  the same-looking flows (prior desync vs native-only extra flow). Next:
+  dual-engine IWRAM/EWRAM diff at f17,940 to decide, then first-divergence
+  hunt if desynced.
