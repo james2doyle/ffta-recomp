@@ -21,6 +21,8 @@ Grep the names, not the hex:
   § "Scroll register apply").
 - `grep "lzss_decompress\|scene_gfx_load" symbols/ffta_symbols.tsv` — the
   scene-load strip pipeline (W1b; § "W1b — the strip drawer").
+- `grep strip_scroll_compute symbols/ffta_symbols.tsv` — the scroll/desc
+  compute feeding the descriptor walk (0x0801C984; § W1b battle notes).
 
 Named units (all already emitted; names assigned 2026-10-08):
 

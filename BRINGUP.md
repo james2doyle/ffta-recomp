@@ -2695,3 +2695,26 @@ W3 next: per-scene policy via `extended_view_frame` (world map → pillarbox
 or clamp; menus/transitions → pillarbox; field → wide); margin polish
 during transitions; wider validated widths (384/448); Emerald-style smoke
 compare for the test suite.
+
+### 2026-10-08 (cont.) — Build config: GBARECOMP_ENABLE_MODS=ON (adopted); symbol: strip_scroll_compute
+
+- Upstream check: a live `git ls-remote` shows origin/main tip = `ecc9c55` =
+  our pin — **we are on the latest gbarecomp** (tip dated 2026-10-03;
+  nothing newer has landed). The "couple weeks behind" applies to Emerald's
+  published deps, not us. The real difference vs Emerald: they build with
+  **`GBARECOMP_ENABLE_MODS=ON`**, which compiles `mod_runtime.cpp` — the
+  activation/reset plugin lifecycle, `gba_mod_set_view_width`, committed
+  plugin options (the APIs our 2026-10-07 session hit as "undefined
+  reference"). Trialed ON: build clean, `gba_mod_register_activation_plugin`
+  now linked; full gate 8/8, attract 1EF4C118… byte-exact, routes
+  FULLY_STATIC → **adopted** (`-DGBARECOMP_ENABLE_MODS=ON`; README + AGENTS
+  updated). Our WS wiring stays on `extended_view_init` for now; migrating
+  to the activation/reset lifecycle is a W3 cleanup (enables launcher-side
+  mod options for widescreen).
+- Symbols: added `strip_scroll_compute` 0x0801C984 (Section 15: reads the
+  blit desc +0x20/+0x22/+0x24/+0x26, returns targets/deltas; live call from
+  0x0808F004 during pans) and enriched the `gStripBlitDesc` field map
+  (Section 14: verified +0x04/+0x06 limits, +0x14/+0x18 engine args,
+  +0x28/+0x2A deltas, +0x2C flag bits). 0x080006D0 left unnamed: mechanics
+  clear (DISPCNT → 0x03002BBC; DISPCNT := 0x0080; REG_IE := [0x03000E50])
+  but intent unpinned — "never guess". Cycle PASS; corpus unchanged.

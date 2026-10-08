@@ -82,9 +82,13 @@ change behaviour — the attract gate guards this). `tools/cycle.py` and
 Build the game binary (Phase 3+):
 
 ```sh
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DGBARECOMP_ENABLE_MODS=ON
 cmake --build build --target FFTARecomp --parallel 8
 ```
+
+(`-DGBARECOMP_ENABLE_MODS=ON` links the mod lifecycle APIs — activation/reset
+plugins etc. — that the game's widescreen hooks rely on; verified
+gate-neutral 2026-10-08.)
 
 Host unit tests for `src/` custom code (no ROM/BIOS needed; CTest):
 

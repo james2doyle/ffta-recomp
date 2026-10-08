@@ -148,7 +148,12 @@
 0x03000942	iwram	0x4E	gDisplayRegShadow
 
 # Section 14: battle strip blit descriptors (2026-10-08; W1b battle pan —
-# blit r0 arg (strip_blit). 0x28-byte stride, two entries seen
-# (0x02007F40, 0x02007F68); +0x24/+0x26 counters advance with the pan
-# (strip-ring walk); +0x02/+0x08/+0x28 fields read during the walk).
+# strip_blit's r0 arg; 0x28-byte stride, two entries seen (0x02007F40,
+# 0x02007F68). Fields verified in disasm: +0x04/+0x06 s16 limits;
+# +0x08/+0x0A/+0x1E sampled coordinates; +0x14/+0x18 args loaded by
+# strip_refresh_engine; +0x20/+0x22 base offsets (read by
+# strip_scroll_compute); +0x24/+0x26 counters that advance with the pan;
+# +0x28/+0x2A pending signed deltas that drive strip_blit's mode dispatch;
+# +0x2C flags (bit0 = refresh pending — the engine 0x0801AC78 gate; 0x200
+# set after a refresh completes).
 0x02007F40	ewram	0x50	gStripBlitDesc

@@ -276,8 +276,13 @@
 # copy: manual ch0 DMA of 32x 16-bit, src += 0x80 / dst += 0x40 per chunk,
 # busy-poll; CpuSet variant via 0x0814186C). strip_window_fill 0x0801B798
 # writes a constant u16 across grid rows (64-column cap = 512-px model
-# width). Descriptors: gStripBlitDesc (data symbols § 14).
+# width). strip_scroll_compute 0x0801C984 takes two s16 coordinate pairs +
+# the blit desc and returns five s16 outputs (targets at desc+0x20/+0x22,
+# plus signed deltas vs the +0x24/+0x26 counters; live call from 0x0808F004
+# during pans). Descriptors: gStripBlitDesc (data symbols § 14).
 0x0801AC78	thumb	strip_refresh_engine
 0x0801AF08	thumb	strip_blit
 0x0801B798	thumb	strip_window_fill
 0x0801B7F8	thumb	strip_refresh
+0x0801C984	thumb	strip_scroll_compute
+0x0801C984	thumb	strip_scroll_compute

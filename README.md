@@ -114,9 +114,13 @@ gate):
 
 **8. Configure and build the game binary:**
 ```sh
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DGBARECOMP_ENABLE_MODS=ON
 cmake --build build --target FFTARecomp --parallel 8
 ```
+
+(`GBARECOMP_ENABLE_MODS=ON` links the framework's mod lifecycle APIs —
+activation/reset plugins, view-width requests — used by the game's
+widescreen hooks; verified gate-neutral.)
 
 **9. Sanity.** Strict, headless, no input — expect `FULLY_STATIC` in the
 banner:
