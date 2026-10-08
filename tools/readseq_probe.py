@@ -77,7 +77,7 @@ def native_seq():
             frame = int(r.get("frame", frame + 1))
         c.call(cmd="set_break_pc", value=CALL_PC)
         guard = 0
-        while frame < LIMIT and len(out) < 300 and guard < 6000:
+        while frame < LIMIT and len(out) < 300 and guard < max(6000, 4 * (LIMIT - WARM)):
             guard += 1
             v = key_at(frame + 1)
             if v is not None:
@@ -136,7 +136,7 @@ def oracle_seq():
             c.call(cmd="emu_step")
             frame = f
         guard = 0
-        while frame < LIMIT and len(out) < 300 and guard < 3000:
+        while frame < LIMIT and len(out) < 300 and guard < max(3000, 4 * (LIMIT - WARM)):
             guard += 1
             v = key_at(frame + 1)
             if v is not None:
