@@ -1893,3 +1893,28 @@ Resolve 0 seeds PASS; cycle PASS — regen **49,492** functions; attract gate
 `1EF4C118…` unchanged. Trace archived `saves/trace_sessionK_1648.csv`.
 Next: three-lens coverage report, then the bounded pointer-pool harvest
 trial (offline coverage push for unplayed content).
+
+### 2026-10-07 (cont.) — Offline coverage push: trialled, regression found, tabled
+
+The speculative literal harvest was enabled for a real trial: regen **54,404**
+emitted units (+4,912); sanity/build OK; **attract gate PASS unchanged**.
+Acceptance: session-K strict replay (f29,384) **0 seeds FULLY_STATIC** — but
+the save-menu route G (f19,400) **regressed into the memory-runaway class**:
+strict replay pinned at 99.6 % CPU with RSS climbing to **31.8 GB** (killed).
+Spin-hunt showed the same frame as the original stall (f17,794) with a new
+entry path — `0x080052DC → 0x08005544 → 0x08005498/4A2 → 0x08005552` — the
+flow now resumes **inside the LZSS decoder, past the guarded entry**
+(`0x0800543C`), so `ffta.lzss-guard` never runs and the corrupted stream
+loops. The with-flag generated set references the interior address
+(`/tmp/gen_trial/recompiled_009.cpp`); the no-flag build does not enter there.
+Reverted (`speculative_literal_harvest = false`); route G strict replay is
+**FULLY_STATIC** again.
+
+Conclusion: speculative splits can mint dispatchable **interior** roots
+inside guarded routines; entry guards do not cover interiors. Tabled. Re-trial
+prerequisites (README § Roadmap item 1 + playbook):
+(a) a **route-level golden gate** — a long strict replay of the save-menu
+route in the harness (the 1.2k-frame attract gate cannot catch this class);
+(b) an **interior-split policy** (extend guards to interior roots, or exclude
+the guarded span from speculation). The harvest itself looks sound (K stayed
+static, attract unchanged); the blocker is policy, not seed accuracy.

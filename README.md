@@ -18,12 +18,16 @@ RAM-copy fixups — BRINGUP § "Summon crash") — with **every executed path
 FULLY_STATIC** (zero interpreted instructions) at last verification.
 Interactive playtest sessions are integrated through audit batch **ae**
 (22 batches): corpus **49,492 emitted units**, walker's static reach ≈ 98.4 %,
-pointer-pool lens ≈ 91.0 % (both are proxies — the bar for a route is
-FULLY_STATIC on executed paths; full table in § Verification). The attract
-regression gate hash has been stable since pinning. Remaining work:
-completing the pointer-pool harvest for unplayed content, the save-flow
-divergence fix (open investigation below), a long-run attract contact sheet,
-and one upstream note — see Roadmap.
+pointer-pool lens ≈ 91.0 % (proxies — a route is done when FULLY_STATIC on
+its replay). The **offline coverage push** (speculative literal harvest) was
+trialled 2026-10-07: it reaches +4,912 units (54,404 total) but split the
+guarded LZSS decoder at an interior entry, breaking the save-menu route's
+strict replay (memory runaway) — **tabled** until a route-level golden gate
+and an interior-split policy exist (see Roadmap). The attract regression
+gate hash has been stable since pinning. Remaining work: the annotation pass
+(next), the event/script static walk, the save-flow divergence fix (open
+investigation below — no observed hangs remain), a long-run attract contact
+sheet, and one upstream note.
 
 > **You must own the game and BIOS.** Both are user-supplied, hash-verified at
 > launch, and **never committed** (no ROM-derived bytes in git history, ever —
@@ -304,18 +308,34 @@ Full rules live in `AGENTS.md`; the essentials:
 
 ## Roadmap
 
-1. **Finish the save/summon flow fix** (active): relocated-stub fixups live in
-   `src/ffta_ram_dispatch.h` (sentinel-resume reconstruction + corrupted-count
-   clamp); the strict replay of the summon route still hangs on a deeper
-   variant — diagnose, fix, then merge batch ab (8 units harvested from the
-   last session), strict acceptance + cycle, and re-verify the field-menu
-   save flow.
-2. Main-game content past the first non-tutorial battle (completed
-   2026-10-07; play → harvest → resolve), closing Phase 5.
-3. Long-run attract contact sheet (f6000+), upstream note on the bridge
-   stop-contract runaway.
-4. **Reference-material annotation pass** (from the recovered DataCrystal
-   pages + BCROBERT notes, `reference/datacrystal/`):
+1. **Offline coverage push (tabled 2026-10-07).** The speculative literal
+   harvest reaches +4,912 units, but it split the guarded LZSS decoder at an
+   interior entry (`0x08005544`): the save-menu route resumes into the
+   unguarded interior, bypasses the entry check, and runs away (f17,794;
+   31.8 GB RSS). Reverted. Re-trial needs (a) a **route-level golden gate** —
+   a long strict replay of the save-menu route as a first-class regression
+   check (the 1,200-frame attract gate is too short to catch this class), and
+   (b) an **interior-split policy** so speculative interior roots cannot
+   bypass entry guards (guard extension and/or seed exclusion).
+2. **Reference-material annotation pass (next active).** Recovered DataCrystal
+   pages + BCROBERT notes + charlie-troy/engine-hacks material: data names
+   (`UnitStat`, `AbilityProp`, `AbilityMpCost`, `gSongTable`, `gMPlayTable`,
+   `gRngState`), m4a driver-function names, and battle/AI/audio doc
+   cross-references; name-only changes, attract-gated.
+3. **Event/script static walk (breadth lever).** Lift the event-VM script
+   tables (DataCrystal scripting + spiiin map data) and seed the unplayed
+   mission handlers offline — content that playing 350 missions would only
+   reach slowly.
+4. **Save-flow divergence (open investigation).** No observed hangs remain:
+   the relocated-stub fixups (`src/ffta_ram_dispatch.h`) and the LZSS entry
+   guard (`[[mod_function_hook]]` → `ffta.lzss-guard`) closed every observed
+   stall, and the summon routes replay strict-clean. The underlying
+   stale-frame divergence in the save-scan/load flow is still to be
+   root-caused upstream; watch for subtle degradations around in-game saves.
+5. Main-game content (play → harvest → resolve) plus long-run attract contact
+   sheet (f6000+) and the upstream note on the bridge stop-contract runaway:
+   battles and summons completed 2026-10-07; sessions remain the bug-hunter
+   and the acceptance corpus.
    - Data-region names for `symbols/ffta_data_symbols.tsv` (item/job/unit/
      ability/mission tables; RAM fields like day/time `0x02002FBA`, mission
      items `0x02002B08`). Names-only changes — the attract gate guards
@@ -325,13 +345,13 @@ Full rules live in `AGENTS.md`; the essentials:
      hang hunts.
    - Event-VM opcode labels (Scripting page) as a naming layer for the
      `0x08122xxx–0x08123xxx` interpreter family.
-5. **Android port** (research done; the app shell ships inside gbarecomp).
+6. **Android port** (research done; the app shell ships inside gbarecomp).
    Note: device builds run with self-heal disabled — the static coverage this
    loop builds is its prerequisite.
-6. Future candidates: true widescreen (game-owned opt-in + scene policy
+7. Future candidates: true widescreen (game-owned opt-in + scene policy
    validation; currently clamped to the faithful 240×160); an optional mod
    layer from the notes' verified hack sites (QoL/difficulty/test-speed)
    once the core is done.
-7. Community/upstream (optional): gbarecomp issue covering the bridge
+8. Community/upstream (optional): gbarecomp issue covering the bridge
    stop-contract and relocated-stub resume classes; share the
    reverse-engineered save-record format when the wiki scene is reachable.

@@ -250,23 +250,24 @@ recomp-net @ c58f125.
   (oracle/framediff/dualrun/attract gate/misspack/cycle/coverage_report/
   ringscan) plus playtest tooling (`play.sh`, `cache_harvest.py`,
   `resolve.py`). Sixteen sessions (batches a–u, incl. the save-path batch t):
-  corpus 23.4k → 46,383 emitted units; walker's reach ≈ 98.9 %; pointer-pool
-  lens ≈ 88.1 %
-  (proxy, not a goal — the bar is FULLY_STATIC on executed paths). Every
-  executed path is FULLY_STATIC (strict replays: boot→newgame 6000 f; state2
-  battle 60k f; session-5 112k f; session-7 battle f19k→21.5k) and the
-  attract hash is unchanged since pinning. **Save/load hang FIXED
-  (2026-10-07):** the save driver's moving stack-copy helpers were hitting
-  stale AOT at re-planted addresses; canonicalized in
-  `src/ffta_ram_dispatch.h` (load repro: strict abort at `0xE25EF004` →
-  FULLY_STATIC + menu renders; write repro no longer hangs — BRINGUP
-  § "Load-hang root cause & fix"). Remaining: finish the save/summon flow fix
-  (strict-replay hang variant; relocated-stub fixups in
-  `src/ffta_ram_dispatch.h`), main-game content past the first non-tutorial
-  battle (completed 2026-10-07; pure play → harvest), f6000+ attract contact
-  sheet, upstream note on the bridge stop-contract runaway, and the
-  reference-material annotation pass — see README § Roadmap for the full
-  list. Crash playbook:
+  corpus 23.4k → **49,492 emitted units** (22 audit batches through **ae**).
+  The offline coverage push (speculative literal harvest) was trialled
+  2026-10-07 and **tabled**: +4,912 units reachable, but it split the guarded
+  LZSS decoder at an interior entry (`0x08005544`) and broke the save-menu
+  route's strict replay (memory runaway; reverted — re-trial needs a
+  route-level golden gate + an interior-split policy; README § Roadmap
+  item 1). Every executed path is FULLY_STATIC (strict replays: boot→newgame;
+  the summon route f29,384; session battle/save routes) and the attract hash
+  is unchanged since pinning. **Save/summon hangs FIXED (2026-10-07):**
+  relocated-stub canonicalization + sentinel/count fixups
+  (`src/ffta_ram_dispatch.h`) and the LZSS decoder entry guard
+  (`[[mod_function_hook]]` → `ffta.lzss-guard`, `src/main.cpp`); first full
+  Totema summons completed (BRINGUP § "Summon crash"). Remaining: the
+  annotation pass (next), the event/script static walk, the save-flow
+  divergence (open investigation; no observed hangs remain), the
+  offline-push re-trial (route-level gate + interior-split policy), f6000+
+  attract contact sheet, upstream note on the bridge stop-contract runaway,
+  and the Android port — see README § Roadmap for the full list. Crash playbook:
   BRINGUP § "Battle-session crash" / "Crash #2" (harvest → merge → resolve
   → cycle).
 - Reference projects (mstan's Emerald/FRLG/RS/MinishCap/WWT clones) ship

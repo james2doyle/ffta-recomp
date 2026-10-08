@@ -111,6 +111,18 @@ strict acceptance replay.
   directory so the claim stays citable.
 - Seeds imported from community decomp projects are for naming/coverage
   only; they must not change behavior. The golden gate guards this.
+- **Route-level gates for harvest-scale changes.** A short golden window
+  (boot/attract) cannot catch regressions that only appear deep in a
+  session. Changes that add *speculative* coverage (whole-image pointer or
+  table harvest) need a **long strict replay of a real route** as a gate —
+  and watch that replay's RSS. The failure we hit was not a wrong pixel: a
+  speculative split created a dispatchable **interior** entry inside a
+  guarded routine; the route resumed into the unguarded interior, bypassed
+  the entry check, and ran away (30+ GB RSS). When a harvest changes route
+  behavior: **revert first**, then design the interior-split policy (extend
+  guards to interior roots, or exclude the span from speculation) and the
+  route gate, then re-trial. Entry guards (function-entry hooks) never cover
+  interior entries — plan for that explicitly.
 
 ## Oracle differential testing
 
