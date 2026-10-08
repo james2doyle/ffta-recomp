@@ -34,6 +34,13 @@ interpreted instructions).
    final strict replay of the session as the acceptance.
 6. **Commit** config + a dated decision-log entry for the batch.
 
+**Breadth vs depth.** While the corpus is young, playing is the primary
+discovery tool; once per-session merges flatten to tens of units, take the
+cheap breadth lever instead — enable the static pointer/table harvest in one
+config flip (golden gate + strict replays as review) — and keep playing for
+what scans cannot supply: runtime divergences, runtime-constructed code, and
+acceptance evidence. Details in `references/verification.md`.
+
 ## Invariants (never violate)
 
 - Only a strict replay with zero dispatch misses and zero interpreted
@@ -55,6 +62,6 @@ Load the reference for the task at hand; do not read them all at once.
 |---|---|
 | Turn miss PCs into config entries (boundaries, switches, tables, RAM code) | `references/miss-triage.md` |
 | Sessions: savestates, input traces, replay semantics, crash harvesting, live-session watchdogs, playtest ergonomics | `references/reproducibility.md` |
-| Coverage numbers, seed-until-static automation, regression gates, oracle diffs | `references/verification.md` |
+| Coverage numbers, lenses, breadth strategy, seed-until-static automation, regression gates, oracle diffs | `references/verification.md` |
 | Crashes, hangs, spins, wedges, recomp-vs-emulator divergence | `references/debugging.md` |
 | Harness tools to build, pitfalls that cost hours, decision-log and docs discipline | `references/tooling-and-pitfalls.md` |

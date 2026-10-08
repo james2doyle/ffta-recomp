@@ -16,6 +16,34 @@ not chase proxy percentages. Denominators differ and no ground-truth
 function inventory exists — say so when reporting. Refresh the numbers after
 every merge and keep them in the docs.
 
+## Coverage strategy: breadth first, proof by playing
+
+The speculative pointer/table trial is not only a lens — it is a **harvest
+lever**. Once per-session merges have flattened to tens of units (ordinary
+discovery has converged), flip it on for real:
+
+1. Enable the harvest in the config; cold regenerate + build.
+2. The golden gate must pass at the **same hash** — to that point the added
+   seeds have changed zero observable behavior (the attract window is the
+   review). If the hash moves, curate the seeds down instead.
+3. Strict-replay the load-bearing routes as acceptance.
+4. Expect a large one-time corpus jump (order: +10%); every subsequent
+   build carries it.
+
+Playing is what remains for the three things no static scan can supply:
+
+- **Runtime divergences** — corrupted calls, bad counts, hangs, wedges.
+  These exist as behavior only; sessions surface them.
+- **Runtime-constructed code** — RAM-resident copies, stack-planted stubs,
+  interrupt dispatcher spans. No literal points at them; they need live
+  capture plus disassembly.
+- **Acceptance evidence** — a route is proven only by its strict replay of a
+  real session. Sessions *are* the acceptance corpus.
+
+Operational order: play early to build the initial corpus and flush out the
+big bugs; when yield flattens, take the breadth lever; then play again for
+verification and each new subsystem.
+
 ## Seed-until-static resolve loop
 
 Automate the converged half of the loop:
