@@ -300,6 +300,9 @@ recomp-net @ c58f125.
 - `GBARECOMP_INPUT_REPLAY` is applied by the headless `--frames` loop only —
   TCP `run_frames`/`step` does NOT apply replay events (check KEYINPUT at
   0x04000130 if in doubt). Run replay gates headless.
+- `--tcp` mode also does NOT process `--load-state` — the load is silently
+  skipped (no `savestate_loaded` line). Load over TCP with
+  `savestate_load {path}` (GBAS container; refuses wrong SHA-1/version).
 - `[[code_copy]]` maps decoding only; runtime entry PCs inside a copied span
   still need `[[extra_func]]` entries (seed via tools/misspack + a
   source-side prologue scan of the copied span).
@@ -312,7 +315,10 @@ recomp-net @ c58f125.
   1920×1280, the max). `--view-width` is the *widescreen view* feature, not
   window size — unsupported games (FFTA) clamp it to 240 and it does
   nothing; the runtime prints `extended view requested ... but this game
-  has not opted in` when asked (`--quiet` hides it). Adaptive /
+  has not opted in` when asked (`--quiet` hides it). `GBARECOMP_WS_WIP=1`
+  is the dev override that engages the wide PPU path anyway (renders wide
+  headless; FFTA margins are **wrapped BG columns**, not real content —
+  BRINGUP § "Widescreen investigation"). Adaptive /
   resize-driven view (`--resize-view`) is likewise game-owned
   (`RunOptions::max_view_width` / `resize_driven_view`, defaults 240/false
   in the runner; only a mod can opt in — `gba_mod_view_width` /

@@ -174,3 +174,12 @@ list. (2) A candidate must be a trial **primary start** (resume=0 row) — a
 resume point is an interior pc. (3) Scope batches by region so any gate
 failure bisects cleanly; cascades can be huge (15 seeds -> +523; 173 seeds ->
 +4,312, ending within 77 units of the whole speculative pool).
+
+TCP-mode gotchas (cost real probes): `--tcp` does NOT process
+`--load-state` (silently skipped, no savestate line) — load over TCP with a
+`savestate_load {path}` command. And when experimenting with the wide PPU
+path (`GBARECOMP_WS_WIP=1 --view-width N` works headless with no opt-in):
+a field BG tilemap narrower than the view does not error — the renderer
+WRAPS its edges, producing margins that look plausible but are wrong
+(mirrored edge columns). Verify margin content against the game's true
+extent before believing a wide render.

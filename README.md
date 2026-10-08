@@ -349,10 +349,20 @@ Full rules live in `AGENTS.md`; the essentials:
 6. **Android port** (research done; the app shell ships inside gbarecomp).
    Note: device builds run with self-heal disabled — the static coverage this
    loop builds is its prerequisite.
-7. Future candidates: true widescreen (game-owned opt-in + scene policy
-   validation; currently clamped to the faithful 240×160); an optional mod
-   layer from the notes' verified hack sites (QoL/difficulty/test-speed)
-   once the core is done.
+7. Widescreen — investigation landed 2026-10-07 (BRINGUP § "Widescreen
+   investigation"): FFTA is mode 0 with a **256-px-wide field strip**
+   (BG0/BG1 256×512 field + static UI BGs), so the pure-PPU wide path
+   renders plausible-looking but WRAPPED margins; correct widescreen needs
+   the guest to materialize the extra columns (FRLG "Strategy A" pattern,
+   `gbarecomp/docs/WIDESCREEN_STEPC_PLAN.md`). Staged: **W1** locate the
+   field strip-draw/camera code (leads: `gMap*` RAM fields in
+   `symbols/ffta_data_symbols.tsv` § 4, DataCrystal Maps.txt, bcrobert map
+   anchors); **W2** widen screenblocks to 512-wide + extend the draw behind
+   a mod function hook; **W3** per-scene policy (menus pillarbox) + opt-in
+   via `opts.max_view_width` in `src/main.cpp`. Dev override for
+   experiments: `GBARECOMP_WS_WIP=1 --view-width N` (renders wide headless
+   today). An optional mod layer from the notes' verified hack sites
+   (QoL/difficulty/test-speed) once the core is done.
 8. Community/upstream (optional): gbarecomp issue covering the bridge
    stop-contract and relocated-stub resume classes; share the
    reverse-engineered save-record format when the wiki scene is reachable.

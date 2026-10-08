@@ -2007,3 +2007,40 @@ unaffected (route K strict FULLY_STATIC throughout).
   (no raw addresses; "03xx" hits are code-word fragments). Its usable
   content was already captured via 25621/22129 (cross-agree, data-symbols
   § 7). Re-open only if CBA decryption is ever wanted.
+
+### 2026-10-07 (cont.) — Widescreen investigation: framework path, FFTA facts, staged plan
+
+- Framework: opt-in = `RunOptions::max_view_width` > 240 (ours to set in
+  src/main.cpp); users ask via `--view-width` / `GBARECOMP_VIEW_WIDTH` /
+  `[video].view_width`; engine max 896 px. Capability = shared PPU wide
+  path; POLICY (which scenes, how wide, clamping) is per-game. WIP dev
+  override `GBARECOMP_WS_WIP=1` unlocks experiments without an opt-in.
+- Gotcha recorded in AGENTS: under `--tcp` the runtime does NOT process
+  `--load-state` (silently skipped); load over TCP with `savestate_load
+  {path}` instead (this cost two cold-boot probes before it was spotted!).
+- FFTA scene facts (TCP probes; game.state2 = world map, frame 51,827):
+  mode 0, four BGs. BG0/BG1 = field layers, tilemap 256x512 (size=2),
+  scr 0x5000/0x6000, h=0 v=151; BG2/BG3 = static 256x256 UI (0x7000/0x7800).
+  Node travel: Down moved v 151->192 (+41, recenter) then stopped; Left/
+  Right had no adjacent node from Sprohm and its southern neighbour; h
+  stayed 0 at every reached node. Vertical = true scroll; horizontal
+  mechanism unresolved (likely strip redraw; draw window is 256 px).
+- Experiment (zero code changes): `GBARECOMP_WS_WIP=1 --view-width 320`
+  renders 320x160 headless (runtime banner "extended view ON ... 40/40").
+  The 240-space stays CENTERED (UI/OAM intact); margins show WRAPPED
+  BG0/BG1 edge columns (cols 30-39 read as 30/31 + 0-7; left margin =
+  cols 24-31) — visually map-like, positionally wrong. Conclusion:
+  pure-PPU widescreen is NOT correct for FFTA; margins must be
+  materialized by the guest (FRLG Strategy A, docs/WIDESCREEN_STEPC_PLAN.md).
+- Staged plan: W1 locate the field strip-draw + camera code (leads: gMap*
+  fields § 4 — gMapTileData 0x02007CB0, gMapHeightRead/WriteAddr
+  0x08019E7C/0x0801F0DC; DataCrystal Maps.txt; bcrobert map anchors;
+  confirm horizontal mechanism by reaching an east node or reading the
+  camera code). W2 relocate field screenblocks to 512-wide (size=3) and
+  extend the draw to fill extra columns behind a mod function hook; add a
+  camera bias ((W-240)/2) so the player stays centered. W3 policy: wide
+  only where margins are materialized (world map, battle field); menus/UI
+  pillarbox; then opt in via opts.max_view_width.
+- Artifacts (ROM-derived, /tmp only): ws240.png, ws320.png (world map
+  240 vs 320), ws_battle2_f2.png, ws_map_down.png (v-scroll evidence),
+  probe logs wsprobe*.log.
