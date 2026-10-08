@@ -90,3 +90,15 @@
 0x02000000	ewram	0x18C0	gPartyUnits
 0x02001F1C	ewram	0x0	gPartyNameBuffer
 0x02002031	ewram	0x4	gGrowthItemCounters
+# Section 7: GameFAQs code compilations (Adrammelech 25621, labmaster 26118,
+# TetrisTheMovie 27385) — addresses cross-agree; live-verified 2026-10-07:
+# gMoney read 5000; gClanNameBuffer decoded "Nutsy" via the 16-bit letter
+# table; gClanSkills read [1,...]; gBattleLaws read 0 in state2 (caveat).
+0x02001F64	ewram	0x4	gMoney
+0x020021A0	ewram	0x10	gClanNameBuffer
+0x020021B6	ewram	0x10	gClanSkills
+0x02003C34	ewram	0x3	gBattleLaws
+# Unit-record field offsets (two code compilations agree; base+stride verified
+# in Section 6): name-ptr +0x80, level +0x89 (0x8A per one code — XP?),
+# HP +0x98/+0x9A, MP +0x9C/+0x9E, Atk +0xA0, Def +0xA2, Pow +0xA4, Res +0xA6,
+# abilities bitmap +0xC0 (0x90 bytes), Speed +0x152, JP +0x156.
