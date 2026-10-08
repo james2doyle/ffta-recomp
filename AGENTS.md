@@ -387,6 +387,10 @@ recomp-net @ c58f125.
   `tools/framediff.py` for state-level deltas. Regression tooling lives in
   `tools/`; use it instead of hand-rolling probes (`tools/dualrun.py`,
   `tools/misspack.py`).
+- Full gate before declaring a state good:
+  `.venv/bin/python tools/check.py` (host unit tests + attract + strict
+  route replays over frozen fixtures in `saves/regress/`; `--fast` for the
+  quick subset). Freeze every new route worth guarding as a fixture.
 - After every playtest session: harvest (`.frag` on clean exit, else
   `tools/cache_harvest.py`) → merge reviewed seeds → `tools/resolve.py` on
   the session trace until FULLY_STATIC → `tools/cycle.py` → commit with a

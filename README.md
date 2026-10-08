@@ -230,6 +230,11 @@ GBARECOMP_INPUT_REPLAY=logs/playthrough.csv ./build/FFTARecomp ...` — expect
 - **Attract gate:** `tools/attract_check.py` pins the SHA-256 of a 1200-frame
   attract run; it runs inside `cycle.py` after every `game.toml` change.
   `--repin` only for deliberate visual changes.
+- **Full gate:** `.venv/bin/python tools/check.py` — host unit tests
+  (C++ + Python), the attract gate, and strict route replays (user
+  save-load, sessions G/K) against frozen fixtures in `saves/regress/`
+  (sha-pinned). Run it before declaring "no regressions"; `--fast` for the
+  quick subset. `tools/savecheck.py` validates raw/RTN5 saves offline.
 - **Coverage lenses:** `tools/coverage_report.py` reports executed path
   (ground truth), walker's static reach, and pointer-pool reach (a proxy —
   not a goal; FFTA needs FULLY_STATIC on executed paths, not 100 % of a

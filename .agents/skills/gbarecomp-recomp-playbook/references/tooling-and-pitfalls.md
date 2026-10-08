@@ -236,3 +236,11 @@ unit's fall-through re-dispatch of the cut address arrives with mid-run
 registers and satisfies the pc+2 match again. Gate pc+2-style matches on
 fresh-entry register state (or run a full canonical body) so crossings fall
 through to the fixed table instead of re-entering the setup.
+
+Suspiciously empty probe results deserve the same scrutiny as crashes: a
+scan that captured 0 hits may mean a silently truncated window (a loop
+guard capped at a hard iteration count), a breakpoint mechanism that does
+not fire for the probed address class (dispatch-entry yields never see
+mid-function PCs), or a fixtured input file that no longer exists. Make
+capture tools fail loudly on the empty/ambiguous case, and scale guards
+with the requested window instead of using constants.

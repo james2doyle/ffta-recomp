@@ -156,3 +156,28 @@ Before using a found/downloaded save as a repro or regression fixture:
    difference is by definition a divergence (the file is identical), and a
    valid-but-unusual save exercises scan/validate paths your own playthrough
    never reached.
+
+## One-command regression gate (lock the "good spot" in)
+
+When a project reaches an all-green state, freeze it as a single gate
+command so later changes cannot regress silently:
+
+- **Layer the checks by cost**: fast host tests (unit tests + data-format
+  validators) first, then expensive end-to-end gates (golden-frame hash,
+  strict route replays) — early failures surface before slow work runs.
+- **Freeze route fixtures** (input trace + save/state + frame budget) in a
+  dedicated directory, and pin every binary-content input with a hash
+  assertion. A fixture that silently disappears or gets overwritten turns
+  the check into a vacuous pass — this happened (a /tmp save copy was
+  cleaned up, so a strict route "passed" for days without ever running the
+  flow it existed to guard). Fail loudly when a fixture is missing or its
+  hash changed.
+- **Unit-test the custom layer**, never the generated code: semantics of
+  hand-written hooks/fixups, and one named regression test per fixed bug
+  (e.g. "a mid-run boundary crossing must fall through, not re-enter").
+- **Validate data formats with the game's own algorithm where reversible**
+  (save checksums, compression), anchor the implementation against every
+  known-good sample, and test the validator against crafted corrupt inputs
+  so it provably fails on damage.
+- Make the gate one command (`tools/check.py [--fast|--only NAME]`) with
+  per-check PASS/FAIL lines and a non-zero exit unless everything passes.

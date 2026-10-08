@@ -31,7 +31,10 @@ interpreted instructions).
 4. **Resolve until static.** Strict-replay the session; seed the first miss
    through a temporary overlay; rebuild; repeat until no miss remains.
 5. **Verify.** Cold regenerate, build, run the golden-hash gate, then one
-   final strict replay of the session as the acceptance.
+   final strict replay of the session as the acceptance — and keep it: add
+   the route to the project's one-command regression gate over frozen
+   fixtures, and write a named regression test for every bug fixed
+   (`references/verification.md`).
 6. **Commit** config + a dated decision-log entry for the batch.
 
 **Breadth vs depth.** While the corpus is young, playing is the primary
