@@ -6826,3 +6826,346 @@ addr = 0x08019438
 mode = "thumb"
 note = "batch af: interior of 0x08019430 (runtime-dispatched); split-interior seed"
 
+
+# ─── Batch ah: session 15:27 (link-feature session) ───
+# 64 thumb units from the frag + heal-cache harvest
+# (0x08062xxx-0x08066xxx link/comm cluster); split-interior seeds where
+# the pc is not a function start. Plus the ARM-planted IRQ rotate helper
+# (0x03002B70) at the bottom with its code_copy mapping.
+
+[[extra_func]]
+addr = 0x0806216C
+mode = "thumb"
+note = "batch ah: start [push {r4, r5, lr}]; prologue scan"
+
+[[extra_func]]
+addr = 0x0806218C
+mode = "thumb"
+note = "batch ah: interior of 0x0806216C (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x08062192
+mode = "thumb"
+note = "batch ah: interior of 0x0806216C (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x08062224
+mode = "thumb"
+note = "batch ah: start [push {lr}]; prologue scan"
+
+[[extra_func]]
+addr = 0x08062232
+mode = "thumb"
+note = "batch ah: interior of 0x08062224 (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x08062236
+mode = "thumb"
+note = "batch ah: interior of 0x08062224 (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x08062248
+mode = "thumb"
+note = "batch ah: start [push {r4, r5, r6, lr}]; prologue scan"
+
+[[extra_func]]
+addr = 0x08062254
+mode = "thumb"
+note = "batch ah: interior of 0x08062248 (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x080622D0
+mode = "thumb"
+note = "batch ah: interior of 0x08062248 (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x0806233A
+mode = "thumb"
+note = "batch ah: interior of 0x08062248 (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x08062344
+mode = "thumb"
+note = "batch ah: start [push {r4, lr}]; prologue scan"
+
+[[extra_func]]
+addr = 0x080623A4
+mode = "thumb"
+note = "batch ah: interior of 0x08062344 (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x080623C8
+mode = "thumb"
+note = "batch ah: start [push {r4, r5, lr}]; prologue scan"
+
+[[extra_func]]
+addr = 0x080623D2
+mode = "thumb"
+note = "batch ah: interior of 0x080623C8 (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x080623D6
+mode = "thumb"
+note = "batch ah: interior of 0x080623C8 (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x08062430
+mode = "thumb"
+note = "batch ah: start [push {r4, lr}]; prologue scan"
+
+[[extra_func]]
+addr = 0x0806244A
+mode = "thumb"
+note = "batch ah: interior of 0x08062430 (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x0806244E
+mode = "thumb"
+note = "batch ah: interior of 0x08062430 (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x080624B8
+mode = "thumb"
+note = "batch ah: interior of 0x08062430 (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x080624BC
+mode = "thumb"
+note = "batch ah: interior of 0x08062430 (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x080624E0
+mode = "thumb"
+note = "batch ah: interior of 0x08062430 (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x0806253C
+mode = "thumb"
+note = "batch ah: interior of 0x08062430 (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x08064354
+mode = "thumb"
+note = "batch ah: start [push {r4, lr}]; prologue scan"
+
+[[extra_func]]
+addr = 0x08064362
+mode = "thumb"
+note = "batch ah: interior of 0x08064354 (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x08064384
+mode = "thumb"
+note = "batch ah: start [push {r4, lr}]; prologue scan"
+
+[[extra_func]]
+addr = 0x08064390
+mode = "thumb"
+note = "batch ah: interior of 0x08064384 (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x0806439E
+mode = "thumb"
+note = "batch ah: interior of 0x08064384 (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x080643B2
+mode = "thumb"
+note = "batch ah: interior of 0x08064384 (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x080643BC
+mode = "thumb"
+note = "batch ah: start [push {r4, lr}]; prologue scan"
+
+[[extra_func]]
+addr = 0x080643CE
+mode = "thumb"
+note = "batch ah: interior of 0x080643BC (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x080643E2
+mode = "thumb"
+note = "batch ah: interior of 0x080643BC (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x08064400
+mode = "thumb"
+note = "batch ah: start [push {r4, lr}]; prologue scan"
+
+[[extra_func]]
+addr = 0x08064406
+mode = "thumb"
+note = "batch ah: interior of 0x08064400 (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x0806441E
+mode = "thumb"
+note = "batch ah: interior of 0x08064400 (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x08064428
+mode = "thumb"
+note = "batch ah: interior of 0x08064400 (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x0806443C
+mode = "thumb"
+note = "batch ah: interior of 0x08064400 (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x0806444C
+mode = "thumb"
+note = "batch ah: start [push {r4, lr}]; prologue scan"
+
+[[extra_func]]
+addr = 0x08064452
+mode = "thumb"
+note = "batch ah: interior of 0x0806444C (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x0806445E
+mode = "thumb"
+note = "batch ah: interior of 0x0806444C (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x0806447C
+mode = "thumb"
+note = "batch ah: start [push {lr}]; prologue scan"
+
+[[extra_func]]
+addr = 0x08064482
+mode = "thumb"
+note = "batch ah: interior of 0x0806447C (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x08064CCC
+mode = "thumb"
+note = "batch ah: start [push {r4, r5, lr}]; prologue scan"
+
+[[extra_func]]
+addr = 0x08064D18
+mode = "thumb"
+note = "batch ah: interior of 0x08064CCC (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x08064D20
+mode = "thumb"
+note = "batch ah: interior of 0x08064CCC (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x08064FA0
+mode = "thumb"
+note = "batch ah: start [push {lr}]; prologue scan"
+
+[[extra_func]]
+addr = 0x08065004
+mode = "thumb"
+note = "batch ah: interior of 0x08064FA0 (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x08065050
+mode = "thumb"
+note = "batch ah: start [push {lr}]; prologue scan"
+
+[[extra_func]]
+addr = 0x08065056
+mode = "thumb"
+note = "batch ah: interior of 0x08065050 (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x080651FC
+mode = "thumb"
+note = "batch ah: start [push {r4, r5, r6, r7, lr}]; prologue scan"
+
+[[extra_func]]
+addr = 0x08065216
+mode = "thumb"
+note = "batch ah: interior of 0x080651FC (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x0806522C
+mode = "thumb"
+note = "batch ah: interior of 0x080651FC (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x080652AC
+mode = "thumb"
+note = "batch ah: interior of 0x080651FC (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x0806539A
+mode = "thumb"
+note = "batch ah: interior of 0x080651FC (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x080653AA
+mode = "thumb"
+note = "batch ah: interior of 0x080651FC (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x080653BC
+mode = "thumb"
+note = "batch ah: interior of 0x080651FC (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x080655E0
+mode = "thumb"
+note = "batch ah: interior of 0x080651FC (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x08066018
+mode = "thumb"
+note = "batch ah: start [push {lr}]; prologue scan"
+
+[[extra_func]]
+addr = 0x080664C4
+mode = "thumb"
+note = "batch ah: start [push {r4, lr}]; prologue scan"
+
+[[extra_func]]
+addr = 0x08066DDC
+mode = "thumb"
+note = "batch ah: start [push {r4, r5, lr}]; prologue scan"
+
+[[extra_func]]
+addr = 0x08066DE6
+mode = "thumb"
+note = "batch ah: interior of 0x08066DDC (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x08066E00
+mode = "thumb"
+note = "batch ah: interior of 0x08066DDC (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x08066E08
+mode = "thumb"
+note = "batch ah: start [push {r4, r5, r6, lr}]; prologue scan"
+
+[[extra_func]]
+addr = 0x08066E8C
+mode = "thumb"
+note = "batch ah: interior of 0x08066E08 (runtime-dispatched); split-interior seed"
+
+[[extra_func]]
+addr = 0x08066E94
+mode = "thumb"
+note = "batch ah: interior of 0x08066E08 (runtime-dispatched); split-interior seed"
+
+# ARM-planted IRQ-critical helper (first miss of the session): IE-off
+# 8-word rotate at [0x030028A0]+0x40 (ROM 0x08005088, 0x40 bytes; unique
+# 0x40-byte match in the live IWRAM dump captured at the miss). The RAM
+# dispatch hook only handled thumb; this ARM case is now canonicalized in
+# src/ffta_ram_dispatch.h (arm branch).
+[[code_copy]]
+runtime_start = 0x03002B70
+source_start = 0x08005088
+size = 0x00000040
+name = "iwram_irq_buffer_rotate"
+note = "byte-identical 0x40-byte span (live IWRAM dump at the batch-ah miss; unique ROM match); planted during the link-feature session; hook canonicalizes any plant address"
+
+[[extra_func]]
+addr = 0x03002B70
+mode = "arm"
+note = "batch ah: ARM IRQ buffer-rotate helper (ROM 0x08005088, unique 0x40-byte match); planted copy; see the code_copy above"

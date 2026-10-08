@@ -19,14 +19,17 @@ namespace {
 
 uint8_t g_iwram[0x10000];  // guest 0x03000000..0x0300FFFF
 uint8_t g_rom[0x400];      // guest 0x08141A00..0x08141DFF (source snippets)
+uint8_t g_rom2[0x100];     // guest 0x08005000..0x080050FF (ARM rotate source)
 
 int g_copy_calls = 0;
 int g_compare_calls = 0;
 int g_getter_calls = 0;
+int g_arm_calls = 0;
 uint32_t g_copy_entry_r2 = 0;
 
 constexpr uint32_t IWRAM_BASE = 0x03000000u;
 constexpr uint32_t ROM_BASE = 0x08141A00u;
+constexpr uint32_t ROM2_BASE = 0x08005000u;
 
 void pattern(uint8_t* p, size_t n, uint8_t seed) {
     for (size_t i = 0; i < n; ++i) p[i] = static_cast<uint8_t>(seed + i * 7u);
@@ -37,6 +40,8 @@ void bus_poke(uint32_t addr, const uint8_t* src, size_t len) {
         std::memcpy(g_iwram + (addr - IWRAM_BASE), src, len);
     } else if (addr >= ROM_BASE && addr + len <= ROM_BASE + 0x400u) {
         std::memcpy(g_rom + (addr - ROM_BASE), src, len);
+    } else if (addr >= ROM2_BASE && addr + len <= ROM2_BASE + 0x100u) {
+        std::memcpy(g_rom2 + (addr - ROM2_BASE), src, len);
     } else {
         std::fprintf(stderr, "bus_poke: bad range %08X+%zu\n", addr, len);
     }
@@ -55,7 +60,8 @@ void reset_state() {
     std::memset(&g_cpu, 0, sizeof(g_cpu));
     std::memset(g_iwram, 0, sizeof(g_iwram));
     std::memset(g_rom, 0, sizeof(g_rom));
-    g_copy_calls = g_compare_calls = g_getter_calls = 0;
+    std::memset(g_rom2, 0, sizeof(g_rom2));
+    g_copy_calls = g_compare_calls = g_getter_calls = g_arm_calls = 0;
     g_copy_entry_r2 = 0;
 }
 
@@ -75,6 +81,8 @@ extern "C" uint8_t bus_read_u8(uint32_t addr) {
         return g_iwram[addr - IWRAM_BASE];
     if (addr >= ROM_BASE && addr < ROM_BASE + 0x400u)
         return g_rom[addr - ROM_BASE];
+    if (addr >= ROM2_BASE && addr < ROM2_BASE + 0x100u)
+        return g_rom2[addr - ROM2_BASE];
     return 0xFFu;
 }
 
@@ -88,6 +96,7 @@ extern "C" void gf_tfunc_03007D64(void) {
 
 extern "C" void gf_tfunc_03007CE4(void) { ++g_compare_calls; }
 extern "C" void gf_tfunc_03007D48(void) { ++g_getter_calls; }
+extern "C" void gf_afunc_03002B70(void) { ++g_arm_calls; }
 
 int main() {
     using ffta::copy_entry_fixup;
@@ -185,10 +194,38 @@ int main() {
     }
     CHECK(ram_dispatch(0x03005000u, 1) == 0);
 
-    // ARM mode is never serviced by this hook.
+    // ARM mode: only the rotate template is serviced, and only on a byte
+    // match. (Fill the rotate source slot non-zero so a zero-filled RAM
+    // region cannot spuriously match — as it cannot against real ROM bytes.)
     reset_state();
+    {
+        uint8_t buf[0x80];
+        pattern(buf, 0x40u, 0x44); bus_poke(0x08005088u, buf, 0x40u);
+    }
     plant_pair(0x03007D74u, 0x08141AF0u, 0x24u, 0x11);
     CHECK(ram_dispatch(0x03007D74u, 0) == 0);
+
+    // ── ARM: IRQ buffer-rotate helper (batch ah, 2026-10-08) ─────────
+    // The link-feature session planted the ROM 0x08005088 helper (0x40
+    // bytes) at 0x03002B70 and dispatched it in ARM mode; the hook
+    // previously declined all ARM dispatches, so it bridged as a miss.
+    reset_state();
+    plant_pair(0x03002B70u, 0x08005088u, 0x40u, 0x44);
+    CHECK(ram_dispatch(0x03002B70u, 0) == 1);
+    CHECK(g_arm_calls == 1);
+
+    // The same bytes at a different plant address canonicalize too.
+    reset_state();
+    plant_pair(0x03002BA0u, 0x08005088u, 0x40u, 0x44);
+    CHECK(ram_dispatch(0x03002BA0u, 0) == 1);
+    CHECK(g_arm_calls == 1);
+
+    // ARM bytes that do not match the template fall through.
+    reset_state();
+    plant_pair(0x03002B70u, 0x08005088u, 0x40u, 0x44);
+    g_iwram[(0x03002B70u - IWRAM_BASE) + 3] ^= 0xFFu;  // corrupt one byte
+    CHECK(ram_dispatch(0x03002B70u, 0) == 0);
+    CHECK(g_arm_calls == 0);
 
     // ── byte_compare ────────────────────────────────────────────────
     reset_state();

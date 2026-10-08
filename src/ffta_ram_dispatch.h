@@ -24,13 +24,14 @@
 extern "C" void gf_tfunc_03007D64(void);  // byte-copy    <- ROM 0x08141AF0 (0x24)
 extern "C" void gf_tfunc_03007CE4(void);  // byte-compare <- ROM 0x08141BB0 (0x2E)
 extern "C" void gf_tfunc_03007D48(void);  // ldrb r0,[r0]; bx lr getter
+extern "C" void gf_afunc_03002B70(void);  // ARM IRQ buffer rotate <- ROM 0x08005088 (0x40)
 
 namespace ffta {
 
 // TEMP instrumentation (FFTA_DISPATCH_LOG=1): log copy-family hook decisions.
 inline void dispatch_log(const char* what, uint32_t pc) {
     static const bool on = std::getenv("FFTA_DISPATCH_LOG") != nullptr;
-    if (!on || pc < 0x03007C80u || pc > 0x03007EA0u) return;
+    if (!on || pc < 0x03002000u || pc > 0x03008000u) return;
     std::fprintf(stderr, "[dl] %-14s pc=%08X r2=%08X r3=%08X r0=%08X r1=%08X sp=%08X lr=%08X\n",
                  what, pc, g_cpu.R[2], g_cpu.R[3], g_cpu.R[0], g_cpu.R[1],
                  g_cpu.R[13], g_cpu.R[14]);
@@ -67,8 +68,18 @@ inline void copy_entry_fixup(uint32_t pc) {
 // Runs before the fixed dispatch table for every RAM-range (0x02-0x03) target.
 // Returns non-zero after running a byte-verified canonical body.
 inline int ram_dispatch(uint32_t pc, int thumb) {
-    if (!thumb) return 0;
     dispatch_log("enter", pc);
+    if (!thumb) {
+        // ARM-planted IRQ-critical helper (batch ah, link-feature session):
+        // IE-off 8-word rotate at [0x030028A0]+0x40, ROM 0x08005088 (0x40
+        // bytes). The hook previously handled thumb only; canonicalize the
+        // live copy so any plant address resumes the generated body.
+        if (ram_matches_rom(pc, 0x08005088u, 0x40u)) {
+            dispatch_log("arm-rotate", pc);
+            gf_afunc_03002B70(); return 1;
+        }
+        return 0;
+    }
     // Mid-copy resumes (r2 == the loop sentinel 0xFFFFFFFF) must NEVER run the
     // canonical body from the top: the copy is already in progress (prologue
     // pushed, loop registers live in r1/r3/r4). Re-running the body pushes a

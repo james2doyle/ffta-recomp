@@ -3,7 +3,8 @@
 # repeat. Accumulated seeds go to a proposal file; game.toml is never
 # auto-edited. Merge the proposal, then run tools/cycle.py.
 # Usage: tools/resolve.py --trace logs/playthrough.csv [--load-state saves/x.state]
-#        [--frames 120000] [--iters 16] [--max-scan 0x800]
+#        [--save-path saves/my_skyemu.sav] [--frames 120000] [--iters 16]
+#        [--max-scan 0x800]
 import argparse
 import os
 import pathlib
@@ -37,6 +38,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--trace", required=True, help="input replay csv")
     ap.add_argument("--load-state", help="start from a savestate instead of boot")
+    ap.add_argument("--save-path", help="battery save the session played on (runner --save-path)")
     ap.add_argument("--frames", type=int, default=120000)
     ap.add_argument("--iters", type=int, default=16)
     ap.add_argument("--max-scan", type=lambda s: int(s, 0), default=0x800)
@@ -83,6 +85,8 @@ def main():
                "--rom", "game.gba", "--frames", str(a.frames), "--no-window"]
         if a.load_state:
             cmd += ["--load-state", a.load_state]
+        if a.save_path:
+            cmd += ["--save-path", a.save_path]
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=1800, env=env)
         out = r.stdout + r.stderr
         m = re.search(

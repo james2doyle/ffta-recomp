@@ -2762,3 +2762,31 @@ so that run never left the world map — it was a world-map wrap check, not
 the pub. Found during the W3 re-check (the pub "failed" the new pillarbox
 detector precisely because the scene was the world map all along). The pub
 is now genuinely verified (above); reference/widescreen.md + README updated.
+
+### 2026-10-08 (cont.) — Batch ah: link-feature session (65 units) + ARM RAM-dispatch case
+
+Session N (trace archived `saves/trace_sessionN_1527.csv`, 5,612 frames,
+played on `saves/my_skyemu.sav`, link feature attempted): 65 misses,
+journaled live through the exit issue (the close hang persists
+intermittently; the frag survived as designed — no re-investigation per the
+standing direction).
+
+- 64 thumb units in the `0x08062xxx-0x08066xxx` cluster (the link/comm code
+  the session reached) — merged with prologue-scan evidence
+  (start/interior notes). Seed cascade: corpus 54,355 → **55,098** (+743).
+- The FIRST miss was an **ARM-planted** helper at `0x03002B70` ← ROM
+  `0x08005088` (0x40 bytes; unique match from the live IWRAM dump captured
+  with `GBARECOMP_MISS_IWRAM_DUMP`): IE-off 8-word rotate at
+  `[0x030028A0]+0x40`. Root cause of the miss: `ram_dispatch` declined ALL
+  ARM dispatches (`if (!thumb) return 0`). Fix: ARM branch byte-verifying
+  the template and running the canonical body; `[[code_copy]]` +
+  `[[extra_func]]` (arm) added to game.toml; unit tests extended (match at
+  any plant address; non-match falls through; second fake-ROM window).
+- Tooling: `resolve.py` gained `--save-path` (traces that include an
+  in-game load need the session's battery save; without it the replay
+  diverges before the interesting code).
+
+Acceptance: strict replay of session N = FULLY_STATIC (resolve iter 0);
+attract 1EF4C118… byte-exact; `check.py` 8/8; coverage refreshed (walker
+55,098/56,328 ≈ 97.8 %, pool 55,098/55,510 ≈ 99.3 %). All ROM claims
+byte-matched (disasm + live dump evidence).
