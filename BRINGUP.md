@@ -2651,3 +2651,47 @@ struct). README roadmap updated. Cycle PASS; corpus 54,355; attract
 
 W2 consequence: hook at strip_blit / the descriptor walk (materialize the
 extra columns there) — the decoder is NOT in the pan path.
+
+### 2026-10-08 (cont.) — Widescreen W2 milestone 1: authored margins LANDED
+
+Implementation (game-side only; framework pin untouched beyond existing APIs):
+- `opts.max_view_width = 320` in src/main.cpp — validated capability; run
+  `--view-width 320` (or --resize-view); default stays faithful 240.
+- `opts.extended_view_init = ffta_ws_install_margin_hooks` installs
+  `g_ws_authored_margin_layers = 1` (margin columns render from the guest's
+  own 512-wide rings instead of pillarbox black; savestate loads then keep
+  the pillarbox policy off) and `g_ws_obj_native_clip = 1` (parked off-screen
+  OAM never leaks into margins). extended_view_init is the right seam:
+  run_game() clears game-owned WS hooks on entry ("never leak into a later
+  faithful run"), so installs must happen from inside the run.
+- Debug path worth remembering: the pinned engine does NOT link
+  mod_runtime.cpp (no `gba_mod_register_activation_plugin`; the lzss-guard
+  link error on 2026-10-07 was this class). Usable seams: RunOptions
+  extended_view_init / extended_view_frame + fn-entry plugins.
+
+Verified (headless dumps, --view-width 320, WS_WIP NOT needed):
+- battle at rest / pans f100+f150 / pub interior post-load: margins 100 %
+  non-black, filled from the ring's own content (water/cliff continuation);
+- world map: margins render but as its 256-px map's wrapped edge (UI chip
+  tail leaks) → W3 per-scene policy;
+- center fidelity: wide center [40..280) vs faithful 240 render =
+  0/38,400 differing pixels; attract byte-exact; check.py 8/8; routes
+  FULLY_STATIC;
+- temporary gba_ppu.cpp debug instrumentation fully reverted — submodule
+  diff scope back to the documented patch set.
+
+Reference inspection (user-supplied URLs): EmeraldRecomp ships the full
+widescreen architecture (docs/WIDESCREEN_EXPERIMENT.md +
+src/mods/emerald_adaptive_view_plugin.cpp): host-synthesized margins
+(tilemap provider for ring-wrap games + object layer + UI edge-anchoring),
+fail-closed pillarbox, per-frame policy, verification probes and smoke
+tools. FFTA needs none of the provider machinery for field scenes (its
+rings are real 512-px data); the UI-anchoring model is the reference for
+W3 if HUD stays wide. WarioWareTwistedRecomp has NO widescreen
+implementation (attract tooling reference only). Clones kept at
+/home/james/Git/refs/EmeraldRecomp and /home/james/Git/refs/WarioWareTwistedRecomp.
+
+W3 next: per-scene policy via `extended_view_frame` (world map → pillarbox
+or clamp; menus/transitions → pillarbox; field → wide); margin polish
+during transitions; wider validated widths (384/448); Emerald-style smoke
+compare for the test suite.

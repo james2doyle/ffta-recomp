@@ -72,6 +72,33 @@ GBA_MOD_CONSTRUCTOR(register_ffta_lzss_guard) {
                                            ffta_lzss_entry_guard);
 }
 
+// ── Widescreen (W2): authored margins (see reference/widescreen.md) ─────────
+// FFTA's field BGs are 512-wide tilemap rings, so the columns the
+// expanded-view compositor samples for margin pixels are the guest's own
+// authored world (BRINGUP § W1b). Declare that (savestate loads keep the
+// pillarbox policy off) and clip OBJ to the native viewport so parked
+// sprites never leak into margins. Inert in faithful runs: only the
+// expanded-view compositor reads these. Set from a mod constructor so they
+// are live in whichever process runs the game.
+extern "C" int g_ws_authored_margin_layers;
+extern "C" int g_ws_obj_native_clip;
+// ── Widescreen (W2): authored margins (see reference/widescreen.md) ─────────
+// FFTA's field BGs are 512-wide tilemap rings, so the columns the
+// expanded-view compositor samples for margin pixels are the guest's own
+// authored world (BRINGUP § W1b). run_game() clears game-owned WS hooks on
+// entry, so they are installed from the runner's extended_view_init callback
+// (called once after the wide view is authorized — after that cleanup).
+// Clipping OBJ to the native viewport keeps parked sprites out of margins.
+// Inert in faithful runs: only the expanded-view compositor reads these.
+void ffta_ws_install_margin_hooks(std::uint32_t extra_left,
+                                  std::uint32_t extra_right) {
+    (void)extra_left;
+    (void)extra_right;
+    g_ws_authored_margin_layers = 1;
+    g_ws_obj_native_clip = 1;
+    std::fprintf(stderr, "[ffta] ws: margin hooks installed (extended_view_init)\n");
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -88,6 +115,11 @@ int main(int argc, char** argv) {
 
     gbarecomp::RunOptions opts;
     opts.builtin_game_name = "Final Fantasy Tactics Advance";
+    // Widescreen (W2): validated capability — the mod (register_ffta_widescreen)
+    // authors the field margins from the guest's 512-wide rings; users opt in
+    // with --view-width up to 320 (or --resize-view). Default stays 240.
+    opts.max_view_width = 320;
+    opts.extended_view_init = ffta_ws_install_margin_hooks;
     opts.builtin_rom_sha1 = "4ac05441f4de70a4ec3dd932116346c61b8783d9";
     opts.launcher_region = "USA";
     opts.launcher_game_config = "game.toml";

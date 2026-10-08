@@ -291,8 +291,9 @@ bounded heal-worker stop, diagnostics flushed before the worker join).
   (`src/ffta_ram_dispatch.h`) and the LZSS decoder entry guard
   (`[[mod_function_hook]]` → `ffta.lzss-guard`, `src/main.cpp`); first full
   Totema summons completed (BRINGUP § "Summon crash"). Remaining: widescreen
-  W2–W3 (W1b located the strip pipeline: LZSS decompress → EWRAM staging →
-  DMA), the offline-push re-trial (gated on an interior-split policy),
+  W3 (per-scene margin policy; run wide today with `--view-width 320` — W2
+  landed: field margins render from the guest's own rings), the offline-push
+  re-trial (gated on an interior-split policy),
   f6000+ attract contact sheet, upstream note on the bridge stop-contract
   runaway, and the Android port — see README § Roadmap for the full list.
   Crash playbook:

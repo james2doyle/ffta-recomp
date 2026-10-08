@@ -37,13 +37,17 @@ bottom of this file (savestate diff → abort trace → FP ring).
 
 ## Display facts (world map + battle, mode 0)
 
-- Four BGs enabled. **BG0/BG1 = field layers**, tilemaps 256x512 (size=2):
-  BG0 at screenblock 0x5000 (blocks 0x5000+0x5800), BG1 at 0x6000
-  (+0x6800); both are only **256 px wide** — the core widescreen obstacle.
-- BG2 (0x7000) / BG3 (0x7800) = static 256x256 UI. Mode 0, 16/256-color mix.
-- Vertical scroll pans via the tilemap wrap; horizontal h stayed 0 at every
-  reachable world-map node (travel east unresolved — needs a node whose
-  camera actually clamps h > 0, or a battle-map probe).
+- **World map:** BG0/BG1 = field layers, tilemaps 256x512 (size=2): BG0 at
+  screenblock 0x5000 (blocks 0x5000+0x5800), BG1 at 0x6000 (+0x6800); both
+  only **256 px wide** — margins wrap via the tilemap edge (W3 policy case).
+- **Battle/pub:** BG0 (0x6000) / BG1 (0x7000) = the **field ring, 512x256
+  (size=1)** — a 64-column window with REAL surrounding content; BG2
+  (0xE000) / BG3 (0x5000) carry the scrolling/animating layers (their
+  HOFS moves during pans; empty in the probed battle state). Margins here
+  sample the ring itself and render true content (W2 landed).
+- Vertical scroll pans via the tilemap wrap on the world map; horizontal
+  **battle pans** move BG2/BG3 HOFS with strip-ring redraws (the ring layers
+  themselves keep HOFS static at 0x80 — content slides).
 
 ## World-map camera state (battle: NOT this struct — see § W1b battle notes)
 
@@ -143,15 +147,50 @@ churn around that address was this overlap.
 - W2 hooks are now concrete: extend at `strip_blit` / the descriptor walk
   (materialize extra columns) rather than at the decoder.
 
-## W2 sketch (unchanged, sharpened)
+## W2 — authored margins: LANDED (milestone 1, 2026-10-08)
 
-1. Widen the field tilemap (relocate BG0/BG1 to 512-wide, size=3) and extend
-   the loader/drawer to fill the extra columns (43+ px per side for 320).
-2. Camera bias: with the DMA-apply path identified, the cleanest hook is the
-   camera struct/update (add (W-240)/2 offset at apply time), avoiding
-   touching the guest's DMA helper.
-3. Policy: wide only where margins are materialized (world map, battle
-   field); menus/UI pillarbox (static BGs).
+Run it: `./build/FFTARecomp … --view-width 320` (default stays faithful 240;
+capability = `opts.max_view_width = 320` in `src/main.cpp`;
+`GBARECOMP_WS_WIP` is no longer needed for 320). The game installs margin
+hooks from `RunOptions::extended_view_init` — called once after the wide view
+is authorized, and after `run_game()`'s entry cleanup that clears game-owned
+WS hooks:
+
+- `g_ws_authored_margin_layers = 1` — margin columns render from the guest's
+  own BGs (the 512-wide field rings) instead of the pillarbox policy black;
+  savestate loads then keep the pillarbox policy off.
+- `g_ws_obj_native_clip = 1` — parked off-screen OAM stays out of margins.
+
+Verified (headless, --view-width 320): battle at rest, battle pans
+(f100/f150), pub interior post-load — margins 100 % filled with the ring's
+own content; center fidelity: wide center `[40..280)` == faithful 240
+render, pixel-identical (0/38,400). World map: margins render, but as the
+256-px map's **wrapped edge** (a UI-chip tail leaks) → W3 policy case.
+
+Reference notes (2026-10-08):
+- **EmeraldRecomp** (`docs/WIDESCREEN_EXPERIMENT.md`,
+  `src/mods/emerald_adaptive_view_plugin.cpp`) is the reference for the
+  wrap-case: host-synthesized margins via `g_ws_tilemap_provider` (padded map
+  + metatile decode), a host object layer (`g_ws_obj_margin_provider`), UI
+  edge-anchoring (`g_ws_bg_xy_provider` + `..._layers = 1`), **fail-closed
+  pillarbox** (`Ready ? 0 : 1` each frame), verification probes and smoke
+  tools. FFTA needs no provider machinery for field scenes; the
+  UI-anchoring model is the reference if HUD stays wide.
+- **WarioWareTwistedRecomp** has no widescreen implementation.
+- Engine-pin note: this pinned gbarecomp does not link `mod_runtime.cpp`
+  (`gba_mod_register_activation_plugin` etc. missing). Usable seams:
+  RunOptions `extended_view_init` / `extended_view_frame` + fn-entry plugins.
+
+## W3 next
+
+1. Per-scene margin policy via `opts.extended_view_frame` (runs before
+   scanline 0 of each frame): world map → pillarbox or clamp; menus and
+   transitions → pillarbox; field/battle → wide.
+2. Margin polish during transitions (load fades, pub entry, world-map
+   fade-in slide); confirm no stale ring columns leak mid-recenter.
+3. Wider validated widths (384 / 448) and the `--resize-view` path.
+4. Tests: Emerald-style smoke compare (center-vs-faithful every N frames +
+   memory checkpoints + "stale env var must not enable the feature" check).
 
 ## Probe recipes used (reproducible)
 

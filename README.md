@@ -530,22 +530,16 @@ noncommercial purposes. Third-party components keep their own terms (the
 
 **Open / next**
 
-1. **Widescreen.** W1 landed 2026-10-08 (`reference/widescreen.md` — it has a
-   durable grep index): the world-map camera struct sits at
-   `0x02002C10-0x02002C1F` (v-scroll `+0x0C`), the eased-update units at
-   `0x08038BF2`/`0x08038C3E`, and the register apply is a **guest-owned
-   hardware-DMA write** (helper family `0x08001300-0x08001420`; the
-   per-frame block commit now records to `GBARECOMP_MMIO_CAP` after the
-   2026-10-08 capture fix). **W1b** (2026-10-08) located the strip pipeline:
-   scene loads decompress pre-baked strips (`lzss_decompress` 0x0800543C)
-   into EWRAM staging and stream them to the field screenblocks by DMA;
-   battle pans redraw through the same pipeline (`strip_blit` 0x0801AF08;
-   internal model is 64 cols / 512 px wide). Next: **W2** widen the 256-px
-   field tilemaps to 512 + extend the drawer behind a mod hook + camera
-   bias at the struct level; **W3** per-scene policy (menus pillarbox) +
-   opt-in via `opts.max_view_width` in `src/main.cpp`. Dev override for
-   experiments: `GBARECOMP_WS_WIP=1 --view-width N` (renders wide headless
-   today; margins currently show wrapped BG columns).
+1. **Widescreen — W2 milestone 1 landed (2026-10-08).** Run it:
+   `--view-width 320` (default stays faithful 240). Field margins now render
+   from the guest's own 512-wide ring (authored margins + OBJ native clip,
+   installed via `extended_view_init`; capability declared as
+   `opts.max_view_width = 320`): battle/pub margins fill 100 %, the center
+   240 is pixel-identical to the faithful render, and pans keep up. World-map
+   margins are its 256-px map's wrapped edge → **W3** per-scene policy
+   (`extended_view_frame` seam: pillarbox menus/world map or clamp), margin
+   polish, and wider validated widths. Protocol notes + EmeraldRecomp
+   cross-reference: `reference/widescreen.md`.
 2. **Offline coverage push — re-trial gated.** The speculative literal
    harvest reaches +4,912 units, but it split the guarded LZSS decoder at an
    interior entry (`0x08005544`): the save-menu route resumes into the
