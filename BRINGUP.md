@@ -2173,3 +2173,7 @@ unaffected (route K strict FULLY_STATIC throughout).
 - Note: the earlier "torn IRQ table / hunt the record decode" framing was a
   downstream symptom of this recursion (timing + stack march), not the
   scan/validate divergence itself.
+- **User confirmation (2026-10-08 08:53, windowed play.sh, scale 4 / width 320):**
+  fresh boot -> Start -> Continue -> the save loaded and played (inputs f919-f1357);
+  clean close, no core, no heal units, no frag rewrite - the route that used to
+  abort now runs heals-free in the real windowed flow.
