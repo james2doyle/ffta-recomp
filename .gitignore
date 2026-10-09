@@ -168,3 +168,6 @@ selfheal*.json
 #   game.toml, src/, inputs/, mods/, BRINGUP.md, AGENTS.md,
 #   and the gbarecomp / recomp-ui submodules
 # -----------------------------------------------------------------------------
+hang_trace.csv
+hang_fp_tail.csv
+hang_dump.log

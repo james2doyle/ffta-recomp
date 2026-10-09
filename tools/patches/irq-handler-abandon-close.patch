@@ -1,8 +1,8 @@
 diff --git a/src/armv4t/runtime_arm.cpp b/src/armv4t/runtime_arm.cpp
-index 78f06d6..570e165 100644
+index 78f06d6..c7c213c 100644
 --- a/src/armv4t/runtime_arm.cpp
 +++ b/src/armv4t/runtime_arm.cpp
-@@ -847,10 +847,25 @@ constexpr uint32_t kBiosRegionEnd = 0x00004000u;
+@@ -847,10 +847,28 @@ constexpr uint32_t kBiosRegionEnd = 0x00004000u;
  
  }  // namespace
  
@@ -20,6 +20,9 @@ index 78f06d6..570e165 100644
 +    if (g_abandon_resume_pc != 0u) {
 +        const uint32_t want = g_abandon_resume_pc;
 +        g_abandon_resume_pc = 0u;
++        std::fprintf(stderr,
++            "runtime_dispatch: abandon-resume intercept want=0x%08X got=0x%08X\n",
++            want, target_pc);
 +        if ((target_pc & ~1u) != want) {
 +            g_cpu.R[15] = want;
 +            target_pc = want;
@@ -28,7 +31,22 @@ index 78f06d6..570e165 100644
      // Strip THUMB bit; codegen handles the mode via cpsr_T already.
      uint32_t pc = target_pc & ~1u;
      if (runtime_trace_enabled())
-@@ -1503,6 +1518,26 @@ extern "C" void runtime_irq(uint32_t return_address) {
+@@ -1417,6 +1435,14 @@ extern "C" void runtime_irq(uint32_t return_address) {
+     const uint32_t saved_r2  = g_cpu.R[2];
+     const uint32_t saved_r3  = g_cpu.R[3];
+     const uint32_t saved_r12 = g_cpu.R[12];
++    // IRQ-enable state at entry: the flow that keeps running under the drive
++    // may have disabled interrupts (the FFTA suspend save does), leaving the
++    // game's per-frame tick (set by its VBlank handler) frozen; a resumed
++    // frame-gate wait then spins forever with no dispatch for the resume
++    // interception to act on (windowed stall, 2026-10-09). An abandon close
++    // restores the entry enable state — the phantom's disable is not real.
++    const uint16_t saved_ie   = bus_read_u16(0x04000200u);
++    const uint16_t saved_ime  = bus_read_u16(0x04000208u);
+     // Record the active IRQ source(s) (IE & IF) in the trace addr field and the
+     // nesting depth in aux so a ring dump names which interrupt is being
+     // vectored and how deep — used to pin the MC-HP-002 IRQ storm. Reading
+@@ -1503,6 +1529,26 @@ extern "C" void runtime_irq(uint32_t return_address) {
      drive_irq_instruction();
      constexpr uint32_t kMaxIrqDispatches = 4'000'000u;
      uint32_t irq_guard = 0u;
@@ -55,7 +73,7 @@ index 78f06d6..570e165 100644
      while (g_irq_iret_depth != my_depth) {
          if (++irq_guard >= kMaxIrqDispatches) {
              std::fprintf(stderr,
-@@ -1513,12 +1548,50 @@ extern "C" void runtime_irq(uint32_t return_address) {
+@@ -1513,12 +1559,60 @@ extern "C" void runtime_irq(uint32_t return_address) {
              break;
          }
          drive_irq_instruction();
@@ -102,6 +120,16 @@ index 78f06d6..570e165 100644
 +        // the guest just computed (0x814186E — the save flow's continuation).
 +        // Hand that pc to the next runtime_dispatch as a one-shot resume.
 +        g_abandon_resume_pc = g_cpu.R[15];
++        const uint16_t ie  = bus_read_u16(0x04000200u);
++        const uint16_t ime = bus_read_u16(0x04000208u);
++        if (ie != saved_ie || ime != saved_ime) {
++            bus_write_u16(0x04000200u, saved_ie);
++            bus_write_u16(0x04000208u, saved_ime);
++            std::fprintf(stderr,
++                "runtime_irq: restore IRQ enable at close: IE 0x%04X->0x%04X "
++                "IME 0x%04X->0x%04X\n",
++                ie, saved_ie, ime, saved_ime);
++        }
      }
 -    g_cpu.R[0]  = saved_r0;
 -    g_cpu.R[1]  = saved_r1;

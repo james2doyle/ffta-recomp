@@ -3584,3 +3584,36 @@ symptom family: (1) the abandon close stops the never-returning handler
 from poisoning `g_irq_nest_depth`; (2) the flow-continuation resume makes
 the *guest's own* flow survive the close. The earlier "coherent close" is
 superseded — its snapshot restore was the wrong direction.
+
+## 2026-10-09 — Desktop TCP acceptance passes (free-run via the debug port)
+
+**Tool:** `tools/desktop_accept.py` — two modes, one scorer: a savestate
+load, a real-time 3 s wait, an A press, then a scored observation window
+(press seen, frames advance, >=12 distinct screens, no abort/Undefined,
+process alive; the close route and its resume pc are reported).
+- `--mode tcp`: headless free-run `--tcp` — the run is driven AND observed
+  entirely over the debug port (`savestate_load`, `continue`,
+  `set_keyinput`, `run_status`, `screenshot`). This is the primary
+  acceptance for the suspend-save press on a continuous (desktop-class)
+  run: **three consecutive PASSes** (close route 24k frames/35 screens
+  and 19.5k/26; clean route 24k/37; zero stalls, zero aborts).
+- `--mode window`: `tools/play.sh` + `--tcp-observe` + ydotool — kept for
+  hand-parity; the present-paced windowed loop still hits a residual
+  stall in some close-route runs (see below).
+
+**Engine additions rolled in with the acceptance:**
+- The abandon close restores the **IRQ-enable state** captured at IRQ
+  entry (IE/IME). The phantom-era suspend save disables interrupts; a
+  resumed frame-gate wait otherwise spins forever on the game's
+  IRQ-ticked frame flag (observed: IE/IME 0 -> restored 0x2003/1, logged
+  `restore IRQ enable at close`).
+- The resume intercept logs its pair (`abandon-resume intercept
+  want=… got=…`) so the mechanism is visible in every run.
+
+**Residual (open, documented):** the *windowed* present-loop path can
+still stall after a close-route press (no `runtime_dispatch` occurs in
+that pacing before the flow parks in the frame-tick wait, so the resume
+intercept cannot fire; IE-restore alone does not move it). Steppable and
+free-run TCP paths are green; windowed pacing is queued for the next
+session with this note and the capture recipe (watchdog ring + observe
+reads).

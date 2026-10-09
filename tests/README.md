@@ -123,6 +123,16 @@ For deeper captures (no code changes): `GBARECOMP_INSN_TRACE=1` +
 - After a session, gate the tree before calling it good:
   `.venv/bin/python tools/check.py` (see Verification & regression).
 
+## Desktop acceptance (TCP-observed suspend-save press)
+
+`.venv/bin/python tools/desktop_accept.py --mode tcp` — headless free-run
+`--tcp` acceptance for the state3 suspend-save press: savestate load, 3 s
+wait, A press, scored observation (press seen, frames advance, screen
+animation, no abort; the close/resume mechanisms reported). Needs the
+local `game.state3` + `saves/playtest.sav`; evidence in
+`logs/desktop_accept/`. `--mode window` runs the same scoring on
+`play.sh` + `--tcp-observe` (ydotool input).
+
 ## The playtest → healing loop
 
 This is the core contribution workflow, and it is what every play session
