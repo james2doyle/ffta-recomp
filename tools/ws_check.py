@@ -16,11 +16,14 @@ headless twice: once at the target width, once at faithful 240. Checks:
             carry live scene content, not a frozen capture (Emerald-style
             stale-request guard).
 
-Fixtures: game.state1 (mid-battle overview, frame 24722) / game.state2
-(world map, frame 51827) are local-only savestates (game-derived, gitignored,
-never committed) and SHA-256-pinned: the per-case frame budgets and the
-CSV's absolute guest frames depend on these exact states. Exit 2 when they
-are missing or changed. Input traces are committed under inputs/ws_*.csv.
+Fixtures: saves/ws_fixtures/battle_overview.state (mid-battle overview,
+frame 24722) / saves/ws_fixtures/world_map.state (world map, frame 51827)
+are the gate's dedicated copies of the pinned savestates (local-only,
+game-derived, gitignored, SHA-256-pinned): the per-case frame budgets and
+the CSV's absolute guest frames depend on these exact states. Exit 2 when
+they are missing or changed. The copies free the player's own game.state1..9
+slots for GUI testing — overwriting those is harmless now. Input traces are
+committed under inputs/ws_*.csv.
 NOTE: --frames is the frame count run AFTER the state loads; replay events
 key on absolute guest frames, so each case's budget must cover its CSV
 events (guest end noted per case). Rendered frames are ROM-derived — written
@@ -55,19 +58,19 @@ STALE_MIN_FRAC = 0.02    # idle vs panned margins must differ by at least this
 # frames = frames to run after the state loads (budget must cover the CSV's
 # absolute-guest-frame events); each case notes the resulting guest end frame
 CASES: dict[str, dict] = {
-    "world_idle":  dict(state="game.state2", csv=None, frames=90, expect="pillar",
+    "world_idle":  dict(state="saves/ws_fixtures/world_map.state", csv=None, frames=90, expect="pillar",
                         desc="world map at rest, guest 51917 (256-px tilemaps -> pillarbox)"),
-    "pub_idle":    dict(state="game.state2", csv="inputs/ws_pub_enter.csv",
+    "pub_idle":    dict(state="saves/ws_fixtures/world_map.state", csv="inputs/ws_pub_enter.csv",
                         frames=240, expect="filled", desc="pub interior, guest 52067"),
-    "pub_fade":    dict(state="game.state2", csv="inputs/ws_pub_enter.csv",
+    "pub_fade":    dict(state="saves/ws_fixtures/world_map.state", csv="inputs/ws_pub_enter.csv",
                         frames=200, expect="fade",
                         desc="mid-fade world->pub, guest 52027 (screen fully black)"),
-    "pub_exit":    dict(state="game.state2", csv="inputs/ws_pub_exit.csv",
+    "pub_exit":    dict(state="saves/ws_fixtures/world_map.state", csv="inputs/ws_pub_exit.csv",
                         frames=520, expect="pillar",
                         desc="world map again after leaving the pub, guest 52347"),
-    "battle_idle": dict(state="game.state1", csv=None, frames=60, expect="filled",
+    "battle_idle": dict(state="saves/ws_fixtures/battle_overview.state", csv=None, frames=60, expect="filled",
                         desc="battle overview at rest, guest 24782"),
-    "battle_pan":  dict(state="game.state1", csv="inputs/ws_pan_right.csv",
+    "battle_pan":  dict(state="saves/ws_fixtures/battle_overview.state", csv="inputs/ws_pan_right.csv",
                         frames=130, expect="filled", desc="battle mid-pan, guest 24852"),
 }
 STALE_PAIR = ("battle_idle", "battle_pan")
@@ -76,8 +79,8 @@ STALE_PAIR = ("battle_idle", "battle_pan")
 # the CSV event frames are pinned to these exact states; a silent substitution
 # would make every result meaningless, so treat a hash change as "no fixture".
 FIXTURE_STATES = {
-    "game.state1": "2066d61ccb0d",   # mid-battle overview, frame 24722
-    "game.state2": "0163a908c073",   # world map, frame 51827
+    "saves/ws_fixtures/battle_overview.state": "2066d61ccb0d",  # frame 24722
+    "saves/ws_fixtures/world_map.state": "0163a908c073",        # frame 51827
 }
 
 

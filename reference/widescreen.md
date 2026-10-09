@@ -41,10 +41,11 @@ bottom of this file (savestate diff → abort trace → FP ring).
 
 - Run wide: `--view-width 320|384|448` or `--resize-view` (windowed; same
   ceiling). Validate: `tools/ws_check.py` — 6 cases x 3 widths; needs the
-  local **sha-pinned** `game.state1`/`game.state2` savestates (gitignored,
+  **sha-pinned** dedicated fixture copies `saves/ws_fixtures/` (local-only,
   game-derived; the frame budgets + CSV event frames are pinned to these
   exact states — exit 2 when missing or changed) plus the committed
-  `inputs/ws_*.csv`. Also runs inside `check.py` as `ws_smoke`.
+  `inputs/ws_*.csv`. The copies keep the player's `game.state1..9` slots
+  free for GUI testing. Also runs inside `check.py` as `ws_smoke`.
 - Plugin + manifest: `src/main.cpp` (`register_ffta_mod_plugins` /
   `ffta_ws_activate`), `mods/preloaded/packages/ffta.enhancement.widescreen/1.0.0/`
   (shipped to `<exe>/mods` by a CMake POST_BUILD rule). Framework race fix
@@ -236,7 +237,9 @@ landed as milestone 3 at the end of this file.)
   to the faithful 240 render, (b) the margin census matches the per-scene
   policy (ring scenes filled >=99 %, world map exact black), (c) an
   idle-vs-pan stale guard on the margins (must differ >=2 %). Fixtures:
-  local `game.state1`/`game.state2` savestates + committed
+  the dedicated copies `saves/ws_fixtures/{battle_overview,world_map}.state`
+  (moved there in the W3 wrap-up so the player's own state slots stay free)
+  + committed
   `inputs/ws_pub_enter.csv` / `inputs/ws_pan_right.csv`; exit 2 = fixtures
   missing (fresh clone). `--report-only` prints the census for calibration.
 - **Matrix result (PASS, 4 cases x 3 widths, ~2.6 s wall):** world map

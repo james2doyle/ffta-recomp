@@ -111,7 +111,7 @@ def check_ws_smoke():
     if r.returncode == 2:
         # Missing or sha-changed local savestate fixtures; the tool's SKIP
         # line carries the reason (fresh clones have no states by design).
-        return False, line or "fixtures missing (game.state1/state2 - local savestates)"
+        return False, line or "fixtures missing (saves/ws_fixtures)"
     return r.returncode == 0, line or f"exit {r.returncode}"
 
 

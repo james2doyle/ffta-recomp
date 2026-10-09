@@ -105,9 +105,10 @@ replays; checks run concurrently unless --jobs 1):
 .venv/bin/python tools/check.py --jobs 1   # serial
 ```
 
-Widescreen smoke alone (center-crop + margin census + stale guard; needs the
-local, sha-pinned game.state1/state2 savestates — gitignored by design, exit
-2 when missing/changed):
+Widescreen smoke alone (center-crop + margin census + stale guard; needs its
+dedicated sha-pinned fixture copies saves/ws_fixtures/*.state — local-only,
+exit 2 when missing/changed; the game.state1..9 slots stay free for GUI
+testing):
 `.venv/bin/python tools/ws_check.py` (`--report-only`, `--widths`, `--jobs`).
 
 CI tier 1 (no ROM/BIOS/fixtures needed, runs on GitHub-hosted runners):
