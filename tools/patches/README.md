@@ -8,6 +8,8 @@ Working-tree edits kept applied on top of the pinned `gbarecomp/` submodule
 | `oracle-save-autoload.patch` | `gbarecomp/oracle/main.cpp` | Make the oracle autoload `<rom>.sav` next to the ROM |
 | `selfheal-journal-close-hardening.patch` | `gbarecomp/src/runtime/{runtime_arm_default_aborts,overlay_loader,runtime}.cpp` | Durable live miss-frag journal + bounded heal-worker shutdown (see `BRINGUP.md` § close-hardening) |
 | `mmio-cap-dma-reentrancy.patch` | `gbarecomp/src/gba/gba_io.{h,cpp}` | MMIO-cap per-call record control — fixes guest-DMA destination writes being swallowed by the write32 split flag (see `BRINGUP.md` § MMIO cap gap) |
+| `mod-state-publish-race.patch` | `gbarecomp/src/runtime/mod_runtime.cpp` | Pid-unique mod-state publish temp — concurrent launches can no longer consume each other's `state.toml` write |
+| `mobile-host-stack-guard.patch` | `gbarecomp/src/runtime/{mobile_platform.h,mobile_platform.cpp,runtime_bus_bridge.cpp}` | Host-stack budget on the finite mobile game thread: an unwinding-failure spin (split busy-wait loop) unwinds via the standard yield path before the stack is exhausted (see `BRINGUP.md` § Android device crash) |
 
 All patches are verified to apply forward to the pinned submodule commit
 (and reverse from the patch-applied dev tree). `tools/check.py` includes a

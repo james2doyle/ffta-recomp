@@ -907,6 +907,38 @@ Implemented on the engine's Android shell (pin `ecc9c55`, which is upstream
 - **Deferred**: release signing/packaging, touch-first scheme, perf/size
   pass, upstream note, AGENTS/README pointers.
 
+### Android device crash — split vblank wait loop exhausted the finite stack (2026-10-08)
+Three native crashes on the Mi 11 port (within ~2–15 min of launch):
+SIGSEGV "stack pointer is not in a rw map", 512+ frames of alternating
+`gf_vblank_wait_loop+596` under `runtime_tick`.
+
+- **Root cause.** The main loop's vblank-flag gate is two generated
+  functions (0x08000418 loop head / 0x08000428 back-edge block, reached only
+  by the head's `beq`). The back-edge compiles to a host call, so a spin
+  whose wake flag (0x03000E10, written by the 0x080004B0 callback) does not
+  arrive nests ~2 host frames per iteration. Present-in-place suppresses the
+  frame-boundary unwind and its depth guard counts only BL pushes, so the
+  growth is unbounded; desktop masks this with an unlimited main-thread
+  stack (Pitfall 2) — the finite 256 MiB mobile thread turns it into a
+  crash. Why the flag stalled on device (session-6 class) is not yet
+  root-caused; the guard below makes it diagnosable.
+- **Config fix attempted, blocked by the finder.** `[[extra_func]]
+  resume = true` at 0x08000428 does not roll in: alias containment requires
+  the candidate to lie inside the host's *linear* walk extent (0x418..0x422,
+  terminated by `b 0x42A` before the literal pool), and the `beq` target
+  sits beyond it. Reverted. Upstream item: extend mid-function alias
+  roll-in to branch-target blocks in the walk-end..next-real-start gap.
+- **Fix shipped:** `tools/patches/mobile-host-stack-guard.patch` — the
+  mobile game thread arms a host-stack budget (stack minus 32 MiB); the
+  per-instruction `runtime_should_yield` probe unwinds through the standard
+  yield path once crossed (gated: never inside a live IRQ handler; same
+  protocol as the vblank yield), logging
+  `runtime: host-stack guard unwind count=… pc=0x…`. Desktop inactive.
+- **Verification:** desktop cycle + check ALL PASS (9/9; patch listed);
+  device gate PASS on the guard build; 10-minute soak monitored. Expected
+  behavior under a recurring stall: bounded spin with guard log lines
+  instead of a crash.
+
 ### Playtest session 1 — first-battle path now fully static (2026-10-06)
 The user played the desktop build interactively (letter-only keymap; see the
 IBus note above) through the intro, menus and into the first battle (two

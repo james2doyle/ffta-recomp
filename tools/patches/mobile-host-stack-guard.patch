@@ -1,0 +1,124 @@
+diff --git a/src/runtime/mobile_platform.cpp b/src/runtime/mobile_platform.cpp
+index 176a73b..3aa9d32 100644
+--- a/src/runtime/mobile_platform.cpp
++++ b/src/runtime/mobile_platform.cpp
+@@ -2,6 +2,7 @@
+ 
+ #include "mobile_platform.h"
+ 
++#include <cstdint>
+ #include <cstdio>
+ #include <cstdlib>
+ 
+@@ -21,11 +22,24 @@ struct StackedCall {
+     int (*entry)(int, char**) = nullptr;
+     int argc = 0;
+     char** argv = nullptr;
++    std::size_t stack_bytes = 0;
+     int result = 1;
+ };
++// Host-stack budget guard state (see mobile_stack_over_budget).
++std::uintptr_t g_stack_guard_lo = 0;
+ void* run_stacked(void* arg) {
+     auto* call = static_cast<StackedCall*>(arg);
++    // Arm this thread's budget: keep kGuardMargin of headroom for the
++    // runtime's own transient frames between two instruction-boundary
++    // checks, then unwind through the standard yield path.
++    constexpr std::size_t kGuardMargin = 32u * 1024u * 1024u;
++    const std::size_t budget = call->stack_bytes > kGuardMargin
++        ? call->stack_bytes - kGuardMargin
++        : call->stack_bytes / 2u;
++    const std::uintptr_t base = reinterpret_cast<std::uintptr_t>(&call);
++    g_stack_guard_lo = base - budget;
+     call->result = call->entry(call->argc, call->argv);
++    g_stack_guard_lo = 0;
+     return nullptr;
+ }
+ }  // namespace
+@@ -38,6 +52,7 @@ int mobile_run_with_stack(int (*entry)(int, char**), int argc, char** argv,
+     call.entry = entry;
+     call.argc = argc;
+     call.argv = argv;
++    call.stack_bytes = stack_bytes;
+     pthread_attr_t attr;
+     pthread_attr_init(&attr);
+     // Reserved address space only; pages are committed as the stack grows.
+@@ -60,6 +75,16 @@ int mobile_run_with_stack(int (*entry)(int, char**), int argc, char** argv,
+ #endif
+ }
+ 
++bool mobile_stack_over_budget(const void* probe) {
++#if defined(__ANDROID__)
++    if (g_stack_guard_lo == 0) return false;
++    return reinterpret_cast<std::uintptr_t>(probe) < g_stack_guard_lo;
++#else
++    (void)probe;
++    return false;
++#endif
++}
++
+ bool mobile_prepare_process(std::vector<std::string>& args,
+                             const MobileProcessOptions& options) {
+ #if defined(__ANDROID__)
+diff --git a/src/runtime/mobile_platform.h b/src/runtime/mobile_platform.h
+index a737a49..03fd843 100644
+--- a/src/runtime/mobile_platform.h
++++ b/src/runtime/mobile_platform.h
+@@ -43,6 +43,15 @@ constexpr std::size_t kMobileGameStackBytes = 256u * 1024u * 1024u;
+ int mobile_run_with_stack(int (*entry)(int, char**), int argc, char** argv,
+                           std::size_t stack_bytes = kMobileGameStackBytes);
+ 
++// Host-stack budget guard for the finite stack of the mobile game thread.
++// Recompiled guest branches (and some loop back-edges) map onto host C
++// calls; a spin that outlives its expected wake — e.g. a busy-wait split
++// across two generated functions — can nest host frames without bound.
++// The runtime probes this at instruction boundaries and unwinds through the
++// standard yield path before the thread stack is exhausted. False when no
++// budget is armed (desktop) or the probe is still above the limit.
++bool mobile_stack_over_budget(const void* probe);
++
+ // True when built for a mobile platform (compile-time).
+ constexpr bool mobile_platform() {
+ #if defined(__ANDROID__)
+diff --git a/src/runtime/runtime_bus_bridge.cpp b/src/runtime/runtime_bus_bridge.cpp
+index 044fc13..1432b83 100644
+--- a/src/runtime/runtime_bus_bridge.cpp
++++ b/src/runtime/runtime_bus_bridge.cpp
+@@ -8,6 +8,7 @@
+ #include "../armv4t/runtime_arm.h"
+ #include "../armv4t/runtime_context.h"
+ #include "runtime_bus_bridge.h"
++#include "mobile_platform.h"
+ #include "multiplayer_slice.h"
+ #include "../armv4t/arm_ir.h"
+ #include "../armv4t/symbol_lookup.h"
+@@ -1090,6 +1091,29 @@ extern "C" bool runtime_should_yield(void) {
+         }
+     }
+ 
++#if defined(__ANDROID__)
++    // Host-stack budget guard: branch/dispatch chains that fail to unwind
++    // (e.g. a busy-wait split across generated functions whose wake flag
++    // never arrives) nest host frames without bound on the finite mobile
++    // game thread. Unwind at the same instruction-boundary protocol as the
++    // vblank yield, gated the same way (never inside a live IRQ handler,
++    // whose dispatch must complete), before the stack is exhausted.
++    if (g_irq_nest_depth == 0u) {
++        char probe;
++        if (gbarecomp::mobile_stack_over_budget(&probe)) {
++            static unsigned long long guard_unwinds = 0;
++            ++guard_unwinds;
++            if (guard_unwinds <= 4u ||
++                (guard_unwinds & (guard_unwinds - 1u)) == 0u) {
++                std::fprintf(stderr,
++                    "runtime: host-stack guard unwind count=%llu pc=0x%08X\n",
++                    guard_unwinds, g_cpu.R[15]);
++            }
++            return true;
++        }
++    }
++#endif
++
+     // ── Always-on hang watchdog ──────────────────────────────────────
+     // A healthy GBA game HALTs (VBlankIntrWait) ~60x/sec; the MC-HP-002
+     // freeze is a busy-spin in the M4A mixer that NEVER halts (the PPU

@@ -121,6 +121,17 @@ For TCP debugging: `adb forward tcp:19888 tcp:19888` plus `--tcp-observe
 
 ## Known behavior
 
+- **Host-stack guard** (`tools/patches/mobile-host-stack-guard.patch`): a spin
+  that fails to unwind — the split vblank-wait loop (`0x08000418` ↔
+  `0x08000428`) — now unwinds through the runtime's standard yield path
+  before the 256 MiB game-thread stack is exhausted, logging
+  `runtime: host-stack guard unwind count=… pc=…` to `android-runtime.log`.
+  If the underlying stall recurs on device, expect a bounded freeze with
+  guard lines rather than a native crash — grab the log for the next step.
+- Repackaging after a native relink can leave a junk blob inside an
+  incrementally updated APK (67 MB vs the normal 37 MB, observed once);
+  `rm -rf android/app/build` before packaging when artifact size matters
+  (native objects under `android/app/.cxx` are preserved).
 - 256-wide title/UI BGs show tilemap wrap fragments at wide views — the same
   margin policy that desktop validated (the W3 rules pillarbox the world map
   and clip UI layers; scenes whose *main* BG is a 256 tilemap wrap
