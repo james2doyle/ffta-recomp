@@ -10,6 +10,7 @@ Working-tree edits kept applied on top of the pinned `gbarecomp/` submodule
 | `mmio-cap-dma-reentrancy.patch` | `gbarecomp/src/gba/gba_io.{h,cpp}` | MMIO-cap per-call record control — fixes guest-DMA destination writes being swallowed by the write32 split flag (see `BRINGUP.md` § MMIO cap gap) |
 | `mod-state-publish-race.patch` | `gbarecomp/src/runtime/mod_runtime.cpp` | Pid-unique mod-state publish temp — concurrent launches can no longer consume each other's `state.toml` write |
 | `mobile-host-stack-guard.patch` | `gbarecomp/src/runtime/{mobile_platform.h,mobile_platform.cpp,runtime_bus_bridge.cpp}` | Host-stack budget on the finite mobile game thread: an unwinding-failure spin (split busy-wait loop) unwinds via the standard yield path before the stack is exhausted (see `BRINGUP.md` § Android device crash) |
+| `touch-pad-idle-hide.patch` | `gbarecomp/src/runtime/{runtime.h,runtime.cpp,host_window.h,host_window.cpp}` | Virtual pad idle auto-hide (`RunOptions::touch_pad_idle_hide_seconds`): the pad hides after N s of touch inactivity; any touch reveals it and the wake gesture presses nothing (see `BRINGUP.md` § Android: virtual pad idle auto-hide) |
 
 All patches are verified to apply forward to the pinned submodule commit
 (and reverse from the patch-applied dev tree). `tools/check.py` includes a

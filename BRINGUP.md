@@ -939,6 +939,22 @@ SIGSEGV "stack pointer is not in a rw map", 512+ frames of alternating
   behavior under a recurring stall: bounded spin with guard log lines
   instead of a crash.
 
+### Android: virtual pad idle auto-hide (2026-10-08)
+- Feature: the touch pad hides after 5 s of screen-wide touch inactivity;
+  any touch reveals it, and the revealing gesture presses nothing (a wake
+  tap cannot activate a control the player was not aiming at). Held
+  pad/toggle touches keep it visible so a control never vanishes mid-press.
+- Engine: `tools/patches/touch-pad-idle-hide.patch` —
+  `RunOptions::touch_pad_idle_hide_seconds` (0 = off) flows through
+  `configure_touch` into `host_window`: per-present idle check, a `reveal`
+  gesture category in the finger dispatcher, and draw/hit-test gates via
+  `pad_overlay_shown`/`pad_toggle_shown`. First hide logs
+  `host_window: pad idle-hidden (N s quiet)`.
+- FFTA opts in with 5 s (`src/main.cpp`); inert without a touch pad.
+- Verified: desktop cycle + check ALL PASS (9/9, patch listed); device
+  screencaps: pad visible @3 s (BIOS), hidden @9 s (log line present),
+  tap reveals and the game resumes unchanged. Upstream candidate.
+
 ### Playtest session 1 — first-battle path now fully static (2026-10-06)
 The user played the desktop build interactively (letter-only keymap; see the
 IBus note above) through the intro, menus and into the first battle (two
