@@ -154,23 +154,30 @@ specific file; `--expect public|private` asserts the build mode.
 
 ## Known behavior
 
-- **Host-stack guard** (`tools/patches/host-stack-guard-desktop.patch`; supersedes `mobile-host-stack-guard.patch`): a spin
-  that fails to unwind — the split vblank-wait loop (`0x08000418` ↔
-  `0x08000428`) — now unwinds through the runtime's standard yield path
-  before the 256 MiB game-thread stack is exhausted, logging
+- **Split-loop nesting (fixed 2026-10-09, `607ca07`):** the vblank wait
+  loop (`0x08000418` ↔ `0x08000428`) was two generated functions, so every
+  spin iteration nested two host calls — the stack-exhaustion carrier for
+  the suspend-flow hang. The finder's gap roll-in + in-body forward gotos
+  now keep the loop in ONE host frame (dispatch entry
+  `{0x08000428u, 1u, 1u, gf_vblank_wait_loop}` — a resume alias). The
+  IRQ abandon-close (`d152a46`) additionally closes a handler that never
+  iret'd, so a stalled spin can no longer leave `g_irq_nest_depth` stuck.
+- **Host-stack guard** (`tools/patches/host-stack-guard-desktop.patch`):
+  retained as the second line of defense — a spin that still fails to
+  unwind (any other split loop) unwinds through the runtime's standard
+  yield path before the 256 MiB game-thread stack is exhausted, logging
   `runtime: host-stack guard unwind count=… pc=…` to `android-runtime.log`.
-  If the underlying stall recurs on device, expect a bounded freeze with
-  guard lines rather than a native crash — grab the log for the next step.
-  The reproducible trigger is the in-battle suspend save → title flow
-  (2026-10-08, open — `BRINGUP.md` § Android device hang); capture it with
-  `tools/hangprobe.py` plus the device-forensics recipe
-  (`reference/dev-gotchas.md` § Android device forensics).
-- **Desktop repro (2026-10-09):** the same hang now reproduces headless:
-  steppable `--tcp` + `savestate_load game.state3` + A → deterministic
-  SIGSEGV in ~26 steps; gdb backtrace = nested `gf_vblank_wait_loop`
-  stack exhaustion (the same nesting the guard bounds on device). Recipe +
-  mechanism: `BRINGUP.md` § 2026-10-09 (commit bb441d8); dev-gotchas
-  § Run modes.
+- **Desktop repro (2026-10-09):** `tools/hangrepro.py` (`check.py --only
+  hangrepro`) — steppable `--tcp` + `savestate_load game.state3` + A:
+  pre-fix it SIGSEGV'd ~26 steps after the press (nested
+  `gf_vblank_wait_loop` frames); now the phantom IRQ closes, the loop is
+  one frame, and the flow advances past the old wedge (ending at a
+  tracked coverage boundary). The in-battle suspend save → title trigger
+  is described in `BRINGUP.md` § 2026-10-08/09; on-device capture:
+  `tools/hangprobe.py` + `reference/dev-gotchas.md` § Android device
+  forensics. Device re-verification after these two fixes is pending
+  (desktop gates green; run `tools/validate_android.sh` when next on the
+  phone).
 - Repackaging after a native relink can leave a junk blob inside an
   incrementally updated APK (67 MB vs the normal 37 MB, observed once);
   `rm -rf android/app/build` before packaging when artifact size matters

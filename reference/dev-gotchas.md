@@ -121,7 +121,10 @@ recipe below is validated there.
 - **Recorded patch generation**: `git -C gbarecomp diff --no-ext-diff
   --no-color -- <paths> > tools/patches/<name>.patch` — without both flags
   the output is difft-rendered and/or ANSI-colored and fails `git apply`
-  (`tools/check.py --only patches` catches it).
+  (`tools/check.py --only patches` catches it). When exporting the OUTER
+  repo's consolidated patch, exclude a dirty nested submodule's gitlink
+  (`-- . ':(exclude)external/arm-recomp-core'`): GNU patch cannot apply a
+  `Subproject commit …-dirty` hunk.
 
 ## Android device forensics (no root)
 
@@ -207,14 +210,18 @@ access, which is enough:
   deliberately), recomp-ui @ `cac2b8f`; nested: arm-recomp-core @ 15fc7b7,
   rbengine @ 2a03e7, recomp-net @ c58f125.
 - `tools/patches/*.patch` are working-tree edits to `gbarecomp/`. Re-apply
-  after submodule updates with the **consolidated** `gbarecomp-local.patch`
-  (one pristine→dev diff); the per-feature files are reference diffs only —
-  their contexts interleave and do not stack in any order (verified
+  after submodule updates with the **consolidated** patches — there are two
+  since 2026-10-09: `gbarecomp-local.patch` (one pristine→dev diff of
+  gbarecomp; exports with the nested gitlink excluded) and
+  `arm-recomp-core-local.patch` (the nested `external/arm-recomp-core`
+  repo's first local patch); the per-feature files are reference diffs
+  only — their contexts interleave and do not stack in any order (verified
   2026-10-09). `tools/check.py --only patches` validates all of them
-  (forward against the pristine pin, reverse when applied) and **replays
-  pin + consolidated, requiring a byte-match with the dev tree** — it fails
-  on drift or a stale consolidated patch (regenerate with
-  `git --no-pager -C gbarecomp diff --no-ext-diff --no-color`).
+  (forward against the pristine pin, reverse when applied; `arm-recomp-core-*`
+  files are routed to the nested repo by that filename prefix) and
+  **replays pin + each consolidated patch, requiring a byte-match with the
+  corresponding dev tree** — it fails on drift or a stale consolidated
+  patch. Re-export commands: `tools/patches/README.md`.
 
 ## Run examples
 

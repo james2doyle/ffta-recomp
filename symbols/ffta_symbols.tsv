@@ -241,7 +241,12 @@
 0x080000C0	arm	crt0
 0x080004B0	thumb	vblank_callback
 0x08000418	thumb	vblank_wait_loop
+# 0x08000428: rolled into vblank_wait_loop as a resume alias 2026-10-09
+# (gap roll-in, issue #30 fix 4) — the name is kept for trace readability;
+# the address is a dispatchable resume entry of the 0x08000418 host.
 0x08000428	thumb	vblank_wait_loop_cont
+0x0800042A	thumb	vblank_wait_exit
+0x08000460	thumb	frame_step
 0x081451B4	thumb	m4a_soundmain_wrapper
 0x08144510	thumb	m4a_mixer_core
 0x081443B0	thumb	memcmp

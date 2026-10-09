@@ -282,7 +282,9 @@ GBARECOMP_INPUT_REPLAY=logs/playthrough.csv ./build/FFTARecomp ...` — expect
   irq-handler-abandon-close fix the abandoned IRQ must be closed
   (`closing the IRQ` in the log) and the flow advances past the old wedge
   (typically ending at the coverage boundary — a separate, tracked state);
-  the former SIGSEGV-at-~+26 / guard-bounded hang must not return. Skips
+  the former SIGSEGV-at-~+26 / guard-bounded hang must not return; the
+  loop's host-frame recursion itself is gone (split-loop gap roll-in,
+  2026-10-09). Skips
   when the gitignored `game.state3` / `saves/playtest.sav` are absent.
   BRINGUP § 2026-10-09.
 
@@ -292,12 +294,12 @@ Current snapshot (2026-10-08, strict 1200-frame run; refresh with
 | Lens | Mapped / total | % |
 |---|---|---|
 | **Executed path** (strict 1200-frame run) | everything that ran | **100 % — FULLY_STATIC, zero interpreter fallback** |
-| **Walker's static reach** (whole-ROM scan trial) | **55,103 / 56,333** emitted units | **≈ 97.8 %** |
-| **Pointer-pool reach** (speculative-harvest trial) | **55,103 / 55,515** | **≈ 99.3 %** |
+| **Walker's static reach** (whole-ROM scan trial) | **55,102 / 56,333** emitted units | **≈ 97.8 %** |
+| **Pointer-pool reach** (speculative-harvest trial) | **55,102 / 55,515** | **≈ 99.3 %** |
 
 Rows 2–3 are proxies with different denominators (no ground-truth function
 inventory exists); a route is done when its replay is FULLY_STATIC. Corpus:
-55,103 emitted units (interior split units + IWRAM code-copy included); the
+55,102 emitted units (interior split units + IWRAM code-copy included); the
 speculative-harvest trial kept 2,204 pointer candidates out of 105,815
 PC-relative literals (`false` in `game.toml` by policy).
 

@@ -121,12 +121,13 @@ cmake --build build --target FFTARecomp --parallel 8
 | `mods/` `inputs/` `symbols/` `reference/` | Widescreen catalog; input traces; symbol seeds; study notes |
 | `gbarecomp/`, `recomp-ui/` | Pinned submodules — do not update casually (pins + local patches: `reference/dev-gotchas.md`) |
 
-## Status (2026-10-08)
+## Status (2026-10-09)
 
 All phases complete; **every executed path strict-FULLY_STATIC**; corpus
-**55,103 emitted units** (walker 97.8 % / pool 99.3 % proxies — a route is
+**55,102 emitted units** (walker 97.8 % / pool 99.3 % proxies — a route is
 done when its replay is FULLY_STATIC, not when a proxy moves); attract hash
-stable since pinning; widescreen W1–W3 complete; save/summon hangs fixed;
+stable since pinning; widescreen W1–W3 complete; save/summon hangs fixed; suspend-flow
+phantom closed (IRQ abandon-close + split-loop gap roll-in — issue #30 fixes);
 **Android port** landed and device-verified 2026-10-08 (guide
 `android/README.md`). Remaining: offline-push re-trial (gated on an
 interior-split policy), f6000+ contact sheet, upstream note on the bridge

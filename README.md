@@ -16,7 +16,7 @@ title, new game, intro, battles, and now complete **Totema and magic summons**
 RAM-copy fixups — BRINGUP § "Summon crash") — with **every executed path
 FULLY_STATIC** (zero interpreted instructions) at last verification.
 Interactive playtest sessions are integrated through the audit + event
-batches (**a**–**ai**): corpus **55,103 emitted units**, walker's static
+batches (**a**–**ai**): corpus **55,102 emitted units**, walker's static
 reach ≈ 97.8 %, pointer-pool lens ≈ 99.3 % (proxies — a route is done when
 FULLY_STATIC on its replay). The **offline coverage push**'s goal (pool
 reach) was reached deliberately via strict-push verified seeds (event-crawl

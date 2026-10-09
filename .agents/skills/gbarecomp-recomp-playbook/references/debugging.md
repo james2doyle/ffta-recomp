@@ -138,10 +138,20 @@ branch-calls.
   while nested, but only within the last fraction of the stack, where no
   handler could legally complete — keeps the safety net alive in that
   state.
-- Merge it at the source where the finder supports interior resume
-  aliases (an intra-function back-edge is one host frame); when the
-  candidate block lies beyond the host's linear walk extent the roll-in
-  does not fire — note that as an engine gap.
+- **Merge it at the source (the durable fix).** Flag the boundary block as
+  an interior-resume candidate and extend the finder's alias roll-in to
+  cover branch-target blocks that sit beyond a host's linear walk extent
+  (e.g. a 2-byte back-edge behind the literal pool): roll the block into a
+  host that directly branches to it, grow the host extent over it, and
+  make the codegen lower a forward branch to any *labelled* in-body target
+  to `goto` (not only backward targets — a forward conditional edge is the
+  one a split loop actually takes). Verified shape: the dispatch table
+  gains a resume entry for the block address at the host, the split unit
+  disappears (corpus count −1), and the loop body contains no
+  generated-function call except its exit block. Test the fix by
+  objdump: `call`/`ret` pairs between the two halves must become internal
+  `jmp`s. Without the roll-in, the candidate stays its own function and the
+  per-iteration call pair returns.
 - The nesting is a *carrier*: a wait that outlives its expected wake is a
   behavioral stall. Find why the wake never arrives (interrupt-mask state,
   callback stalls) before treating the spin itself as the bug.

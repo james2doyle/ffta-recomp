@@ -66,6 +66,12 @@ Run this after every play session; it is the whole loop in order.
   greps tracked files for absolute home-path patterns.
 - Letting the playtest loop run for hours without closing a batch: smaller
   sessions converge faster and make bisecting trivial.
+- Nested submodules in the patch workflow: exporting the outer repo's
+  consolidated diff picks up an inner repo's dirty gitlink
+  (`Subproject commit …-dirty`) and GNU patch cannot apply that hunk —
+  exclude the nested path from the outer export, keep a separate
+  consolidated patch per nested repo, and route patch validation to the
+  right repo by filename prefix.
 
 ## Decision log and docs discipline
 
