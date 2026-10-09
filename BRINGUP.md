@@ -3503,7 +3503,11 @@ landed two bytes inside the setup, and ARM-mode decoding of `adds r1,r5,#0`
 is the "Undefined at 0x8145488" abort. The earlier "interior resume seed"
 reading of this address was a mislabel of the same mechanism.
 
-## 2026-10-09 — Fix: coherent close (delayed-iret resume) for abandoned IRQs
+## 2026-10-09 — Fix: coherent close (delayed-iret resume) for abandoned IRQs — SUPERSEDED (same day)
+
+> The restore described below rewound the guest to the interrupted mainline;
+> the ring then proved the state at close time is the *live flow's own*
+> (coherent) and must be left alone. See "flow-continuation resume" below.
 
 **Action.** `runtime_irq` (runtime_arm.cpp) now performs a *full delayed-iret
 restore* when a handler is closed without a legal iret:
@@ -3540,3 +3544,43 @@ attract byte-identical, ws_smoke, route_G/route_K FULLY_STATIC, all units.
 **Note.** Entry-snapshot SP (0x3007E78 in the repro) reflects the stack at
 IRQ delivery; the ring's previously observed resume SP (0x3007E90) was the
 phantom's. The harness confirms the resumed mainline is coherent.
+
+## 2026-10-09 — Fix: flow-continuation resume (supersedes the coherent close)
+
+**What the black screen was.** The coherent close restored the *interrupted*
+snapshot at abandon time. But the state at close time is not the interrupted
+context: the flow that kept running under the drive is the guest's own (the
+suspend-save tail), and its registers, stack, banks and call ledger are
+already coherent. Rewinding them abandoned the save: the flow idled forever
+in the main-loop frame gate with the screen blanked (user-visible: black
+screen after A).
+
+**The real remaining break.** After `runtime_irq` returns, the interrupted
+instruction's block resumes and its per-instruction R15 installs trample the
+exception-return target the guest had just computed (`0x814186E` — the save
+flow's continuation after its CpuFastSet SWI). The guest therefore never
+executed its own continuation; instead the trampled flow ran the
+pop-to-garbage path (pre-coherent: accidental reset-ish walk → bridge abort
+at `0x8145484`).
+
+**The fix (runtime_arm.cpp).** On an abandon close: do not touch the guest
+state at all; capture `g_cpu.R[15]` (the live flow's genuine next pc) and
+one-shot redirect the *next* `runtime_dispatch` there
+(`g_abandon_resume_pc`), defeating the trample. Log line:
+`closing the IRQ (flow-continuation resume pc=0x…)`.
+
+**Verified end-to-end (2026-10-09).** `game.state3` + A press:
+close → the save flow's tail executes (pc 0x08141944 observed) → the save
+UI / black phase → **the game's suspend-save reboot: cloud backdrop → "It
+was a day like any other…"** — the oracle's `e2_afterreset` screen
+(`logs/savehang/oracle/replay/f17116.png` shows the oracle later playable);
+the flow then animates continuously (26 distinct screens over 700 steps,
+graceful TCP quit, FULLY_STATIC). Load-without-press (idle) unchanged; no
+close fires. Gates: cycle PASS (attract byte-identical); `check.py` 11/11;
+patches re-exported (`gbarecomp-local.patch`, `irq-handler-abandon-close.patch`).
+
+**Note for the record.** The two fixes between them explain the whole
+symptom family: (1) the abandon close stops the never-returning handler
+from poisoning `g_irq_nest_depth`; (2) the flow-continuation resume makes
+the *guest's own* flow survive the close. The earlier "coherent close" is
+superseded — its snapshot restore was the wrong direction.

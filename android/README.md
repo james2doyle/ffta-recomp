@@ -171,10 +171,10 @@ specific file; `--expect public|private` asserts the build mode.
   hangrepro`) — steppable `--tcp` + `savestate_load game.state3` + A:
   pre-fix it SIGSEGV'd ~26 steps after the press (nested
   `gf_vblank_wait_loop` frames); now the phantom IRQ closes, the loop is
-  one frame, and the flow advances past the old wedge — the close restores
-  the full interrupted snapshot (delayed-iret resume) and the repro survives
-  the previously-fatal boundary (BRINGUP § true root / § coherent close).
-  The in-battle suspend save → title trigger
+  one frame, and the guest's own flow survives the close (flow-continuation
+  resume): the suspend save completes and the game reboots into its intro
+  sequence, matching the mGBA oracle (BRINGUP § true root /
+  § flow-continuation resume). The in-battle suspend save → title trigger
   is described in `BRINGUP.md` § 2026-10-08/09; on-device capture:
   `tools/hangprobe.py` + `reference/dev-gotchas.md` § Android device
   forensics. Device re-verification after these two fixes is pending

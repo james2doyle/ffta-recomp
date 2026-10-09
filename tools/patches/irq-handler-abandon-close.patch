@@ -1,21 +1,34 @@
 diff --git a/src/armv4t/runtime_arm.cpp b/src/armv4t/runtime_arm.cpp
-index 78f06d6..4071b5c 100644
+index 78f06d6..570e165 100644
 --- a/src/armv4t/runtime_arm.cpp
 +++ b/src/armv4t/runtime_arm.cpp
-@@ -1417,6 +1417,12 @@ extern "C" void runtime_irq(uint32_t return_address) {
-     const uint32_t saved_r2  = g_cpu.R[2];
-     const uint32_t saved_r3  = g_cpu.R[3];
-     const uint32_t saved_r12 = g_cpu.R[12];
-+    // Interrupted-context snapshot for a coherent close: the banked SP/LR are
-+    // rewritable by every later mode switch (each bank_out stashes the live
-+    // values), so capture them here, at entry, next to the volatiles.
-+    const uint32_t saved_sp    = g_cpu.R[13];
-+    const uint32_t saved_lr    = g_cpu.R[14];
-+    const uint32_t saved_depth = g_call_return_depth;
-     // Record the active IRQ source(s) (IE & IF) in the trace addr field and the
-     // nesting depth in aux so a ring dump names which interrupt is being
-     // vectored and how deep — used to pin the MC-HP-002 IRQ storm. Reading
-@@ -1503,6 +1509,26 @@ extern "C" void runtime_irq(uint32_t return_address) {
+@@ -847,10 +847,25 @@ constexpr uint32_t kBiosRegionEnd = 0x00004000u;
+ 
+ }  // namespace
+ 
++// One-shot continuation for an abandoned IRQ (see runtime_irq's close): the
++// flow that kept running under the drive left its next pc in R15, but the
++// interrupted block's resumption tramples R15 before the next dispatch. The
++// first dispatch after the close is redirected there (BRINGUP § flow-continuation
++// resume). 0 = disarmed.
++static uint32_t g_abandon_resume_pc = 0;
++
+ extern "C" void runtime_dispatch(uint32_t target_pc) {
+     // A generated caller can fall through to another dispatch when the yielded
+     // PC equals its return address. Do not enter that target or its RAM hook.
+     if (gbarecomp::runtime_dispatch_suspended()) return;
++    if (g_abandon_resume_pc != 0u) {
++        const uint32_t want = g_abandon_resume_pc;
++        g_abandon_resume_pc = 0u;
++        if ((target_pc & ~1u) != want) {
++            g_cpu.R[15] = want;
++            target_pc = want;
++        }
++    }
+     // Strip THUMB bit; codegen handles the mode via cpsr_T already.
+     uint32_t pc = target_pc & ~1u;
+     if (runtime_trace_enabled())
+@@ -1503,6 +1518,26 @@ extern "C" void runtime_irq(uint32_t return_address) {
      drive_irq_instruction();
      constexpr uint32_t kMaxIrqDispatches = 4'000'000u;
      uint32_t irq_guard = 0u;
@@ -42,7 +55,7 @@ index 78f06d6..4071b5c 100644
      while (g_irq_iret_depth != my_depth) {
          if (++irq_guard >= kMaxIrqDispatches) {
              std::fprintf(stderr,
-@@ -1513,12 +1539,51 @@ extern "C" void runtime_irq(uint32_t return_address) {
+@@ -1513,12 +1548,50 @@ extern "C" void runtime_irq(uint32_t return_address) {
              break;
          }
          drive_irq_instruction();
@@ -52,10 +65,10 @@ index 78f06d6..4071b5c 100644
 +            std::fprintf(stderr,
 +                "runtime_irq: handler at depth %u abandoned without an iret "
 +                "(%llu vblanks, pc=0x%08X) — closing the IRQ "
-+                "(delayed-iret resume pc=0x%08X sp=0x%08X)\n",
++                "(flow-continuation resume pc=0x%08X)\n",
 +                my_depth,
 +                (unsigned long long)(g_runtime_vblank_starts - entry_vbl),
-+                g_cpu.R[15], return_address, saved_sp);
++                g_cpu.R[15], g_cpu.R[15]);
 +            g_irq_iret_depth = my_depth;  // treat as completion
 +            closed_by_abandon = true;
 +        } else if (handler_frames_gone && g_cpu.R[15] >= 0x00004000u) {
@@ -63,34 +76,38 @@ index 78f06d6..4071b5c 100644
 +                std::fprintf(stderr,
 +                    "runtime_irq: handler at depth %u abandoned without an "
 +                    "iret (ledger at floor, pc=0x%08X) — closing the IRQ "
-+                    "(delayed-iret resume pc=0x%08X sp=0x%08X)\n",
-+                    my_depth, g_cpu.R[15], return_address, saved_sp);
++                    "(flow-continuation resume pc=0x%08X)\n",
++                    my_depth, g_cpu.R[15], g_cpu.R[15]);
 +                g_irq_iret_depth = my_depth;  // treat as completion
 +                closed_by_abandon = true;
 +            }
 +        } else {
 +            abandoned_guard = 0u;
 +        }
-     }
-     g_cpu.R[0]  = saved_r0;
-     g_cpu.R[1]  = saved_r1;
-     g_cpu.R[2]  = saved_r2;
-     g_cpu.R[3]  = saved_r3;
-     g_cpu.R[12] = saved_r12;
-+    if (closed_by_abandon) {
-+        // Full delayed-iret restore: mode + banks + SP/LR + call ledger + the
-+        // interrupted pc. The return_address handed to runtime_tick is exactly
-+        // what the BIOS wrapper's `subs pc, lr, #4` would have restored.
-+        const unsigned ibank = mode_to_bank(saved_cpsr);
-+        bank_out(mode_to_bank(g_cpu.cpsr), g_cpu.cpsr);
-+        g_cpu.banked_sp[ibank] = saved_sp;
-+        g_cpu.banked_lr[ibank] = saved_lr;
-+        g_cpu.cpsr = saved_cpsr;
-+        bank_in(ibank, saved_cpsr);
-+        g_call_return_depth = saved_depth;
-+        clamp_call_return_hostless();
-+        g_cpu.R[15] = return_address;
 +    }
++    if (!closed_by_abandon) {
++        g_cpu.R[0]  = saved_r0;
++        g_cpu.R[1]  = saved_r1;
++        g_cpu.R[2]  = saved_r2;
++        g_cpu.R[3]  = saved_r3;
++        g_cpu.R[12] = saved_r12;
++    } else {
++        // The abandoned flow never returned to the interrupted context: the
++        // guest state (registers, stack, banks, call ledger) belongs to the
++        // flow that kept running and is already coherent — touching it would
++        // rewind to the interrupted mainline (the 2026-10-09 black-screen
++        // idle; BRINGUP § coherent close, superseded). What IS broken is the
++        // dispatch routing: the interrupted instruction's block resumes after
++        // this close and its R15 installs trample the exception-return target
++        // the guest just computed (0x814186E — the save flow's continuation).
++        // Hand that pc to the next runtime_dispatch as a one-shot resume.
++        g_abandon_resume_pc = g_cpu.R[15];
+     }
+-    g_cpu.R[0]  = saved_r0;
+-    g_cpu.R[1]  = saved_r1;
+-    g_cpu.R[2]  = saved_r2;
+-    g_cpu.R[3]  = saved_r3;
+-    g_cpu.R[12] = saved_r12;
      g_irq_iret_depth = saved_iret;  // restore an enclosing IRQ's expectation
      g_call_return_floor = saved_floor;
      --g_irq_nest_depth;

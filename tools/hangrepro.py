@@ -5,10 +5,11 @@ Reproduces the 2026-10-09 hang deterministically (steppable `--tcp` +
 `savestate_load game.state3` + A press). History: the process SIGSEGV'd ~26
 steps after the press; the host-stack guard then bounded it; since the
 irq-handler-abandon-close fix the phantom IRQ is closed cleanly
-(`closing the IRQ` in the log) and the flow advances past the old wedge. The
-run then typically ends at the self-heal coverage boundary (Thumb code
-reached with a corrupted CPSR.T -> bridge Undefined at 0x8145484), which is
-a separate, tracked state — NOT a hang.
+(`closing the IRQ` in the log) and, since the flow-continuation resume fix
+(2026-10-09, BRINGUP § flow-continuation resume), the guest's own flow
+survives the close: the suspend-save completes and the game reboots into
+its intro sequence (matching the mGBA oracle). The run must not hang, must
+not crash, and must keep advancing.
 
 Needs (both gitignored / local-only, hence opt-in):
   game.state3            — the press-moment savestate
