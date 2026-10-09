@@ -28,10 +28,23 @@ index bc6663c..3574b4f 100644
          }
  
 diff --git a/src/armv4t/runtime_arm.cpp b/src/armv4t/runtime_arm.cpp
-index 78f06d6..e4ef0d5 100644
+index 78f06d6..4071b5c 100644
 --- a/src/armv4t/runtime_arm.cpp
 +++ b/src/armv4t/runtime_arm.cpp
-@@ -1503,6 +1503,24 @@ extern "C" void runtime_irq(uint32_t return_address) {
+@@ -1417,6 +1417,12 @@ extern "C" void runtime_irq(uint32_t return_address) {
+     const uint32_t saved_r2  = g_cpu.R[2];
+     const uint32_t saved_r3  = g_cpu.R[3];
+     const uint32_t saved_r12 = g_cpu.R[12];
++    // Interrupted-context snapshot for a coherent close: the banked SP/LR are
++    // rewritable by every later mode switch (each bank_out stashes the live
++    // values), so capture them here, at entry, next to the volatiles.
++    const uint32_t saved_sp    = g_cpu.R[13];
++    const uint32_t saved_lr    = g_cpu.R[14];
++    const uint32_t saved_depth = g_call_return_depth;
+     // Record the active IRQ source(s) (IE & IF) in the trace addr field and the
+     // nesting depth in aux so a ring dump names which interrupt is being
+     // vectored and how deep — used to pin the MC-HP-002 IRQ storm. Reading
+@@ -1503,6 +1509,26 @@ extern "C" void runtime_irq(uint32_t return_address) {
      drive_irq_instruction();
      constexpr uint32_t kMaxIrqDispatches = 4'000'000u;
      uint32_t irq_guard = 0u;
@@ -44,10 +57,12 @@ index 78f06d6..e4ef0d5 100644
 +    // later VBlank nests inside it), the loop must NOT adopt whatever
 +    // executes next (typically mainline) and drive it forever: that leaves
 +    // g_irq_nest_depth stuck and the host stack growing. Close the IRQ
-+    // cleanly instead, as if the iret had fired at our depth. The register
-+    // restore is skipped in that case — the mainline has advanced past the
-+    // interrupted instant and its live registers must not be clobbered with
-+    // the entry snapshot.
++    // cleanly instead, as if the iret had fired at our depth — in every
++    // respect: 2026-10-09 proved the resumed flow IS the interrupted instant
++    // (the interrupted block re-runs), so the full interrupted snapshot
++    // (volatiles + SP/LR bank + call ledger + mode) must come back. The old
++    // skip-the-restore rule let a phantom-clobbered stack slot send the
++    // resumed helper to PC=0 (BRINGUP § true root).
 +    constexpr uint32_t kAbandonAfterDispatches = 0x40000u;  // ~1 frame
 +    constexpr unsigned long long kAbandonAfterVblanks = 4;
 +    const unsigned long long entry_vbl = g_runtime_vblank_starts;
@@ -56,7 +71,7 @@ index 78f06d6..e4ef0d5 100644
      while (g_irq_iret_depth != my_depth) {
          if (++irq_guard >= kMaxIrqDispatches) {
              std::fprintf(stderr,
-@@ -1513,12 +1531,37 @@ extern "C" void runtime_irq(uint32_t return_address) {
+@@ -1513,12 +1539,51 @@ extern "C" void runtime_irq(uint32_t return_address) {
              break;
          }
          drive_irq_instruction();
@@ -65,37 +80,46 @@ index 78f06d6..e4ef0d5 100644
 +        if (g_runtime_vblank_starts - entry_vbl >= kAbandonAfterVblanks) {
 +            std::fprintf(stderr,
 +                "runtime_irq: handler at depth %u abandoned without an iret "
-+                "(%llu vblanks, pc=0x%08X) — closing the IRQ\n",
++                "(%llu vblanks, pc=0x%08X) — closing the IRQ "
++                "(delayed-iret resume pc=0x%08X sp=0x%08X)\n",
 +                my_depth,
 +                (unsigned long long)(g_runtime_vblank_starts - entry_vbl),
-+                g_cpu.R[15]);
++                g_cpu.R[15], return_address, saved_sp);
 +            g_irq_iret_depth = my_depth;  // treat as completion
 +            closed_by_abandon = true;
 +        } else if (handler_frames_gone && g_cpu.R[15] >= 0x00004000u) {
 +            if (++abandoned_guard >= kAbandonAfterDispatches) {
 +                std::fprintf(stderr,
 +                    "runtime_irq: handler at depth %u abandoned without an "
-+                    "iret (ledger at floor, pc=0x%08X) — closing the IRQ\n",
-+                    my_depth, g_cpu.R[15]);
++                    "iret (ledger at floor, pc=0x%08X) — closing the IRQ "
++                    "(delayed-iret resume pc=0x%08X sp=0x%08X)\n",
++                    my_depth, g_cpu.R[15], return_address, saved_sp);
 +                g_irq_iret_depth = my_depth;  // treat as completion
 +                closed_by_abandon = true;
 +            }
 +        } else {
 +            abandoned_guard = 0u;
 +        }
-+    }
-+    if (!closed_by_abandon) {
-+        g_cpu.R[0]  = saved_r0;
-+        g_cpu.R[1]  = saved_r1;
-+        g_cpu.R[2]  = saved_r2;
-+        g_cpu.R[3]  = saved_r3;
-+        g_cpu.R[12] = saved_r12;
      }
--    g_cpu.R[0]  = saved_r0;
--    g_cpu.R[1]  = saved_r1;
--    g_cpu.R[2]  = saved_r2;
--    g_cpu.R[3]  = saved_r3;
--    g_cpu.R[12] = saved_r12;
+     g_cpu.R[0]  = saved_r0;
+     g_cpu.R[1]  = saved_r1;
+     g_cpu.R[2]  = saved_r2;
+     g_cpu.R[3]  = saved_r3;
+     g_cpu.R[12] = saved_r12;
++    if (closed_by_abandon) {
++        // Full delayed-iret restore: mode + banks + SP/LR + call ledger + the
++        // interrupted pc. The return_address handed to runtime_tick is exactly
++        // what the BIOS wrapper's `subs pc, lr, #4` would have restored.
++        const unsigned ibank = mode_to_bank(saved_cpsr);
++        bank_out(mode_to_bank(g_cpu.cpsr), g_cpu.cpsr);
++        g_cpu.banked_sp[ibank] = saved_sp;
++        g_cpu.banked_lr[ibank] = saved_lr;
++        g_cpu.cpsr = saved_cpsr;
++        bank_in(ibank, saved_cpsr);
++        g_call_return_depth = saved_depth;
++        clamp_call_return_hostless();
++        g_cpu.R[15] = return_address;
++    }
      g_irq_iret_depth = saved_iret;  // restore an enclosing IRQ's expectation
      g_call_return_floor = saved_floor;
      --g_irq_nest_depth;

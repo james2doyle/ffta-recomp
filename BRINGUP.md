@@ -3502,3 +3502,41 @@ a call — it is the *second* instruction of the CpuFastSet argument setup in
 landed two bytes inside the setup, and ARM-mode decoding of `adds r1,r5,#0`
 is the "Undefined at 0x8145488" abort. The earlier "interior resume seed"
 reading of this address was a mislabel of the same mechanism.
+
+## 2026-10-09 — Fix: coherent close (delayed-iret resume) for abandoned IRQs
+
+**Action.** `runtime_irq` (runtime_arm.cpp) now performs a *full delayed-iret
+restore* when a handler is closed without a legal iret:
+
+- volatile regs r0–r3/r12 restored in BOTH close modes (the old
+  skip-on-abandon rule is reversed — its premise was falsified, below);
+- abandon-only additionally: banked SP/LR captured **at entry** (the
+  interrupted snapshot; live bank_out/in calls during the phantom era
+  otherwise overwrite the banks), call-ledger `g_call_return_depth` +
+  `g_call_return_floor` restored to the pre-IRQ snapshot,
+  mode/CPSR restored via `bank_out`/`bank_in`, and `R15 = return_address`
+  — the exact target the BIOS wrapper's `subs pc, lr, #4` would restore;
+- both close log lines now carry `(delayed-iret resume pc=… sp=…)`.
+
+**Why.** The ring-proven chain (previous entry): the resumed flow IS the
+interrupted instant (the interrupted block re-runs on the next main-loop
+step) — the earlier "mainline has advanced past the interruption" theory was
+wrong. The phantom era's scratch use of the System stack had zeroed the
+interrupted helper's return slot (`[0x3007E90]=0`); with SP left at the
+phantom's value, the resumed helper popped 0 → PC=0 → BIOS reset vector →
+T=0 ARM walk → BIOS `subs pc,lr,#4` → `0x8145484` dispatch in ARM mode →
+bridge abort. Restoring SP+ledger+mode+pc removes exactly this class
+instead of letting the lookup-clamped guard merely bound it.
+
+**Result (2026-10-09).** `hangrepro`: **survives the press (+40 steps,
+guard unwinds=0, irq closes=1)** — previously SIGSEGV at +26, then the
+`0x8145484` boundary abort; zero `interpreter Undefined` lines. `cycle.py`
+PASS (attract byte-identical). `tools/patches/gbarecomp-local.patch` +
+`irq-handler-abandon-close.patch` re-exported (gitlink excluded — the
+export must use `-- . ':(exclude)external/arm-recomp-core'`); patches replay
+431-file tree matches. Full `check.py`: **ALL PASS (11/11)** — hangrepro,
+attract byte-identical, ws_smoke, route_G/route_K FULLY_STATIC, all units.
+
+**Note.** Entry-snapshot SP (0x3007E78 in the repro) reflects the stack at
+IRQ delivery; the ring's previously observed resume SP (0x3007E90) was the
+phantom's. The harness confirms the resumed mainline is coherent.
