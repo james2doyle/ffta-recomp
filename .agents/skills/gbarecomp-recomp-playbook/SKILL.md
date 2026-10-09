@@ -68,4 +68,4 @@ Load the reference for the task at hand; do not read them all at once.
 | Sessions: savestates, input traces, replay semantics, crash harvesting, live-session watchdogs, playtest ergonomics | `references/reproducibility.md` |
 | Coverage numbers, lenses, breadth strategy, seed-until-static automation, regression gates, oracle diffs | `references/verification.md` |
 | Crashes, hangs, spins, wedges, writer hunts, recomp-vs-emulator divergence | `references/debugging.md` |
-| Harness tools to build, pitfalls that cost hours, offline state census, engine-hook lifecycle, decision-log and docs discipline | `references/tooling-and-pitfalls.md` |
+| Harness tools to build, pitfalls that cost hours, offline state census, engine-hook/mod lifecycles, decision-log and docs discipline | `references/tooling-and-pitfalls.md` |

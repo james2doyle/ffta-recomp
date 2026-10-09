@@ -22,7 +22,10 @@ Archive the proposal at every launch next to state+trace, and treat the
 
 - **Frame budgets after loading a state** usually mean N frames *from the
   state*, not an absolute counter. Measure before any bisect; wrong
-  assumptions cost hours.
+  assumptions cost hours. The budget must also reach the **last replay
+  event** (events key on absolute guest frames) — a budget misread as an
+  absolute target runs minutes of idle emulation that looks exactly like a
+  hang.
 - **Input-replay events are keyed to the guest frame counter.** A loaded
   state restores that counter at the state's saved frame, so events at
   small relative numbers (0, 60, 80) all fire *immediately* at load and

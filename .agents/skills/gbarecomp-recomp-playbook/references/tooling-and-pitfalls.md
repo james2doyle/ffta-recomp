@@ -194,6 +194,20 @@ can be a configure flag, not an older pin — and the pin itself is worth
 verifying with a live `git ls-remote` against the actual remote tip before
 planning an update.
 
+The lifecycle has sharp edges and its ordering is **structural**. The
+activation pass runs **on every run** (catalog state can be recomputed
+mid-session) and fires *after* the runner's per-game cleanup has already
+cleared game-owned hook state — so **install hooks from the activation
+plugin**, and use a **reset callback** (fires immediately after the
+engine's disable-all) to clear your own presentation state and re-arm any
+function-entry guards. Note entry plugins register **disabled** — something
+must enable them. Ship the plugin through the engine's catalog
+(`mods/preloaded/…` beside the executable, gated on game id + ROM hash) so
+activation is a reviewed config act, not a boot-time side effect. Verify
+the feature-disabled fallback explicitly, and state which parts of the
+feature are game code (per-frame policy hooks) vs plugin-owned — game-code
+parts survive with the plugin off.
+
 ### Coverage breadth: script/event crawl + literal-pool triage
 
 - Game script bytecode usually carries **no code pointers** (opcodes only);

@@ -171,7 +171,12 @@ command so later changes cannot regress silently:
   the check into a vacuous pass — this happened (a /tmp save copy was
   cleaned up, so a strict route "passed" for days without ever running the
   flow it existed to guard). Fail loudly when a fixture is missing or its
-  hash changed.
+  hash changed. Keep the gate's copies **separate from files normal play
+  overwrites** (savestate slots): copy the states under the dedicated
+  directory so ordinary use cannot invalidate the gate, and define
+  missing-vs-changed semantics per fixture class — environment-dependent
+  fixtures (local states) skip *with the reason surfaced through the
+  aggregate gate*; repo-shipped fixtures (committed input traces) hard-fail.
 - **Unit-test the custom layer**, never the generated code: semantics of
   hand-written hooks/fixups, and one named regression test per fixed bug
   (e.g. "a mid-run boundary crossing must fall through, not re-enter").
@@ -181,6 +186,21 @@ command so later changes cannot regress silently:
   so it provably fails on damage.
 - Make the gate one command (`tools/check.py [--fast|--only NAME]`) with
   per-check PASS/FAIL lines and a non-zero exit unless everything passes.
+  A comma-separated `--only` subset of the no-private-material checks makes
+  a fork-safe CI tier from the same gate (see below).
+- **Concurrent checks need per-run isolation — including engine temp
+  files.** A parallel gate that isolates dump/save/coverage paths can still
+  race on engine-managed state (observed: two launches collided on a shared
+  `state.toml.tmp`; the loser's retry deleted the winner's published file).
+  Stress the harness with N parallel runs, then fix the shared path at the
+  engine level and export it as a patch rather than serializing by default.
+- **Split CI by what may leave your machine.** Public tier (forks
+  included): host unit tests + patch integrity — patch checks
+  forward-validate against the pristine submodule, so they run on a fresh
+  clone with no game data. Private tier: everything needing the game image
+  or fixtures, on a self-hosted runner with the material pre-placed (or a
+  token-gated private bundle), trusted events only — a PR job on a runner
+  that can read the ROM is an exfiltration path.
 - **Gate your submodule patches if you keep them.** Each patch must apply
   to the pristine pin (or be already applied and reverse cleanly) — and
   exports must be made with `--no-pager --no-ext-diff --no-color`: diff
@@ -192,4 +212,11 @@ command so later changes cannot regress silently:
   expanded frame's central native region is pixel-identical to a faithful
   render, margins decode to sane content (not wrap, not policy black), and
   a stale env/CLI request cannot silently enable a feature the build
-  disabled.
+  disabled. Run the matrix at **≥2 widths**, and when the engine's internal
+  field model is wider than the visible window, fill margins by sampling its
+  authored columns — never by extending or synthesizing content. Cover
+  transitions and motion: margins ride the same compositor (they dim with
+  fades — gate "margins never brighter than the center" instead of
+  special-casing), and an idle-vs-action stale guard proves margins
+  refresh. Headless automation cannot see windowed-only behaviors
+  (resize-driven view) — say so in the docs and eyeball those manually.

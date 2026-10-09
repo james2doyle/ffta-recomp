@@ -2859,3 +2859,24 @@ again; no re-investigation per the standing direction.
   temp); 4/4 parallel smoke runs clean after.
 - Gates: cycle PASS (attract byte-exact); `check.py` 9/9 (4 patches
   validated); routes FULLY_STATIC. **W3 backlog complete.**
+
+### 2026-10-08 (cont.) — Skills refresh: W3 + harness/CI lessons
+
+Playbook updated from the W3 arc + the parallel-harness/CI work (docs
+only, no code change):
+
+- tooling-and-pitfalls: engine-hook **ordering** expanded (activation pass
+  runs on every run, after cleanup; install from the activation plugin;
+  re-arm entry guards from the reset callback; entry plugins register
+  disabled; ship via the mods catalog gated on game id + ROM hash; verify
+  feature-off fallback and note game-code vs plugin-owned parts).
+- reproducibility: frame-budget bullet now says the budget must reach the
+  last absolute-frame replay event (misreading = idle marathon that looks
+  like a hang).
+- verification: gate bullets gained dedicated fixture copies (separate
+  from player-overwritten slots; missing-vs-changed semantics with the
+  reason surfaced), concurrent-check isolation incl. engine temp files
+  (the `state.toml.tmp` race, fixed + exported as a patch), the CI tier
+  split by private material, and the presentation-matrix refinements
+  (≥2 widths, sample authored columns, fade compositor invariant,
+  stale-margin guard, headless-only caveat for windowed paths).
