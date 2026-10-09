@@ -54,10 +54,10 @@ runtime args can only arrive via an app-private `debug-args.txt` (adb
   debug-signed, auto-named `…-PRIVATE-rom-included.apk`, never committed or
   distributed (`.gitignore` covers `*.apk`). Public builds import ROM/BIOS
   through the phone UI with SHA-1 pins.
-- **Pad idle auto-hide**: the touch pad hides after 5 s of screen-wide touch
-  inactivity (`touch_pad_idle_hide_seconds = 5` in `src/main.cpp`); any
-  touch reveals it and then acts normally — a tap after the quiet period is
-  never swallowed (engine patch: `touch-pad-idle-hide.patch`).
+- **Pad idle auto-hide**: the touch pad hides after 15 s of screen-wide
+  touch inactivity (`touch_pad_idle_hide_seconds = 15` in `src/main.cpp`);
+  any touch reveals it and then acts normally — a tap after the quiet
+  period is never swallowed (engine patch: `touch-pad-idle-hide.patch`).
 
 ## Mods state (why `payload/mods/state.toml` ships)
 

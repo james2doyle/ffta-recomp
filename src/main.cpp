@@ -206,10 +206,10 @@ int ffta_main(int argc, char** argv) {
     // the reset callback; this covers run paths that skip the pass.
     gba_mod_set_function_hook_enabled("ffta.lzss-guard", 1);
 
-    // Touch pad idle auto-hide (device decision 2026-10-08): after 5 s of
-    // screen-wide touch inactivity the pad hides; any touch reveals it and
-    // then acts normally. Inert without a touch pad.
-    opts.touch_pad_idle_hide_seconds = 5;
+    // Touch pad idle auto-hide (device decision 2026-10-08; 15 s per user
+    // request): after 15 s of screen-wide touch inactivity the pad hides;
+    // any touch reveals it and then acts normally. Inert without a pad.
+    opts.touch_pad_idle_hide_seconds = 15;
 
     if (on_mobile) {
         // Phones fill the screen with the desktop-validated expanded view

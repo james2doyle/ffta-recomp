@@ -940,7 +940,8 @@ SIGSEGV "stack pointer is not in a rw map", 512+ frames of alternating
   instead of a crash.
 
 ### Android: virtual pad idle auto-hide (2026-10-08)
-- Feature: the touch pad hides after 5 s of screen-wide touch inactivity;
+- Feature: the touch pad hides after 15 s of screen-wide touch inactivity
+  (user-tuned from 5 s the same day);
   any touch reveals it and the revealing touch also acts (a first cut
   consumed the wake gesture — two swallowed taps while driving the menus
   over adb proved the double-tap friction, so reveal now presses through).
@@ -958,6 +959,9 @@ SIGSEGV "stack pointer is not in a rw map", 512+ frames of alternating
   after the flip, a single tap on the idle-hidden menu pressed through
   (opened the Load screen, byte-identical render) with the pad restored.
   Upstream candidate.
+- Tuned 5 s → 15 s on user request the same evening; re-verified on device
+  (`pad idle-hidden (15 s quiet)` fires; live gameplay naturally exercises
+  reveal-and-act).
 
 ### Playtest session 1 — first-battle path now fully static (2026-10-06)
 The user played the desktop build interactively (letter-only keymap; see the
