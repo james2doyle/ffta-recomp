@@ -51,16 +51,42 @@ Android port — § Roadmap.
   - Arch: `sudo pacman -S --needed cmake ninja gcc sdl2 git uv`
   - Debian/Ubuntu: `sudo apt install cmake ninja-build g++ libsdl2-dev git python3-venv`
 - Python 3.10+ with `capstone`, installed into a repo-local `.venv/`
-  (`uv` recommended; plain `python3 -m venv` works too)
+  (`build.py` sets this up; `uv` recommended, plain `python3 -m venv` works
+  too)
 - Your own dumps: the FFTA (USA) ROM and a GBA BIOS dump — both
   hash-verified at launch (see the block above) and never committed
 - Optional: a system mGBA install (`mgba-qt`) for side-by-side eyeballing
 
 ## Setup (fresh clone → running game)
 
-The sequence below was verified end-to-end from a fresh clone on 2026-10-08
-(submodules → tools → patches → BIOS → corpus → build → strict smoke +
-attract gate).
+Everything after cloning is wrapped in one idempotent script — place your
+dumps and run:
+
+```sh
+git clone --recursive <repo-url> ffta-recompiled && cd ffta-recompiled
+cp /path/to/ffta-us.gba game.gba
+cp /path/to/gba_bios.bin gbarecomp/bios/gba_bios.bin
+python3 build.py
+```
+
+`build.py` runs, in order: submodules → dump validation → `.venv/`
+(pinned capstone) → framework patches → framework tools → BIOS recompile →
+static corpus → `build/FFTARecomp` → strict 2400-frame smoke (expect
+`FULLY_STATIC`). Everything is validated before any long build: both dumps
+must exist at the right size with the expected SHA-1, submodules are
+checked against their pins, each framework patch is apply-checked, and the
+build steps verify their outputs — missing or corrupt files stop with an
+actionable message instead of a build error. Re-running is cheap — every
+step detects whether it is already done; flags: `--force` (redo BIOS +
+corpus), `--no-smoke`, `--jobs N`. The first run takes a few minutes (two
+builds plus the corpus).
+
+<details>
+<summary>Manual route (what build.py automates — reference + troubleshooting)</summary>
+
+The manual sequence was verified end-to-end from a fresh clone on
+2026-10-08 (submodules → tools → patches → BIOS → corpus → build → strict
+smoke + attract gate).
 
 **1. Clone with submodules.**
 ```sh
@@ -69,24 +95,17 @@ git submodule update --init --recursive
 # If a submodule worktree comes up empty, re-run with --checkout --recursive
 ```
 
-**2. Python venv for the tooling** (disassembler, audit harness):
+**2. Place your dumps** — `game.gba` at the repo root (FFTA USA) and
+`gbarecomp/bios/gba_bios.bin` (your own BIOS dump). Launch verifies both
+hashes and fails loudly if either is wrong or missing.
+
+**3. Python venv for the tooling** (disassembler, audit harness):
 ```sh
 uv venv .venv && uv pip install --python .venv capstone
 #   (or: python3 -m venv .venv && .venv/bin/pip install capstone)
 ```
 
-**3. Build the framework tools** (one-time; re-run only after submodule
-changes):
-```sh
-cmake -S gbarecomp -B gbarecomp/build -G Ninja -DCMAKE_BUILD_TYPE=Release
-cmake --build gbarecomp/build --target gba_recompile gba_scan --parallel 8
-```
-
-**4. Place your dumps** — `game.gba` at the repo root (FFTA USA) and
-`gbarecomp/bios/gba_bios.bin` (your own BIOS dump). Launch verifies both
-hashes and fails loudly if either is wrong or missing.
-
-**5. Apply the local framework patches** (recommended — the tooling below
+**4. Apply the local framework patches** (recommended — the tooling below
 assumes them; diffs kept on top of the pinned submodule):
 ```sh
 cd gbarecomp
@@ -95,6 +114,13 @@ cd ..
 ```
 `tools/check.py --only patches` guards their validity (forward against a
 pristine submodule + reverse against the patched tree).
+
+**5. Build the framework tools** (one-time; re-run only after submodule
+changes):
+```sh
+cmake -S gbarecomp -B gbarecomp/build -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build gbarecomp/build --target gba_recompile gba_scan --parallel 8
+```
 
 **6. Recompile the BIOS (one-time).** Run it *from `gbarecomp/`* so the
 output lands in `gbarecomp/src/runtime/generated_bios/`, and pass the
@@ -136,12 +162,18 @@ And optionally the attract gate, which pins the exact frame hash:
 .venv/bin/python tools/attract_check.py    # PASS + exit 0 expected
 ```
 
+</details>
+
 Then play — `tools/play.sh` (see the playtest guide below).
 
 <details>
 <summary>Troubleshooting</summary>
 
-- `gba_recompile: command not found` → step 3 was not run in this checkout.
+- `build.py` stops at **dumps** → the ROM/BIOS is missing or has the wrong
+  hash (expected SHA-1s at the top of this README); it never downloads them.
+- `build.py` stops at **framework patches** → the submodule drifted from
+  its pin; check `git -C gbarecomp status`.
+- `gba_recompile: command not found` → step 5 was not run in this checkout.
 - `generated_bios/` stays empty / BIOS never loads → step 6 was run from the
   wrong directory (`cd gbarecomp` first). If strict runs instead abort with
   a dispatch miss near pc `0x300`, step 6 ran without
@@ -149,7 +181,7 @@ Then play — `tools/play.sh` (see the playtest guide below).
 - Launch aborts with an identity/hash error → wrong or missing dump; compare
   the SHA-1s listed at the top of this README.
 - CMake cannot find SDL2 → install the dev package (see Requirements).
-- `import capstone` fails in tools → step 2's venv (use
+- `import capstone` fails in tools → step 3's venv (use
   `.venv/bin/python tools/...`).
 - A submodule directory is empty after cloning → step 1's retry line.
 - Window refuses to close, or a session wedges → `tools/quit.py <port>`; see
@@ -484,6 +516,7 @@ Two tiers, split by what may leave your machine:
 
 | Path | What |
 |---|---|
+| `build.py` | Fresh-clone bootstrap — submodules → dumps → venv → patches → tools → BIOS → corpus → build → smoke (see Setup) |
 | `game.toml` | Per-game config: identity pin + all audit seeds (evidence in `note`s) |
 | `src/` | Host integration: `main.cpp`, launcher boot, stack setup |
 | `tests/` | Host unit tests for `src/` custom code: `ctest --test-dir build -R ram_dispatch` (or run `./build/ffta_unit_tests` directly) |

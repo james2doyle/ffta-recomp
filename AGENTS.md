@@ -93,6 +93,7 @@ cmake --build build --target FFTARecomp --parallel 8
 
 | Task | Command |
 |---|---|
+| Fresh-clone bootstrap | `python3 build.py` (idempotent; `--force`, `--no-smoke`, `--jobs N`) |
 | Full regression gate | `.venv/bin/python tools/check.py` (`--fast`; `--jobs N`; `--only a,b`) |
 | CI subset (no dumps needed) | `--only unit-cpp,unit-py,patches` — `.github/workflows/ci.yml` |
 | Widescreen smoke | `.venv/bin/python tools/ws_check.py` (fixtures `saves/ws_fixtures/`) |

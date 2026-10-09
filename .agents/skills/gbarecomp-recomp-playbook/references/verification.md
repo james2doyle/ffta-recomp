@@ -204,6 +204,14 @@ command so later changes cannot regress silently:
   deps explicitly on the runner (observed: the Python unit tests import a
   tool that needs capstone — local runs pass via `.venv`, so the gap only
   shows as an import abort in CI; pin the wheel to the `.venv` version).
+- **Wrap the verified fresh-clone recipe in one idempotent bootstrap
+  script.** Keep it stdlib-only on the system interpreter (it runs before
+  the project venv exists), make every step detect completion (submodules,
+  venv + tool deps, patch apply-check, tool build, BIOS/corpus mtime
+  gates, host build), hash-verify the user-supplied dumps with actionable
+  hints and fail before any long build, and keep the manual route as a
+  collapsible reference. A recipe you validated once by hand should be
+  executable by every newcomer the same way.
 - **Gate your submodule patches if you keep them.** Each patch must apply
   to the pristine pin (or be already applied and reverse cleanly) — and
   exports must be made with `--no-pager --no-ext-diff --no-color`: diff

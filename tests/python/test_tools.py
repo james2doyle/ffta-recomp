@@ -167,6 +167,17 @@ class SaveCheckTest(unittest.TestCase):
             self.assertIn("CRC32 mismatch", r2.stdout)
 
 
+class BuildPyTest(unittest.TestCase):
+    """Root bootstrap script stays runnable on the system python (stdlib)."""
+
+    def test_help_runs(self):
+        r = subprocess.run([sys.executable, "build.py", "--help"],
+                           cwd=str(REPO), capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("--force", r.stdout)
+        self.assertIn("--no-smoke", r.stdout)
+
+
 class RepoHygieneTests(unittest.TestCase):
     """Tracked files must stay portable: no absolute home-directory paths
     (they leak the author's layout and break on every other checkout)."""

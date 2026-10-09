@@ -2900,3 +2900,46 @@ Fixes:
 Verified: fresh-clone `--only unit-py` passes with capstone importable
 (PYTHONPATH simulation of the CI env); fails with the friendly line without
 it; local `--only unit-cpp,unit-py,patches` green via `.venv`.
+
+### 2026-10-08 (cont.) — build.py: fresh-clone bootstrap lands
+
+`build.py` (repo root) wraps the whole newcomer setup — the recipe the
+fresh-clone verification scripted by hand — into one idempotent script:
+submodules (two-pass) → dump validation → `.venv`/capstone (uv, else
+venv + pip) → framework patches (apply/reverse-checked per file) →
+framework tools build → BIOS recompile → corpus regen → host build →
+strict 2400-frame smoke. Stdlib-only so it runs on the system python
+before `.venv` exists; every step detects completion (re-runs: 1.4 s in
+the dev tree, 8.4 s in a fresh clone); `--force` redoes BIOS + corpus,
+`--no-smoke` and `--jobs N` available.
+
+Validation before any long build, each failure ending in an actionable
+hint (all rc=1):
+- dumps: existence + size (ROM 16,777,216 / BIOS 16,384) + SHA-1 —
+  distinct messages for missing / truncated ("wrong size") / wrong
+  content ("SHA-1 mismatch ... wrong or corrupt dump?").
+- submodules: pinned-worktree markers + off-pin drift warning
+  (`git submodule status --recursive`).
+- patches: missing/empty patch dir checked; per-file forward/reverse
+  `git apply --check`.
+- build steps: rc + output tails + artifact existence (tool binaries,
+  bios_recompiled.cpp, generated/dispatch_table.cpp, build/FFTARecomp).
+
+Docs: README § Setup now leads with the one-command path (manual route
+kept as a collapsible reference, renumbered to build.py's order; separate
+Troubleshooting entries for the new step names); AGENTS commands table
+row; playbook bootstrap bullet (stdlib-only, per-step idempotence, fail
+before long builds); `BuildPyTest` keeps `build.py --help` runnable on
+the system python (unit-py 11 tests).
+
+End-to-end evidence (scratch clone of the committed tree, no submodules,
+no dumps):
+- run 1 (no dumps): rc=1, `ROM missing: game.gba` + "place your own
+  legally-dumped ROM" hint — after submodules were fetched and pinned
+  (all six checked out at their recorded commits).
+- run 2: 4 patches applied, framework build, BIOS recompile (770),
+  corpus (55,103 units), host build, smoke = FULLY_STATIC; DONE in
+  204.2 s, rc=0 (job 6m06s total incl. submodule fetch).
+- negative suite on the built tree: missing ROM / truncated ROM /
+  wrong-hash ROM / truncated BIOS — all rc=1 with their distinct
+  messages; restored tree re-ran idempotent (8.4 s, FULLY_STATIC).
