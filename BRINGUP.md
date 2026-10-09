@@ -1120,6 +1120,16 @@ return/IRQ interleave in `runtime_irq`/`runtime_exception_return`
 (roll-in gap) that would remove the recursion entirely. Also: whether the
 windowed churn (PIP path) and the device signatures share this exact
 poisoning once the guard keeps it alive.
+**Regression coverage (same day):** unit tier —
+`tests/unit/test_host_stack_guard.cpp` (folded into the `unit-cpp` CI
+suite): the armed-path checks fail if the guard is desktop-stubbed again
+and pin the two-tier ordering against real thread bounds. End-to-end —
+`tools/hangrepro.py` (`check.py --only hangrepro`, ~90 s): the state3 press
+must stay bounded with `host-stack guard unwind` lines instead of the
+former SIGSEGV (skips without the gitignored state/save). Tighten
+hangrepro's assertion (nest depth must no longer stick) when the accounting
+root fix lands.
+
 
 
 

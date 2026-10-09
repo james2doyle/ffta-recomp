@@ -160,6 +160,18 @@ def check_patches():
     return ok, " ".join(details)
 
 
+def check_hangrepro():
+    """Opt-in deterministic press repro (tools/hangrepro.py): the state3
+    suspend->A hang must stay bounded (pre-guard it SIGSEGV'd at ~+26 steps;
+    now the process survives with host-stack guard unwinds). Needs the
+    gitignored game.state3 + saves/playtest.sav; reports skipped otherwise."""
+    r = run([sys.executable, "tools/hangrepro.py"], timeout=600)
+    line = (r.stdout.strip().splitlines() or [""])[-1]
+    if r.returncode == 77:
+        return True, "skipped (no game.state3 / saves/playtest.sav)"
+    return r.returncode == 0, line or f"exit {r.returncode}"
+
+
 def check_android_static():
     """Device-free Android checks (tools/android_static_check.py): identity
     pin consistency, the mods payload contract, tracked-file hygiene, and a
@@ -186,6 +198,7 @@ CHECKS = {
     "savecheck": check_savecheck,
     "patches": check_patches,
     "android-static": check_android_static,
+    "hangrepro": check_hangrepro,
     "android-apk": check_android_apk,
     "attract": check_attract,
     "ws_smoke": check_ws_smoke,

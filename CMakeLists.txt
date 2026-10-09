@@ -133,9 +133,15 @@ endif()
 option(FFTA_BUILD_TESTS "Build host unit tests for src/ custom code" ON)
 if(FFTA_BUILD_TESTS AND NOT ANDROID)
     enable_testing()
-    add_executable(ffta_unit_tests tests/unit/test_ram_dispatch.cpp)
+    add_executable(ffta_unit_tests
+        tests/unit/test_ram_dispatch.cpp
+        tests/unit/test_host_stack_guard.cpp
+        "${GBARECOMP_ROOT}/src/runtime/mobile_platform.cpp")
     target_include_directories(ffta_unit_tests PRIVATE
         "${GBARECOMP_ROOT}/src/armv4t"
+        "${GBARECOMP_ROOT}/src/runtime"
         src)
+    find_package(Threads REQUIRED)
+    target_link_libraries(ffta_unit_tests PRIVATE Threads::Threads)
     add_test(NAME ram_dispatch COMMAND ffta_unit_tests)
 endif()

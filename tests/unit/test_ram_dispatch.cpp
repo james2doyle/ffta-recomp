@@ -239,6 +239,12 @@ int main() {
     CHECK(ram_dispatch(0x03007D48u, 1) == 1);
     CHECK(g_getter_calls == 1);
 
+    // ── host-stack guard (mobile_platform) ──────────────────────────
+    {
+        extern int run_host_stack_guard_tests();
+        g_failures += run_host_stack_guard_tests();
+    }
+
     std::printf("%s (%d failure%s)\n", g_failures ? "FAIL" : "PASS",
                 g_failures, g_failures == 1 ? "" : "s");
     return g_failures ? 1 : 0;
