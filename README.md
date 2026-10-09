@@ -4,33 +4,7 @@
 
 This is not an emulator. The game's ARM/Thumb code is statically translated to
 host C++ (AOT), compiled, and executed natively — with a **self-healing
-coverage** loop that bridges any not-yet-translated code at runtime, records
-it, and feeds it back into the offline corpus so the next build is fully
-static. It is intended to be *honest*: every run reports exactly how much ran
-as statically recompiled code (`self_heal_coverage=FULLY_STATIC ...` or the
-precise miss count).
-
-**Current status (2026-10-08):** boots (BIOS LLE), plays the attract loop,
-title, new game, intro, battles, and now complete **Totema and magic summons**
-(the save-menu/summon stalls were fixed via the LZSS-decoder entry guard +
-RAM-copy fixups — BRINGUP § "Summon crash") — with **every executed path
-FULLY_STATIC** (zero interpreted instructions) at last verification.
-Interactive playtest sessions are integrated through the audit + event
-batches (**a**–**ai**): corpus **55,102 emitted units**, walker's static
-reach ≈ 97.8 %, pointer-pool lens ≈ 99.3 % (proxies — a route is done when
-FULLY_STATIC on its replay). The **offline coverage push**'s goal (pool
-reach) was reached deliberately via strict-push verified seeds (event-crawl
-batches **af/ag**) with the attract hash byte-exact — the blind speculative
-path itself stays off (interior-split hazard; re-trial gated, § Roadmap).
-The attract regression gate hash has been stable since pinning.
-**Widescreen is complete** (W1–W3): up to 448 px via `--resize-view` /
-`--view-width`, ring scenes authoring their margins from the game's own
-field, the world map pillarboxed, transitions verified — gated by the
-`tools/ws_check.py` smoke matrix. **Android is playable on device** — the
-engine-shell port landed 2026-10-08 (build, run, gate and known behavior:
-[android/README.md](android/README.md)). Remaining: the gated offline-push
-re-trial, the long-run attract contact sheet, the upstream note, and Android
-release prep — § Roadmap.
+coverage** loop so the next build is fully static.
 
 > **You must own the game and BIOS.** Both are user-supplied, hash-verified at
 > launch, and **never committed** (no ROM-derived bytes in git history, ever —
@@ -48,10 +22,7 @@ release prep — § Roadmap.
 
 ## Requirements
 
-- Linux x86-64 (developed on Arch; other unixes untested)
 - CMake ≥ 3.20 + Ninja, GCC or Clang (C++17), SDL2 (dev), git
-  - Arch: `sudo pacman -S --needed cmake ninja gcc sdl2 git uv`
-  - Debian/Ubuntu: `sudo apt install cmake ninja-build g++ libsdl2-dev git python3-venv`
 - Python 3.10+ with `capstone`, installed into a repo-local `.venv/`
   (`build.py` sets this up; `uv` recommended, plain `python3 -m venv` works
   too)
@@ -74,13 +45,7 @@ python3 build.py
 `build.py` runs, in order: submodules → dump validation → `.venv/`
 (pinned capstone) → framework patches → framework tools → BIOS recompile →
 static corpus → `build/FFTARecomp` → strict 2400-frame smoke (expect
-`FULLY_STATIC`). Everything is validated before any long build: both dumps
-must exist at the right size with the expected SHA-1, submodules are
-checked against their pins, each framework patch is apply-checked, and the
-build steps verify their outputs — missing or corrupt files stop with an
-actionable message instead of a build error. Re-running is cheap — every
-step detects whether it is already done; flags: `--force` (redo BIOS +
-corpus), `--no-smoke`, `--jobs N`. The first run takes a few minutes (two
+`FULLY_STATIC`). The first run takes a few minutes (two
 builds plus the corpus).
 
 <details>
@@ -332,29 +297,3 @@ Noncommercial 1.0.0** (`LICENSE`) — free to use, share, and modify for
 noncommercial purposes. Third-party components keep their own terms (the
 `gbarecomp` framework: PolyForm NC; `recomp-ui`: MIT;
 `reference/datacrystal/`: GFDL 1.2) — see `THIRD_PARTY_ATTRIBUTION.md`.
-
-## Roadmap
-
-**Open / next**
-
-1. **Offline coverage push — re-trial gated.** The speculative literal
-   harvest reaches +4,912 units, but it split the guarded LZSS decoder at an
-   interior entry (`0x08005544`): the save-menu route resumes into the
-   unguarded interior, bypasses the entry check, and runs away (f17,794;
-   31.8 GB RSS) — reverted, flag stays off. Condition (a), a **route-level
-   golden gate**, is now satisfied: the save-menu class replays as
-   first-class checks in `tools/check.py` (route_G/K). Condition (b), an
-   **interior-split policy** so speculative interior roots cannot bypass
-   entry guards (guard extension and/or seed exclusion), is still to design
-   and is the re-trial trigger.
-2. **Long-run attract contact sheet (f6000+)** and the **upstream note**
-   covering the bridge stop-contract + relocated-stub resume classes (a
-   gbarecomp issue).
-3. **Android release prep** — the port is device-verified (2026-10-08;
-   guide [android/README.md](android/README.md)). Remaining: release
-   packaging (signing, arm64-only, APK content guard, version stamping), a
-   touch-first input scheme, a perf/size pass, and the upstream mods-state
-   note.
-4. Optional: a mod layer from the community notes' verified hack sites
-   (QoL/difficulty/test-speed); share the reverse-engineered save-record
-   format when the wiki scene is reachable.

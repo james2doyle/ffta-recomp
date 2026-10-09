@@ -3670,3 +3670,52 @@ the healthy press flows (steppable + tcp free-run, many runs) never reach
 resumption (a corrupted pc at an indirect transfer). Next step when
 prioritized: sweep the steppable press phase for a deterministic repro of
 the abort, then ring the transfer that produces `0x0FF8`.
+
+**2026-10-09 evening — the windowed press-path derail: root chain found.**
+The rare windowed failure (2/16 in a focused hunt; `SELF-HEAL bridge` abort)
+is the game's suspend-save **soft-reset flow**, only reachable in runs where
+the post-save completion path executes within the observation window:
+
+1. Save completes → FFTA invokes the BIOS soft reset. The BIOS copies its
+   0x200-byte context block (0xB56-0xB9C region) and jumps to the reset
+   vector; the boot runs (0x68-0x88) and reaches the **cart-boot trampoline**
+   (0x1C-0x64): `stm {r12,lr}` + `mrs spsr/cpsr` + `stm {spsr,cpsr}` at
+   0x20-0x2C, boot checks, then 0x54-0x64 restores the pairs and executes
+   `msr spsr_cf, r12` + `subs pc, lr, #4` to resume at LR-4.
+2. The live LR at that point = `0x08000499` (thumb-tagged; the resume point
+   in the crt0 area). Hardware resumes **thumb at 0x498**.
+3. Our engine resumes **ARM at 0x494** (2 bytes early, mid-instruction):
+   dispatch miss 0x08000494 (recorded `mode="arm"`) → self-heal bridge
+   interprets ARM garbage → interpreter Undefined at 0x4EC → loud abort.
+   The sibling 0x0FF8 occurrence (thumb-into-ARM) is the same family.
+
+**Pinpointed with a 29-record bridge-entry ring dump** (the only moment the
+pre-miss ring still holds generated-code context — the bridge's own
+interpreted records overwrite it within ~1 s; new env-gated instrumentation
+`GBARECOMP_BRIDGE_ENTRY_FP`/`GBARECOMP_BRIDGE_ABORT_FP`, plus an
+unconditional one-line `bridge entry pc/thumb/stop/lr/sp/cpsr` log):
+the trampoline executed in **System mode** (the BIOS SWI dispatcher
+deliberately switches to System at 0x158-0x160 before calling services —
+verified correct vs. the recompiled BIOS source); in that mode the S-bit PC
+write `subs pc, lr, #4` performs no SPSR restore in our engine (and in the
+reference interpreter — "no SPSR in User/System — exception return is
+undefined", external/arm-recomp-core profiles/armv4t_gba/interpreter.cpp),
+so `T` stayed 0 and the dispatch went ARM. Hardware behaves as if the
+System-mode SPSR roundtrip (`mrs spsr`/`msr spsr` + the return) preserves
+the caller's T=1 — which is exactly the published ARM7TDMI System-mode SPSR
+behavior the BIOS's boot trampoline relies on.
+
+**Evidence**: `logs/savehang/bridge_entry_fp.bin` (29 records: load → BIOS
+copy → reset → boot → trampoline → miss), `GBARECOMP_SWI_TRACE` trace
+(banking `0x3F -> 0x93`, `SPSR_svc = 0x3F` — 505/505 LLE, 0 HLE), mode
+histogram (`svc` 84 / `irq` 5,110 / `sys` 8,383,414 — services in System is
+BIOS-correct), the dispatcher decode (`0x150-0x16C`).
+
+**Open**: arbitrate the System-mode SPSR semantics against the oracle
+(mGBA-backed, `gbarecomp/oracle/`): if mGBA restores T here (it must, for
+FFTA to save-and-reboot on it), the fix is to align our ARM7TDMI SPSR model
+for User/System-mode `mrs/msr spsr` + S-bit PC writes (framework-level,
+touches the bank machinery shared with `banked_spsr[ARM_BANK_USER]`), and
+this belongs in the upstream conversation (the issue-30 thread's SWI-return
+discussion is exactly this area). Until then the derail is reachable
+whenever the suspend-save flow runs to completion in-window.

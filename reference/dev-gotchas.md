@@ -135,6 +135,16 @@ recipe below is validated there.
   data region; the fix pattern for a runtime redirect is the one-shot
   unwind hook `runtime_abandon_resume_pending()` consulted by
   `runtime_should_yield` (2026-10-09, BRINGUP § windowed close-route).
+- **The BIOS cart-boot trampoline (0x1C-0x64) and System-mode SPSR**: the
+  soft-reset path runs the BIOS SWI dispatcher in SVC, but the dispatcher
+  itself switches to **System** (`msr cpsr_cf, (spsr & 0x80) | 0x1F`, at
+  0x158-0x160) before calling services — services (CpuSet/CpuFastSet/soft
+  reset) legitimately run in System. The post-reboot resume uses
+  `mrs spsr`/`msr spsr` + `subs pc, lr, #4` from System mode and depends on
+  the ARM7TDMI System-mode SPSR storage behavior; our engine (and the
+  reference interpreter) treat SPSR access in User/System as
+  undefined/no-restore, so the resumed dispatch keeps the wrong T (ARM into
+  a thumb address — miss → bridge → Undefined abort, cf. 0x08000494/0x0FF8).
 - **IWRAM addresses worth knowing in stall triage**: `[0x03007FFC]` =
   the ISR vector (healthy: `0x03000F10`, the game's IWRAM IRQ dispatcher;
   the 2026-10-09 phantom trampled it to `0x080000FC`); `[0x03000E10]` =

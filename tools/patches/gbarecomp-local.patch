@@ -28,7 +28,7 @@ index bc6663c..3574b4f 100644
          }
  
 diff --git a/src/armv4t/runtime_arm.cpp b/src/armv4t/runtime_arm.cpp
-index 78f06d6..8359a6d 100644
+index 78f06d6..5ec2d7b 100644
 --- a/src/armv4t/runtime_arm.cpp
 +++ b/src/armv4t/runtime_arm.cpp
 @@ -847,10 +847,50 @@ constexpr uint32_t kBiosRegionEnd = 0x00004000u;
@@ -82,7 +82,30 @@ index 78f06d6..8359a6d 100644
      // Strip THUMB bit; codegen handles the mode via cpsr_T already.
      uint32_t pc = target_pc & ~1u;
      if (runtime_trace_enabled())
-@@ -1417,6 +1457,19 @@ extern "C" void runtime_irq(uint32_t return_address) {
+@@ -1321,6 +1361,10 @@ extern "C" void runtime_swi(uint32_t swi_imm) {
+         // The hook ticks the service's cost; the SWI instruction itself
+         // still took its 1S fetch (mGBA charges the same under HLE).
+         if (g_bios_hle_hook(swi_num)) {
++            if (std::getenv("GBARECOMP_SWI_TRACE"))
++                std::fprintf(stderr,
++                    "runtime_swi: HLE took swi=0x%02X ret=0x%08X "
++                    "cpsr=0x%08X\n", swi_num, return_address, saved_cpsr);
+             runtime_tick(1u + swi_fetch);
+             return;
+         }
+@@ -1344,6 +1388,11 @@ extern "C" void runtime_swi(uint32_t swi_imm) {
+     g_cpu.banked_spsr[new_bank] = saved_cpsr;
+     g_cpu.R[14]                 = return_address;  // LR_svc
+     g_cpu.R[15]                 = 0x00000008u;
++    if (std::getenv("GBARECOMP_SWI_TRACE"))
++        std::fprintf(stderr,
++            "runtime_swi: LLE bank swi_imm=0x%X ret=0x%08X "
++            "cpsr 0x%08X -> 0x%08X (spsr_svc=0x%08X)\n",
++            swi_imm, return_address, saved_cpsr, new_cpsr, saved_cpsr);
+ 
+     // Charge the SWI instruction's own cost (instr_cycle_base(SWI) = 3:
+     // 2S+1N, the refill into the zero-wait BIOS vector) plus its own opcode
+@@ -1417,6 +1466,19 @@ extern "C" void runtime_irq(uint32_t return_address) {
      const uint32_t saved_r2  = g_cpu.R[2];
      const uint32_t saved_r3  = g_cpu.R[3];
      const uint32_t saved_r12 = g_cpu.R[12];
@@ -102,7 +125,7 @@ index 78f06d6..8359a6d 100644
      // Record the active IRQ source(s) (IE & IF) in the trace addr field and the
      // nesting depth in aux so a ring dump names which interrupt is being
      // vectored and how deep — used to pin the MC-HP-002 IRQ storm. Reading
-@@ -1503,6 +1556,26 @@ extern "C" void runtime_irq(uint32_t return_address) {
+@@ -1503,6 +1565,26 @@ extern "C" void runtime_irq(uint32_t return_address) {
      drive_irq_instruction();
      constexpr uint32_t kMaxIrqDispatches = 4'000'000u;
      uint32_t irq_guard = 0u;
@@ -129,7 +152,7 @@ index 78f06d6..8359a6d 100644
      while (g_irq_iret_depth != my_depth) {
          if (++irq_guard >= kMaxIrqDispatches) {
              std::fprintf(stderr,
-@@ -1513,12 +1586,68 @@ extern "C" void runtime_irq(uint32_t return_address) {
+@@ -1513,12 +1595,68 @@ extern "C" void runtime_irq(uint32_t return_address) {
              break;
          }
          drive_irq_instruction();
@@ -832,7 +855,7 @@ index cb6717c..2c725e1 100644
      // present after the game image, before the settings menu; guest thread.
      void (*host_overlay)(HostOverlay* overlay) = nullptr;
 diff --git a/src/runtime/runtime_arm_default_aborts.cpp b/src/runtime/runtime_arm_default_aborts.cpp
-index 72de208..e8fc86e 100644
+index 72de208..2b08404 100644
 --- a/src/runtime/runtime_arm_default_aborts.cpp
 +++ b/src/runtime/runtime_arm_default_aborts.cpp
 @@ -85,6 +85,94 @@ std::string g_prog_sha1;
@@ -1009,6 +1032,55 @@ index 72de208..e8fc86e 100644
          const char* trace_on_miss = std::getenv("GBARECOMP_TRACE_ON_DISPATCH_MISS");
          if (trace_on_miss && trace_on_miss[0] != '\0') {
              bool dump = trace_on_miss[0] == '1' && trace_on_miss[1] == '\0';
+@@ -493,6 +534,32 @@ extern "C" int runtime_bridge_interpret(uint32_t entry_pc, bool entry_thumb,
+     // sljit gate's bounded pass — never an IRQ continuation.)
+     const bool irq_cont = (g_irq_nest_depth != 0u) && (forced_stop_pc == 0u);
+ 
++    // 2026-10-09: every dispatch miss logs one line of entry context —
++    // misses are rare in steady state, and the wrong-mode/computed-reach
++    // family (FFTA 0x0FF8 thumb->ARM, 0x08000494 ARM->thumb) needs the
++    // entry mode + LR/SP/CPSR at the miss instant to be classifiable from
++    // a run log alone.
++    std::fprintf(stderr,
++        "runtime_arm: bridge entry pc=0x%08X thumb=%u stop=0x%08X "
++        "lr=0x%08X sp=0x%08X cpsr=0x%08X depth=%u top_level=%u\n",
++        entry_pc, entry_thumb ? 1u : 0u, stop_pc,
++        g_cpu.R[14], g_cpu.R[13], g_cpu.cpsr,
++        entry_depth, top_level ? 1u : 0u);
++    // The bridge's own interpreted records overwrite the ring within ~1 s
++    // (every interpreted instruction records), so the ONLY moment with the
++    // pre-miss generated-code context still in the ring is entry.
++    // Env-gated: dump the ring here for wrong-mode/computed-reach
++    // post-mortems (the FFTA 0x0FF8 / 0x08000494 family).
++    {
++        const char* fp_entry = std::getenv("GBARECOMP_BRIDGE_ENTRY_FP");
++        if (fp_entry != nullptr && *fp_entry != '\0') {
++            const std::uint32_t n = runtime_fp_save_file(fp_entry);
++            std::fprintf(stderr,
++                "runtime_arm: bridge entry — instruction ring dumped to %s "
++                "(%u records)\n", fp_entry, n);
++        }
++    }
++
+     // Snapshot the entry stack so we can restore it exactly (minus the popped
+     // frame) regardless of how IRQ/SWI excursions perturb it mid-bridge.
+     std::vector<std::uint32_t> entry_stack;
+@@ -660,6 +727,15 @@ extern "C" int runtime_bridge_interpret(uint32_t entry_pc, bool entry_thumb,
+                 entry_pc,
+                 static_cast<unsigned long long>(kBridgeIterationCap),
+                 stop_pc, cpu.R[15]);
++            {
++                const char* fp_dump = std::getenv("GBARECOMP_BRIDGE_ABORT_FP");
++                if (fp_dump != nullptr && *fp_dump != '\0') {
++                    const std::uint32_t n = runtime_fp_save_file(fp_dump);
++                    std::fprintf(stderr,
++                        "runtime_arm: bridge runaway — instruction ring "
++                        "dumped to %s (%u records)\n", fp_dump, n);
++                }
++            }
+             runtime_trace_dump_recent(96);
+             std::abort();
+         }
 diff --git a/src/runtime/runtime_bus_bridge.cpp b/src/runtime/runtime_bus_bridge.cpp
 index 044fc13..7ae2ae3 100644
 --- a/src/runtime/runtime_bus_bridge.cpp

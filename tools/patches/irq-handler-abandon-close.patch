@@ -1,5 +1,5 @@
 diff --git a/src/armv4t/runtime_arm.cpp b/src/armv4t/runtime_arm.cpp
-index 78f06d6..8359a6d 100644
+index 78f06d6..5ec2d7b 100644
 --- a/src/armv4t/runtime_arm.cpp
 +++ b/src/armv4t/runtime_arm.cpp
 @@ -847,10 +847,50 @@ constexpr uint32_t kBiosRegionEnd = 0x00004000u;
@@ -53,7 +53,30 @@ index 78f06d6..8359a6d 100644
      // Strip THUMB bit; codegen handles the mode via cpsr_T already.
      uint32_t pc = target_pc & ~1u;
      if (runtime_trace_enabled())
-@@ -1417,6 +1457,19 @@ extern "C" void runtime_irq(uint32_t return_address) {
+@@ -1321,6 +1361,10 @@ extern "C" void runtime_swi(uint32_t swi_imm) {
+         // The hook ticks the service's cost; the SWI instruction itself
+         // still took its 1S fetch (mGBA charges the same under HLE).
+         if (g_bios_hle_hook(swi_num)) {
++            if (std::getenv("GBARECOMP_SWI_TRACE"))
++                std::fprintf(stderr,
++                    "runtime_swi: HLE took swi=0x%02X ret=0x%08X "
++                    "cpsr=0x%08X\n", swi_num, return_address, saved_cpsr);
+             runtime_tick(1u + swi_fetch);
+             return;
+         }
+@@ -1344,6 +1388,11 @@ extern "C" void runtime_swi(uint32_t swi_imm) {
+     g_cpu.banked_spsr[new_bank] = saved_cpsr;
+     g_cpu.R[14]                 = return_address;  // LR_svc
+     g_cpu.R[15]                 = 0x00000008u;
++    if (std::getenv("GBARECOMP_SWI_TRACE"))
++        std::fprintf(stderr,
++            "runtime_swi: LLE bank swi_imm=0x%X ret=0x%08X "
++            "cpsr 0x%08X -> 0x%08X (spsr_svc=0x%08X)\n",
++            swi_imm, return_address, saved_cpsr, new_cpsr, saved_cpsr);
+ 
+     // Charge the SWI instruction's own cost (instr_cycle_base(SWI) = 3:
+     // 2S+1N, the refill into the zero-wait BIOS vector) plus its own opcode
+@@ -1417,6 +1466,19 @@ extern "C" void runtime_irq(uint32_t return_address) {
      const uint32_t saved_r2  = g_cpu.R[2];
      const uint32_t saved_r3  = g_cpu.R[3];
      const uint32_t saved_r12 = g_cpu.R[12];
@@ -73,7 +96,7 @@ index 78f06d6..8359a6d 100644
      // Record the active IRQ source(s) (IE & IF) in the trace addr field and the
      // nesting depth in aux so a ring dump names which interrupt is being
      // vectored and how deep — used to pin the MC-HP-002 IRQ storm. Reading
-@@ -1503,6 +1556,26 @@ extern "C" void runtime_irq(uint32_t return_address) {
+@@ -1503,6 +1565,26 @@ extern "C" void runtime_irq(uint32_t return_address) {
      drive_irq_instruction();
      constexpr uint32_t kMaxIrqDispatches = 4'000'000u;
      uint32_t irq_guard = 0u;
@@ -100,7 +123,7 @@ index 78f06d6..8359a6d 100644
      while (g_irq_iret_depth != my_depth) {
          if (++irq_guard >= kMaxIrqDispatches) {
              std::fprintf(stderr,
-@@ -1513,12 +1586,68 @@ extern "C" void runtime_irq(uint32_t return_address) {
+@@ -1513,12 +1595,68 @@ extern "C" void runtime_irq(uint32_t return_address) {
              break;
          }
          drive_irq_instruction();

@@ -26,10 +26,30 @@ index 117db49..4d847fb 100644
      // DLLs are left loaded (immutable code, process-lifetime); the OS reclaims
      // them at exit. Drain any last results so counters/banner are accurate.
 diff --git a/src/runtime/runtime.cpp b/src/runtime/runtime.cpp
-index b560791..1604903 100644
+index b560791..7fb0c8b 100644
 --- a/src/runtime/runtime.cpp
 +++ b/src/runtime/runtime.cpp
-@@ -2588,8 +2588,10 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -34,6 +34,7 @@
+ #include "touch_input.h"
+ #include "runtime_arm.h"
+ #include "runtime_bus_bridge.h"
++#include "mobile_platform.h"
+ #include "save_config.h"
+ #include "self_heal.h"
+ #include "overlay_loader.h"
+@@ -2449,6 +2450,11 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+         bool ctl_step_ok   = true;
+ 
+         std::thread game_thread([&]() {
++            // Finite-stack guard: the split vblank-wait loop nests host frames
++            // per spin iteration; a post-event flow that stops unwinding it
++            // would exhaust this thread's default 8 MiB stack. Unwind through
++            // the standard yield path once within 2 MiB of the bottom.
++            gbarecomp::host_stack_guard_arm_current(2u * 1024u * 1024u);
+             for (;;) {
+                 int st;
+                 {
+@@ -2588,8 +2594,10 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
          if (game_thread.joinable()) game_thread.join();
          bool save_ok = flush_save();
          write_session_diagnostics(opts, "exit", ppu.frame_count());
@@ -41,7 +61,17 @@ index b560791..1604903 100644
          runtime_shutdown();
          return (ok && save_ok) ? 0 : 1;
      }
-@@ -4260,8 +4262,10 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -2865,7 +2873,8 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+                                   opts.assist_fast_forward_multiplier_default);
+             win.configure_touch(opts.input_frame != nullptr,
+                                 opts.touch_gesture_claims,
+-                                opts.touch_pad_default, args.touch_emulation);
++                                opts.touch_pad_default, args.touch_emulation,
++                                opts.touch_pad_idle_hide_seconds);
+             win.set_touch_config_dir(exe_dir.c_str());
+         }
+         win.set_host_overlay(opts.host_overlay);
+@@ -4260,8 +4269,10 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
          }
      }
  
@@ -54,7 +84,7 @@ index b560791..1604903 100644
      return save_ok ? 0 : 1;
  }
 diff --git a/src/runtime/runtime_arm_default_aborts.cpp b/src/runtime/runtime_arm_default_aborts.cpp
-index 72de208..e8fc86e 100644
+index 72de208..2b08404 100644
 --- a/src/runtime/runtime_arm_default_aborts.cpp
 +++ b/src/runtime/runtime_arm_default_aborts.cpp
 @@ -85,6 +85,94 @@ std::string g_prog_sha1;
@@ -231,3 +261,52 @@ index 72de208..e8fc86e 100644
          const char* trace_on_miss = std::getenv("GBARECOMP_TRACE_ON_DISPATCH_MISS");
          if (trace_on_miss && trace_on_miss[0] != '\0') {
              bool dump = trace_on_miss[0] == '1' && trace_on_miss[1] == '\0';
+@@ -493,6 +534,32 @@ extern "C" int runtime_bridge_interpret(uint32_t entry_pc, bool entry_thumb,
+     // sljit gate's bounded pass — never an IRQ continuation.)
+     const bool irq_cont = (g_irq_nest_depth != 0u) && (forced_stop_pc == 0u);
+ 
++    // 2026-10-09: every dispatch miss logs one line of entry context —
++    // misses are rare in steady state, and the wrong-mode/computed-reach
++    // family (FFTA 0x0FF8 thumb->ARM, 0x08000494 ARM->thumb) needs the
++    // entry mode + LR/SP/CPSR at the miss instant to be classifiable from
++    // a run log alone.
++    std::fprintf(stderr,
++        "runtime_arm: bridge entry pc=0x%08X thumb=%u stop=0x%08X "
++        "lr=0x%08X sp=0x%08X cpsr=0x%08X depth=%u top_level=%u\n",
++        entry_pc, entry_thumb ? 1u : 0u, stop_pc,
++        g_cpu.R[14], g_cpu.R[13], g_cpu.cpsr,
++        entry_depth, top_level ? 1u : 0u);
++    // The bridge's own interpreted records overwrite the ring within ~1 s
++    // (every interpreted instruction records), so the ONLY moment with the
++    // pre-miss generated-code context still in the ring is entry.
++    // Env-gated: dump the ring here for wrong-mode/computed-reach
++    // post-mortems (the FFTA 0x0FF8 / 0x08000494 family).
++    {
++        const char* fp_entry = std::getenv("GBARECOMP_BRIDGE_ENTRY_FP");
++        if (fp_entry != nullptr && *fp_entry != '\0') {
++            const std::uint32_t n = runtime_fp_save_file(fp_entry);
++            std::fprintf(stderr,
++                "runtime_arm: bridge entry — instruction ring dumped to %s "
++                "(%u records)\n", fp_entry, n);
++        }
++    }
++
+     // Snapshot the entry stack so we can restore it exactly (minus the popped
+     // frame) regardless of how IRQ/SWI excursions perturb it mid-bridge.
+     std::vector<std::uint32_t> entry_stack;
+@@ -660,6 +727,15 @@ extern "C" int runtime_bridge_interpret(uint32_t entry_pc, bool entry_thumb,
+                 entry_pc,
+                 static_cast<unsigned long long>(kBridgeIterationCap),
+                 stop_pc, cpu.R[15]);
++            {
++                const char* fp_dump = std::getenv("GBARECOMP_BRIDGE_ABORT_FP");
++                if (fp_dump != nullptr && *fp_dump != '\0') {
++                    const std::uint32_t n = runtime_fp_save_file(fp_dump);
++                    std::fprintf(stderr,
++                        "runtime_arm: bridge runaway — instruction ring "
++                        "dumped to %s (%u records)\n", fp_dump, n);
++                }
++            }
+             runtime_trace_dump_recent(96);
+             std::abort();
+         }
