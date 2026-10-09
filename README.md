@@ -254,7 +254,7 @@ single long-lived watcher per session.
 For deeper captures (no code changes): `GBARECOMP_INSN_TRACE=1` +
 `GBARECOMP_FP_SAVE=file` (per-instruction ring; query with
 `tools/ringscan.py`), `GBARECOMP_WRAM_TRACE` (+`_LO`/`_HI`),
-`GBARECOMP_MISS_IWRAM_DUMP` — details in `AGENTS.md`.
+`GBARECOMP_MISS_IWRAM_DUMP` — details in `reference/dev-gotchas.md`.
 
 ### Recipes
 
@@ -489,7 +489,7 @@ Two tiers, split by what may leave your machine:
 | `tests/` | Host unit tests for `src/` custom code: `ctest --test-dir build -R ram_dispatch` (or run `./build/ffta_unit_tests` directly) |
 | `generated/` | Recompiler output — gitignored, **never edited** |
 | `mods/` | Preloaded mod catalog shipped beside the exe — the default-enabled `ffta.enhancement.widescreen` manifest activating the linked `ffta.widescreen` plugin |
-| `gbarecomp/`, `recomp-ui/` | Pinned framework submodules (see `AGENTS.md` for pins) |
+| `gbarecomp/`, `recomp-ui/` | Pinned framework submodules (see `reference/dev-gotchas.md` for pins) |
 | `tools/` | The whole harness: `play.sh`, `check.py` (regression gate), `ws_check.py` (widescreen smoke), `savecheck.py` (save validation), `resolve.py`, `cache_harvest.py`, `cycle.py`, `attract_check.py`, `misspack.py`, `coverage_report.py`, `framediff.py`, `dualrun.py`, `ringscan.py`, `keyprobe.py`, `trace_split.py`, `disarm.py`, … |
 | `.agents/skills/` | Project-local agent skills — `gbarecomp-recomp-playbook`, a portable healing-loop/audit playbook with task-grouped references |
 | `inputs/` | Deterministic input traces (`<frame>,0x<hex>` active-low, sticky) |
