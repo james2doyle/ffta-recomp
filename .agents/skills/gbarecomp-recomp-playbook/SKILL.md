@@ -1,6 +1,6 @@
 ---
 name: gbarecomp-recomp-playbook
-description: Portable field playbook for gbarecomp-family static recompilation game projects (retail ROM to a native PC binary driven by a hand-curated function corpus plus runtime self-heal). Covers the playtest-to-healing coverage loop, miss triage into config entries, savestate and input-trace reproducibility, crash-safe proposal harvesting, seed-until-static acceptance, emulator oracle differential testing, regression gates, and session discipline. Use when working on a gbarecomp-style recomp repository: auditing misses, building or running the replay and verification harness, triaging crashes/hangs/wedges, measuring coverage, or onboarding a contributor or agent.
+description: Portable field playbook for gbarecomp-family static recompilation game projects (retail ROM to a native PC binary driven by a hand-curated function corpus plus runtime self-heal). Covers the playtest-to-healing coverage loop, miss triage into config entries, savestate and input-trace reproducibility, crash-safe proposal harvesting, seed-until-static acceptance, emulator oracle differential testing, regression gates, and session discipline. Use when working on a gbarecomp-style recomp repository like auditing misses, building or running the replay and verification harness, triaging crashes/hangs/wedges, measuring coverage, or onboarding a contributor or agent.
 ---
 
 # gbarecomp Recompilation Playbook
