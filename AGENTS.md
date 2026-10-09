@@ -112,6 +112,7 @@ cmake --build build --target FFTARecomp --parallel 8
 |---|---|
 | `game.toml` | Per-game config: identity pin + all audit seeds (evidence in `note`s) |
 | `src/` | Host code: `main.cpp` (hooks/plugins), `ffta_ram_dispatch.h`, launcher boot |
+| `android/` | Android target: Gradle project, runtime TOML, payload defaults, device gate — guide `android/README.md` |
 | `generated/` | Recompiler output — gitignored, never edited |
 | `tools/` | The harness — key ones listed in the table above; full list: README § Repository layout |
 | `.agents/skills/` | `gbarecomp-recomp-playbook` — portable playtest/healing/audit playbook (SKILL.md routes its references) |
@@ -123,10 +124,12 @@ cmake --build build --target FFTARecomp --parallel 8
 All phases complete; **every executed path strict-FULLY_STATIC**; corpus
 **55,103 emitted units** (walker 97.8 % / pool 99.3 % proxies — a route is
 done when its replay is FULLY_STATIC, not when a proxy moves); attract hash
-stable since pinning; widescreen W1–W3 complete; save/summon hangs fixed.
-Remaining: offline-push re-trial (gated on an interior-split policy),
-f6000+ contact sheet, upstream note on the bridge stop-contract, Android
-port — README § Roadmap. History, evidence, crash playbooks: `BRINGUP.md`.
+stable since pinning; widescreen W1–W3 complete; save/summon hangs fixed;
+**Android port** landed and device-verified 2026-10-08 (guide
+`android/README.md`). Remaining: offline-push re-trial (gated on an
+interior-split policy), f6000+ contact sheet, upstream note on the bridge
+stop-contract, Android release prep — README § Roadmap. History, evidence,
+crash playbooks: `BRINGUP.md`.
 
 ## Reference index (load what the task needs)
 
@@ -135,6 +138,7 @@ port — README § Roadmap. History, evidence, crash playbooks: `BRINGUP.md`.
 | Decisions, priors, corrections, crash playbooks | `BRINGUP.md` |
 | Setup, run, layout, roadmap | `README.md` |
 | Playtest/debug cookbook, healing loop, gates, coverage, CI, unit tests | `tests/README.md` |
+| Android target: build, run, device gate, known behavior | `android/README.md` |
 | Harness traps: run modes, capture envs, close handling, RAM-dispatch, saves, submodule pins, framework patches | `reference/dev-gotchas.md` |
 | Oracle + frame-diff protocol (park phase, sync rules, builds) | `reference/oracle-harness.md` |
 | Widescreen internals + validation | `reference/widescreen.md` |

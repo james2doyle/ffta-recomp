@@ -256,6 +256,11 @@ GBARECOMP_INPUT_REPLAY=logs/playthrough.csv ./build/FFTARecomp ...` — expect
   (ground truth), walker's static reach, and pointer-pool reach (a proxy —
   not a goal; FFTA needs FULLY_STATIC on executed paths, not 100 % of a
   proxy). `--json` for machine-readable output.
+- **Android device gate:** `tools/validate_android.sh` — installs the newest
+  debug APK, launches through AUTOSTART, asserts process/activity/runtime-log/
+  crash health, and pulls evidence into `android/artifacts/last-run/`. Build,
+  run and known device behavior: `android/README.md`; on-device forensics:
+  `reference/dev-gotchas.md` § Android device forensics.
 
 Current snapshot (2026-10-08, strict 1200-frame run; refresh with
 `.venv/bin/python tools/coverage_report.py`):
@@ -317,4 +322,7 @@ Two tiers, split by what may leave your machine:
   (a PR job on a runner that can read the ROM is an exfiltration path).
   The sha pins (regress save + the ws fixtures) fail loudly if the
   runner's fixtures drift.
+- The **Android device gate** (`tools/validate_android.sh`) is device-bound
+  and manual — no phone in CI — so it is not part of either tier (build, run
+  and gate: `android/README.md`).
 

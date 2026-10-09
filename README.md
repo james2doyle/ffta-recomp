@@ -26,9 +26,11 @@ The attract regression gate hash has been stable since pinning.
 **Widescreen is complete** (W1–W3): up to 448 px via `--resize-view` /
 `--view-width`, ring scenes authoring their margins from the game's own
 field, the world map pillarboxed, transitions verified — gated by the
-`tools/ws_check.py` smoke matrix. Remaining: the gated offline-push
-re-trial, the long-run attract contact sheet, the upstream note, and the
-Android port — § Roadmap.
+`tools/ws_check.py` smoke matrix. **Android is playable on device** — the
+engine-shell port landed 2026-10-08 (build, run, gate and known behavior:
+[android/README.md](android/README.md)). Remaining: the gated offline-push
+re-trial, the long-run attract contact sheet, the upstream note, and Android
+release prep — § Roadmap.
 
 > **You must own the game and BIOS.** Both are user-supplied, hash-verified at
 > launch, and **never committed** (no ROM-derived bytes in git history, ever —
@@ -227,6 +229,8 @@ All testing, debugging and verification workflows live in
   attract, widescreen smoke, strict route replays)
 - **CI** — `.github/workflows/ci.yml` (fork-safe tier 1) and the full-gate
   tier split
+- **Android** — device gate `tools/validate_android.sh` (install → launch →
+  assertions → evidence); build/run guide: [android/README.md](android/README.md)
 
 ## Repository layout
 
@@ -235,6 +239,7 @@ All testing, debugging and verification workflows live in
 | `build.py` | Fresh-clone bootstrap — submodules → dumps → venv → patches → tools → BIOS → corpus → build → smoke (see Setup) |
 | `game.toml` | Per-game config: identity pin + all audit seeds (evidence in `note`s) |
 | `src/` | Host integration: `main.cpp`, launcher boot, stack setup |
+| `android/` | Android target: Gradle project + engine-shell wiring, runtime TOML, payload defaults, device gate — guide `android/README.md` |
 | `tests/` | Host unit tests + the testing guide — playtesting, healing loop, gates, CI (`tests/README.md`) |
 | `generated/` | Recompiler output — gitignored, **never edited** |
 | `mods/` | Preloaded mod catalog shipped beside the exe — the default-enabled `ffta.enhancement.widescreen` manifest activating the linked `ffta.widescreen` plugin |
@@ -345,9 +350,11 @@ noncommercial purposes. Third-party components keep their own terms (the
 2. **Long-run attract contact sheet (f6000+)** and the **upstream note**
    covering the bridge stop-contract + relocated-stub resume classes (a
    gbarecomp issue).
-3. **Android port** (research done; the app shell ships inside gbarecomp).
-   Device builds run with self-heal disabled — the static coverage this
-   loop builds is its prerequisite.
+3. **Android release prep** — the port is device-verified (2026-10-08;
+   guide [android/README.md](android/README.md)). Remaining: release
+   packaging (signing, arm64-only, APK content guard, version stamping), a
+   touch-first input scheme, a perf/size pass, and the upstream mods-state
+   note.
 4. Optional: a mod layer from the community notes' verified hack sites
    (QoL/difficulty/test-speed); share the reverse-engineered save-record
    format when the wiki scene is reachable.

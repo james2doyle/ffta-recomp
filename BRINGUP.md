@@ -3117,3 +3117,28 @@ Cross-references updated: AGENTS.md (reading order, workflow B,
 reference index), `tools/check.py` docstring, `ci.yml` tier comment;
 in-file "see below" pointers now target `tests/README.md` sections.
 Docs-only — no behavior change (`unit-py` green, 11 tests).
+
+### 2026-10-09 — Docs: ANDROID.md → android/README.md; Android pointers refreshed
+
+The Android guide moved from the repo root into the target it documents:
+`git mv ANDROID.md android/README.md` (history preserved). Nothing had
+linked the old path yet, so the move also wired the guide into the doc map;
+`android/README.md` itself notes the move and drops its "AGENTS.md / README
+pointers" deferred item (now done).
+
+State sweep of the docs that still described the port as pending:
+- README: status paragraph now lists **Android playable on device**
+  (engine-shell port 2026-10-08) with a link; "Testing & debugging" gains a
+  device-gate bullet; layout table gains an `android/` row; Roadmap item 3
+  becomes **Android release prep** (packaging/signing, arm64-only, APK
+  content guard, version stamping, touch-first input, perf/size pass,
+  upstream mods-state note).
+- AGENTS.md: "Android port" removed from the remaining list (landed +
+  device-verified), codebase map and reference index point at
+  `android/README.md`.
+- tests/README.md: Android device-gate bullet + a CI note (device-bound,
+  manual — not part of either tier).
+- reference/dev-gotchas.md § Android device forensics: guide pointer.
+
+Docs-only — no code, config, or gate change (`unit-py` re-run green, 11
+tests).

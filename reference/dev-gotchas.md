@@ -68,6 +68,8 @@ real hours once.
 
 ## Android device forensics (no root)
 
+Build/run/gate and known device behavior: `android/README.md`.
+
 Stock Android 14: `debuggerd -b <pid>` is root-gated even for debuggable
 apps, `/proc/<pid>/task/<tid>/stack` is unreadable, and SIGTERM is not a
 close mechanism — but `run-as <pkg>` (debug build) gives full same-uid

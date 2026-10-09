@@ -2,8 +2,10 @@
 
 Status 2026-10-08: **playable on device** — skeleton, build, first boot,
 widescreen and the device gate are all verified on a Xiaomi Mi 11
-(Android 14/API 34). This doc is the working reference for the Android
-target; `BRINGUP.md` keeps the dated decision log.
+(Android 14/API 34). Working reference for the Android target — moved here
+from the repo root (2026-10-09; previously `ANDROID.md`); `BRINGUP.md` keeps
+the dated decision log and `reference/dev-gotchas.md` § Android device
+forensics has the on-device debugging recipe.
 
 ## How the port is structured
 
@@ -155,4 +157,3 @@ For TCP debugging: `adb forward tcp:19888 tcp:19888` plus `--tcp-observe
 2. Touch-first input scheme (the engine's virtual pad is the v1 control).
 3. Perf/size pass (first build only measured qualitatively).
 4. Upstream note: mods-state default persistence on launcher-less runs.
-5. AGENTS.md / README pointers and roadmap update.
