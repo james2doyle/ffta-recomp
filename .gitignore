@@ -166,5 +166,5 @@ selfheal*.json
 # -----------------------------------------------------------------------------
 # Intentionally tracked — do NOT add rules for these:
 #   game.toml, src/, inputs/, mods/, BRINGUP.md, AGENTS.md,
-#   ffta-bootstrap-prompt.md, and the gbarecomp / recomp-ui submodules
+#   and the gbarecomp / recomp-ui submodules
 # -----------------------------------------------------------------------------

@@ -251,7 +251,6 @@ All testing, debugging and verification workflows live in
 | `symbols/` | Curated symbol seeds (attributed; consumed via `--symbols`) |
 | `BRINGUP.md` | Decision log — the project's memory; read it |
 | `AGENTS.md` | Rules of engagement for agents; read it before changing anything |
-| `ffta-bootstrap-prompt.md` | Historical origin document (the original brief) |
 
 ## Contributing
 

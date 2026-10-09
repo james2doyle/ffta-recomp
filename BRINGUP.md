@@ -2,7 +2,7 @@
 
 Decision log for the static recompilation of Final Fantasy Tactics Advance (US)
 to native PC via [mstan/gbarecomp](https://github.com/mstan/gbarecomp).
-Ground rules live in `ffta-bootstrap-prompt.md` (§Ground rules) and `AGENTS.md`.
+Ground rules live in `AGENTS.md` (§ Ground rules).
 
 Legend: every ROM claim below was verified by disassembly/slicing of `game.gba`
 via capstone (`tools/disarm.py`) or direct byte inspection; addresses are
