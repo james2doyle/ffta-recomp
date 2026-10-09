@@ -213,6 +213,14 @@ command so later changes cannot regress silently:
   scenario env var — the clean scenario must pass and pull evidence; miss,
   crash, missing-input and stuck-launch scenarios must fail with the right
   assertion. Keep boot/rendering/perf acceptance on real hardware.
+- **Guard the shipped artifact, not just the build.** A post-build pass over
+  the packaged binary catches what source checks cannot: payload files must
+  byte-match the staging inputs; private/test embeds must hash-match the
+  pins (and distributable builds must embed none); the per-ABI library
+  inventory and manifest facts must match the build config; and duplicate,
+  stray, or oversized entries must fail (incremental repackaging can leave a
+  junk blob — observed once as 67 MB vs the normal 37 MB). It runs on the
+  host after a build; keep it opt-in when CI cannot produce the artifact.
 - **Wrap the verified fresh-clone recipe in one idempotent bootstrap
   script.** Keep it stdlib-only on the system interpreter (it runs before
   the project venv exists), make every step detect completion (submodules,

@@ -27,6 +27,10 @@ Usage:
 CI tier 1 runs the no-private-material subset (no ROM/BIOS/savestates
 needed): `--only unit-cpp,unit-py,patches,android-static` — see
 tests/README.md § Continuous integration.
+
+Opt-in suite (not in the default run): `android-apk` — the content guard for
+a built APK (`tools/android_apk_check.py`); it needs an Android build, so
+select it explicitly with `--only android-apk`.
 """
 import argparse
 import concurrent.futures
@@ -166,12 +170,23 @@ def check_android_static():
     return r.returncode == 0, line or f"exit {r.returncode}"
 
 
+def check_android_apk():
+    """Content guard for a built APK (tools/android_apk_check.py): payload
+    vs staging sources, private-embed pins, per-ABI libs, manifest facts,
+    duplicate/stray/oversize zip entries. Opt-in — it needs a built APK
+    (--only android-apk; build first: android/README.md § Build)."""
+    r = run([sys.executable, "tools/android_apk_check.py"], timeout=600)
+    line = (r.stdout.strip().splitlines() or [""])[-1]
+    return r.returncode == 0, line or f"exit {r.returncode}"
+
+
 CHECKS = {
     "unit-cpp": check_unit_cpp,
     "unit-py": check_unit_py,
     "savecheck": check_savecheck,
     "patches": check_patches,
     "android-static": check_android_static,
+    "android-apk": check_android_apk,
     "attract": check_attract,
     "ws_smoke": check_ws_smoke,
     "user_load": lambda: strict_route(REG / "user_load_trace.csv", 1600),
@@ -180,6 +195,9 @@ CHECKS = {
 }
 FAST = ["unit-cpp", "unit-py", "savecheck", "patches", "android-static",
         "attract"]
+# Opt-in suites, left out of the default run (they need local artifacts a
+# desktop-only worktree may not have); --only NAME runs them explicitly.
+OPTIONAL = {"android-apk"}
 # Checks that execute the game binary (require it to exist); the others run
 # on a fresh clone without the ROM (CI tier 1: unit-cpp, unit-py, patches).
 NEEDS_EXE = {"attract", "ws_smoke", "user_load", "route_G", "route_K"}
@@ -215,7 +233,8 @@ def main():
                   f"{FIXTURE_SHA_PREFIX} - regenerate fixtures deliberately "
                   "before trusting results")
             return 1
-    names = names if a.only else (FAST if a.fast else list(CHECKS))
+    names = names if a.only else (
+        FAST if a.fast else [n for n in CHECKS if n not in OPTIONAL])
     jobs = a.jobs if a.jobs > 0 else min(8, os.cpu_count() or 4)
     jobs = max(1, min(jobs, len(names)))
     print(f"check: {len(names)} check(s), jobs={jobs}", flush=True)

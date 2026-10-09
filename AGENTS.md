@@ -98,6 +98,7 @@ cmake --build build --target FFTARecomp --parallel 8
 | Full regression gate | `.venv/bin/python tools/check.py` (`--fast`; `--jobs N`; `--only a,b`) |
 | CI subset (no dumps needed) | `--only unit-cpp,unit-py,patches,android-static` — `.github/workflows/ci.yml` |
 | Android static checks (device-free) | `tools/android_static_check.py` — suite `android-static` in `tools/check.py` |
+| Android APK content guard | `tools/android_apk_check.py [--apk …] [--expect public/private]` — opt-in `check.py --only android-apk` |
 | Widescreen smoke | `.venv/bin/python tools/ws_check.py` (fixtures `saves/ws_fixtures/`) |
 | Playtest (windowed, instrumented) | `tools/play.sh [--scale N \| --resize-view \| --tcp-observe PORT]` |
 | Attract golden gate | `.venv/bin/python tools/attract_check.py` (`--repin` only for deliberate changes) |

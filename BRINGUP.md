@@ -3179,3 +3179,42 @@ Remaining from the survey (tiers 2–3): Robolectric shell unit tests and the
 APK content guard — both need SDK/Gradle (and the guard a built APK); a
 separate tier when wanted. Both now sit on the `android/README.md` deferred
 list (Robolectric as its own item; the guard under release packaging).
+
+### 2026-10-09 (cont.) — Android APK content guard lands (`android-apk`)
+
+Implements the deferred "APK content guard" (device-free test survey, Tier
+3): `tools/android_apk_check.py` — a static pass over a built APK (unzip +
+aapt2; no phone, no Gradle rebuild). Eight checks: badging identity
+(package/minSdk/targetSdk/launcher vs build.gradle + engine template);
+public/private marker-vs-content consistency (`--expect` optional); payload
+byte-equality against the staging sources with an exact entry-set compare;
+private ROM/BIOS size + SHA-1 against the pins (public must embed neither);
+exactly one libmain.so per ABI with the expected library set + a badging
+cross-check; both activities in sensorLandscape + debuggable matching the
+build type; no packaged debug-args.txt; packaging sanity (zip CRC, duplicate
+entries, stray paths, assets outside payload, oversized non-lib entries —
+the incremental-repackaging junk-blob class).
+
+Wiring: `check.py --only android-apk`, excluded from the default run and
+`--fast` (a desktop-only worktree has no APK); direct use accepts `--apk
+PATH` and `--expect public|private`.
+
+Found + fixed while verifying: the documented private-build command passed
+`-PprivateRom=../game.gba -PprivateBios=../gbarecomp/bios/gba_bios.bin`, but
+the engine template resolves `-Pprivate*` paths against `android/app` — a
+private rebuild failed ("Private BIOS must be the 16 KiB dump").
+`android/README.md` now uses `../../…` (build re-run green).
+
+Evidence: private arm64 APK PASSES (embedded ROM sha1 == pin; 35.5 MiB); a
+fresh PUBLIC build PASSES under `--expect public` (29.8 MiB), and its staged
+payload correctly shed roms/bios — the "distributable build never inherits
+private assets" Sync claim verified on a real repackage; 12 crafted-zip
+negatives all caught (missing/altered/extra payload file, 2 MiB junk blob,
+duplicate entries, public+ROM, empty private, ROM hash mismatch, unexpected
+lib, unexpected ABI, orientation drift, `--expect` mismatch). The private
+arm64 artifact was rebuilt afterwards (gate-ready).
+
+Docs: android/README (thin-surface row, § Device-free checks, build-command
+fix, junk-blob cross-ref, deferred item 1 now packaging-only), tests/README
+(verification + CI notes), AGENTS commands, README tools list; the playbook
+verification reference gains the artifact-guard bullet.

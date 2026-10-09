@@ -31,6 +31,7 @@ This repo therefore adds only a thin surface:
 | `src/main.cpp` | `mobile_prepare_process` preflight, phone run options, `SDL_main` via a 256 MiB pthread |
 | `tools/validate_android.sh` | Device acceptance gate (assertions + evidence pull) |
 | `tools/android_static_check.py` | Device-free checks: identity pins, payload contract, hygiene, fake-`adb` gate self-test (suite `android-static`) |
+| `tools/android_apk_check.py` | APK content guard for built APKs (payload vs sources, embed pins, libs/ABI, manifest, junk/duplicates) — `check.py --only android-apk` |
 
 Runtime behavior on device (engine `mobile_platform.cpp`): chdir to the
 app-private `files/` root, stdout+stderr → `files/android-runtime.log`,
@@ -84,9 +85,10 @@ default JDK 27 is too new for Gradle 8.11.1), Android SDK at
 ```sh
 cd android
 export JAVA_HOME=/usr/lib/jvm/java-21-openjdk ANDROID_HOME=/opt/android-sdk
-# Private test build (ROM+BIOS embedded; arm64 only for speed):
+# Private test build (ROM+BIOS embedded; arm64 only for speed; the
+# -Pprivate* paths resolve relative to android/app, hence ../../):
 ./gradlew :app:assembleDebug -PgbaAbis=arm64-v8a -PgbaNativeJobs=12 \
-  -PprivateRom=../game.gba -PprivateBios=../gbarecomp/bios/gba_bios.bin
+  -PprivateRom=../../game.gba -PprivateBios=../../gbarecomp/bios/gba_bios.bin
 # Distributable build (no ROM/BIOS; import via the phone UI):
 ./gradlew :app:assembleDebug -PgbaAbis=arm64-v8a -PgbaNativeJobs=12
 ```
@@ -140,6 +142,16 @@ SELF-HEAL, missing-log, crash-buffer and setup-still-resumed runs fail the
 gate with the right assertion, and usage errors exit 2. The device gate on a
 real phone stays the authority for runtime behavior.
 
+After a Gradle build, `tools/android_apk_check.py` (`--only android-apk` in
+`tools/check.py`; outside the default run — a desktop worktree has no APK)
+guards the artifact itself: the packaged payload must byte-match the staging
+sources, a private build's embedded ROM/BIOS must match the pins
+(hash-verified), a public build must embed neither, `libmain.so` must exist
+exactly once per ABI, both activities must stay `sensorLandscape` with the
+build type's debuggable flag, and the zip must be free of duplicate / stray /
+oversized entries (the junk-blob class below). `--apk PATH` selects a
+specific file; `--expect public|private` asserts the build mode.
+
 ## Known behavior
 
 - **Host-stack guard** (`tools/patches/mobile-host-stack-guard.patch`): a spin
@@ -156,7 +168,9 @@ real phone stays the authority for runtime behavior.
 - Repackaging after a native relink can leave a junk blob inside an
   incrementally updated APK (67 MB vs the normal 37 MB, observed once);
   `rm -rf android/app/build` before packaging when artifact size matters
-  (native objects under `android/app/.cxx` are preserved).
+  (native objects under `android/app/.cxx` are preserved). The APK content
+  guard flags duplicate and unexpected large entries, so this class cannot
+  ship silently.
 - 256-wide title/UI BGs show tilemap wrap fragments at wide views — the same
   margin policy that desktop validated (the W3 rules pillarbox the world map
   and clip UI layers; scenes whose *main* BG is a 256 tilemap wrap
@@ -167,8 +181,8 @@ real phone stays the authority for runtime behavior.
 
 ## Deferred (do later, in rough order)
 
-1. Release packaging: keystore/signing, arm64-only release, APK content
-   guard, version stamping.
+1. Release packaging: keystore/signing, arm64-only release, version
+   stamping.
 2. Touch-first input scheme (the engine's virtual pad is the v1 control).
 3. Perf/size pass (first build only measured qualitatively).
 4. Upstream note: mods-state default persistence on launcher-less runs.

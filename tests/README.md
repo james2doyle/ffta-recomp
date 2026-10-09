@@ -270,6 +270,12 @@ GBARECOMP_INPUT_REPLAY=logs/playthrough.csv ./build/FFTARecomp ...` — expect
   hygiene, and a fake-`adb` self-test of the device gate script (clean run
   passes; SELF-HEAL / missing-log / crash / setup-still-resumed runs fail).
   No SDK or device needed; guide: `android/README.md`.
+- **Android APK content guard:** `tools/android_apk_check.py` (opt-in:
+  `check.py --only android-apk`; needs a built APK) — the packaged payload
+  must byte-match the staging sources, private embeds are hash-checked
+  against the pins, public embeds must be absent, `libmain.so` once per ABI,
+  manifest facts, and duplicate / stray / oversized zip entries. Run after
+  `./gradlew :app:assembleDebug` (android/README.md § Build).
 
 Current snapshot (2026-10-08, strict 1200-frame run; refresh with
 `.venv/bin/python tools/coverage_report.py`):
@@ -334,6 +340,8 @@ Two tiers, split by what may leave your machine:
   The sha pins (regress save + the ws fixtures) fail loudly if the
   runner's fixtures drift.
 - The **Android device gate** (`tools/validate_android.sh`) is device-bound
-  and manual — no phone in CI — so it is not part of either tier (build, run
-  and gate: `android/README.md`).
+  and manual — no phone in CI — so it is not part of either tier. The
+  **APK content guard** is device-free but needs a Gradle build (SDK/NDK),
+  so it stays opt-in (`--only android-apk`) until a suitable runner exists
+  (build, run, guard: `android/README.md`).
 
