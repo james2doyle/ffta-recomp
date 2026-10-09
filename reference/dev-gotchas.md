@@ -118,6 +118,12 @@ recipe below is validated there.
   stack visibly grows → print `g_irq_nest_depth` at mainline PCs; a stuck
   ≥1 (poisoned by a guest-return × IRQ interleave) disables the
   `nest_depth == 0` gate. See BRINGUP § 2026-10-09 later.
+- **Ring dump at any breakpoint**: launch with `GBARECOMP_INSN_TRACE=1`
+  (the fingerprint ring must be armed) and, at a gdb stop, call
+  `runtime_fp_save_file("/tmp/fp.bin")` — the whole per-instruction ring
+  (8.4M records; `<Q18I`: cycles, pc, cpsr, r0-r12, sp, lr) dumps without
+  needing a clean process exit. This caught the 2026-10-09 handler-loss
+  chain end to end (BRINGUP § true root).
 - **Recorded patch generation**: `git -C gbarecomp diff --no-ext-diff
   --no-color -- <paths> > tools/patches/<name>.patch` — without both flags
   the output is difft-rendered and/or ANSI-colored and fails `git apply`

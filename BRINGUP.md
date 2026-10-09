@@ -3429,3 +3429,62 @@ against their pins.
 **Still open:** the true root of the handler loss (why the SWI-return cancel
 chain cuts the handler short) — unchanged; the press repro still ends at
 the coverage boundary.
+
+## 2026-10-09 — True root of the handler loss: ring-proven corruption chain
+
+Full instruction-ring capture of the press repro, dumped at the exact miss
+(`fp_save` via gdb at `runtime_dispatch_miss`; 8.4M records; recipe below).
+The chain, in execution order:
+
+1. **vbl129.** The IRQ interrupts mainline inside the DISPSTAT wait helper
+   (`0x080033BA`, `wait_for_vblank`). The handler runs; in its tail the
+   suspend-save transition routine (`0x8145486`) calls SWI 0x0B (CpuFastSet,
+   via the veneer at `0x814186C: svc #0xb; bx lr`) to copy 0x40 bytes of
+   saved context from the stack area (`0x3007E94`) to EWRAM.
+2. **The SWI's exception return (BIOS epilogue at `0x188`, SVC mode)
+   resumes at `0x080033BA` — the IRQ-interrupted mainline PC — instead of
+   the veneer continuation `0x814186E`.** The ring shows the fetch sequence
+   `0x188 (SVC) → 0x080033BA (System)`, `LR=0x814548B` untouched. This is
+   the "handler cut short": the SWI return carried the IRQ's saved context,
+   so the save routine was abandoned mid-flight and the interrupted helper
+   resumed.
+3. **The resumed helper's `pop {r0}; bx r0` (`0x8033C2`) reads a zeroed
+   stack slot: `[0x3007E90] = 0x0`** (`r0 := 0`, `SP: 0x3007E90→0x3007E94`).
+   `bx r0` → **PC = 0** — the helper's push/pop pairing belongs to the
+   pre-IRQ invocation; the slot was clobbered during the phantom-era stack
+   churn (the save flow had just copied the region above it).
+4. **PC=0 executes the BIOS reset vector**: `0x00 → 0x68 → 0x84 → 0x88` —
+   the BIOS init path — which switches to ARM: `cpsr=0x…DF (T=0)` at
+   `0x88`. The walk then drifts through BIOS ARM exception code
+   (`0x1C..0x64`, stack dancing across the banked-SP tops
+   `0x3007FF0/0x3007FE8/0x3007FE0`).
+5. **BIOS `0x64` = `subs pc, lr, #4`** (the ARM exception-return
+   instruction) executes in that garbage context with `LR=0x814548B`; the
+   engine lowers it as an exception return, computing
+   `new_pc = (LR − 4) & ~3 = 0x8145484` **in ARM mode** → dispatch miss
+   (`0x8145484` is Thumb-only) → self-heal bridge interprets Thumb bytes as
+   ARM → Undefined → abort. (The 0x…484 boundary death, explained end to
+   end.)
+
+**Root layers, from the bottom:**
+- **R1 (engine, open — the real root):** an SWI executed inside a driven IRQ
+  handler returned to the IRQ-interrupted PC, not to its own continuation.
+  The BIOS epilogue pops its return from the guest stacks; the value was the
+  IRQ's saved context (written by the IRQ entry or by the save flow's
+  context copy). Candidate fix: in `runtime_swi`/exception-return handling,
+  validate an SWI's SVC-context return against the continuation the engine
+  recorded at SWI entry (`return_address+4`) when `g_irq_nest_depth > 0`,
+  and keep the recorded value on mismatch (loud log).
+- **R2 (guest-stack corruption):** `[0x3007E90]=0` — the interrupted
+  helper's saved LR slot clobbered during the phantom era (the unbalanced
+  handler/SWI churn on the shared System stack).
+- **R3 (our close, secondary, fixable now):** the abandon-close can fire
+  mid-cancel-flight (observed: cancels continued after the close dropped
+  `g_call_return_floor` to 0, popping below the interrupted floor). The
+  close should defer while a cancel/return cascade is in flight.
+
+**Recipe (repeatable):** steppable `--tcp` + `savestate_load game.state3`
++ A press; launch with `GBARECOMP_INSN_TRACE=1`; gdb:
+`break runtime_dispatch_miss`, condition `entry_pc==0x08145484`, then
+`call runtime_fp_save_file("/tmp/fp.bin")` at the stop. Parse records
+`<Q18I` 80 B: cycles, pc, cpsr, r0..r12, sp(=16), lr(=17).
