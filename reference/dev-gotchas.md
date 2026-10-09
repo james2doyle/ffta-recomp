@@ -99,6 +99,11 @@ access, which is enough:
 - Miss proposals on device: live journaling needs `GBARECOMP_MISS_FRAG`
   (FFTA sets it in `src/main.cpp` `on_mobile`); the exit-time report never
   runs on a hung/killed session.
+- `set_break_pc` (observe) unwinds dispatches when a guest PC is reached —
+  powerful for "does this code ever run", but on an IRQ-path PC it can
+  trip the engine's handler-abandon rail (4 M dispatches) and the session
+  derails into a crash afterward. Use it as the last probe, on a session
+  you don't need to keep.
 - Save transplant: `am force-stop` first, then `run-as <pkg> mkdir -p
   files/saves`, `adb push` to `/data/local/tmp`, `run-as cp` into place,
   md5-compare, relaunch. Validate the image first with

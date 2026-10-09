@@ -1006,6 +1006,31 @@ recipe: `reference/dev-gotchas.md` § Android device forensics):
   upstream note: stack-guard patch + the finder roll-in gap (a
   branch-target block beyond a host's linear walk extent cannot merge).
 
+**Update (same evening, live-session findings).** Read-only observe probes
+plus a breakpoint test on a fresh reproduction:
+
+- IRQ ring (`irq_cap`): **exactly one vblank IRQ per frame** (src=1;
+  cycle delta = 280,896 = one frame), taken in the wait loop, no storm, no
+  nesting in steady state. IF shows vblank pending mid-vblank as expected.
+- The callback is entered every frame (`set_break_pc 0x080004B0` pins all
+  samples there) **and reaches the flag-write sequence**
+  (`set_break_pc 0x0800050A` pins; disasm 0x4B0..0x522 shows a
+  straight-line `strh #1 → 0x03000E10` at 0x051C) — yet the wait loop
+  reads the flag as 0 (`ldrh r1,[0x03000E10]` sampled live). The flag is
+  either set-then-undone by another reader, or the write does not stick;
+  this contradiction is the crux.
+- The m4a mixer runs real work each callback (hot PCs 0x0300377x..B4 with
+  live sample pointers and sane counters — not a corrupted state).
+- Save record mid-write in every capture; the previous group keeps loading.
+- **Caution:** clearing that break tripped the engine's handler-abandon
+  rail ("handler at depth 2 did not iret after 4M dispatches") and the
+  session derailed (bridged miss 0x03005710 → interpreter Undefined
+  0x030057DC → crash). `set_break_pc` on an IRQ-path PC is a last-act
+  inspection tool; expect the session to die afterward.
+- **Next:** reproduce the same save + flow on desktop (scratch config +
+  the pulled save image) and chase the flag contradiction locally with
+  rings and the oracle.
+
 ### Playtest session 1 — first-battle path now fully static (2026-10-06)
 The user played the desktop build interactively (letter-only keymap; see the
 IBus note above) through the intro, menus and into the first battle (two
