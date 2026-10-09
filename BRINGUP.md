@@ -1031,6 +1031,57 @@ plus a breakpoint test on a fresh reproduction:
   the pulled save image) and chase the flag contradiction locally with
   rings and the oracle.
 
+### 2026-10-09 — Android hang reproduced on desktop: deterministic steppable crash + nesting mechanism
+**Repro (deterministic, ~30 s, headless).** `--tcp` (steppable) + TCP
+`savestate_load game.state3` (loads at f4515; plain `--load-state` is NOT
+applied by the `--tcp` path) → `step`×98 → `set_keyinput 0x03FE`×4 →
+`0x03FF` → the process **SIGSEGVs (rc 139) 26 steps after the press**; the
+crash step starts at pc 0x08006CE4. 600 pre-press steps are clean. This
+closes the Android entry's next-step: the save+flow hang now reproduces on
+desktop without a device.
+**Mechanism (gdb-verified).** Backtrace at the crash: ~284k alternating
+host frames `gf_vblank_wait_loop ↔ gf_vblank_wait_loop_cont`, rsp at the
+bottom of the 8 MiB thread stack, RIP inside `render_scanline_internal`
+(host PPU render called from `runtime_tick` from inside the deep loop) —
+i.e. host-stack exhaustion by the generated split of the 4-instruction
+vblank spin (0x08000418 `ldrh` / 0x0800041C `cmp` / 0x0800041E `beq` /
+0x08000428 `b`): each spin iteration maps onto host **calls** pairing the
+two generated functions (+2 frames/iteration, ≈59 B each — same signature
+as the device's "64-byte frames"). In normal operation the spin exits on
+the first vblank-flag set, so the cascade unwinds every frame and never
+accumulates; **after the A press the steppable path keeps spinning within a
+step and the cascade grows without bound** until the stack (and then the
+render call path) dies. The windowed path's present-in-place hook bypasses
+the per-frame unwind/redispatch, so it does not nest — instead the same
+flow shows an endless title/intro "churn" (screens cycle for 30+ min of
+guest time; input-response yet unverified locally due to window-focus
+issues). Device guard (`tools/patches/mobile-host-stack-guard.patch`) is
+the existing bounded mitigation for exactly this nesting; the desktop
+steppable path has no equivalent.
+**Boundary-state reads (pre and post press, per frame).** flag
+0x03000E10=1, IE=0x2003, IF=0, IME=1, KEYINPUT clean; pc at the wait loop
+at every frame boundary — so the spin-exit failure is within-step, not a
+global IRQ lockout.
+**Anti-red-herrings (re-checked today).** Watchdog "busy-spin" trips fire
+in healthy play too; the m4a "spin" in the dump (`pc=0x03003514`) is the
+engine's normal mixer block (bounded, `subs/bgt`, count=0x83); the m4a
+ident 0x68736D54 in the sound struct is the standard "engine enabled"
+handshake, and the open-bus reads at a garbage pointer are the (already
+present) MC-HP-002 open-bus behavior. None of these is the root cause.
+**Oracle context (mGBA, same save):** suspend→A returns to the title; a
+return-to-title (soft reset SELECT+START+A+B verified) replays the intro
+("It was a day like any other…"), and START during the attract interrupts
+to the title menu — i.e. the intended post-press flow is title→attract
+with live input, which is what the windowed churn should be compared
+against.
+**Artifacts (gitignored):** `logs/savehang/{gdb_tcp3.log,gdb_tcp4.log,
+tcp2.log,tcp3.log,pcflag.csv,churn/,ramsnaps-*}` plus the failed-press
+recipes. Fix candidates: (a) arm the stack-budget guard on desktop
+non-PIP paths; (b) root-fix the split-loop nesting (upstream finder
+roll-in gap, see the Android entry's upstream note); (c) nail why the spin
+does not exit within the step post-press.
+
+
 ### Playtest session 1 — first-battle path now fully static (2026-10-06)
 The user played the desktop build interactively (letter-only keymap; see the
 IBus note above) through the intro, menus and into the first battle (two
