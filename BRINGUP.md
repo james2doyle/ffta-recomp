@@ -100,6 +100,8 @@ ldr r2,[r3]` (0x080000FC–0x08000110): standard masked-IF read at 0x04000200/02
 - SYS mode sp = **0x03007FA0**, IRQ mode sp = **0x03007EC0** (crt0 literals 0xF4/0xF8).
 - BIOS IRQ vector target: **0x03007FFC** ← 0x080000FC (crt0 installs).
 - Indexed IRQ callback table base: **0x03000E50** (crt0 literals 0x244/0x248; used by IRQ dispatcher `bx` path at 0x080001C0). 0x030008D0 (literal 0x24C) — usage TBD.
+- VBlank scheduler queue **0x03000E10**: +0 u16 tick flag (exactly what `vblank_wait_loop` polls — 0x08000418 `ldrh`/`cmp`/`beq` spin, verified 2026-10-09), +2 count, +3 current; task array 0x03002800; runner **0x080069F4**, init **0x08006A7C**; tick set in `vblank_callback` (0x080004B0).
+- m4a sound info: pointer slot **0x03007FF0** → struct **0x020084E0** (ident magic 0x68736D54 at +0; pcm counter +4); per-frame engine tick **0x08144AF0**, the first call of `vblank_callback` (0x080004B4). 2026-10-09 disarm + hang-trace evidence (BRINGUP § 2026-10-09).
 
 ### Phase 0 result
 All Phase 0 checks pass; ROM is a genuine AFXE US retail dump, exact 16 MiB.
@@ -928,7 +930,9 @@ SIGSEGV "stack pointer is not in a rw map", 512+ frames of alternating
   terminated by `b 0x42A` before the literal pool), and the `beq` target
   sits beyond it. Reverted. Upstream item: extend mid-function alias
   roll-in to branch-target blocks in the walk-end..next-real-start gap.
-- **Fix shipped:** `tools/patches/mobile-host-stack-guard.patch` — the
+- **Fix shipped:** `tools/patches/mobile-host-stack-guard.patch` (superseded
+  2026-10-09 by `tools/patches/host-stack-guard-desktop.patch`, which also
+  arms the desktop TCP game thread) — the
   mobile game thread arms a host-stack budget (stack minus 32 MiB); the
   per-instruction `runtime_should_yield` probe unwinds through the standard
   yield path once crossed (gated: never inside a live IRQ handler; same
@@ -1055,7 +1059,7 @@ render call path) dies. The windowed path's present-in-place hook bypasses
 the per-frame unwind/redispatch, so it does not nest — instead the same
 flow shows an endless title/intro "churn" (screens cycle for 30+ min of
 guest time; input-response yet unverified locally due to window-focus
-issues). Device guard (`tools/patches/mobile-host-stack-guard.patch`) is
+issues). Device guard (`tools/patches/host-stack-guard-desktop.patch`) is
 the existing bounded mitigation for exactly this nesting; the desktop
 steppable path has no equivalent.
 **Boundary-state reads (pre and post press, per frame).** flag
@@ -1080,6 +1084,42 @@ recipes. Fix candidates: (a) arm the stack-budget guard on desktop
 non-PIP paths; (b) root-fix the split-loop nesting (upstream finder
 roll-in gap, see the Android entry's upstream note); (c) nail why the spin
 does not exit within the step post-press.
+
+### 2026-10-09 (later) — guard ported to desktop; nest-depth poisoning identified
+**Walk results (gdb + per-instruction ring `fp_save`; all local, gitignored):**
+- The spin **does** exit: in the last 8.3M instructions the ring shows 126
+  clean passes (flag read=1 exactly 126×, clear@0x08000416 126×, IRQ set
+  @0x0800051C 126×, exit@0x0800042A 126×). Guest logic = intact.
+- The leak is host-side: the generated split of the vblank spin
+  (`gf_vblank_wait_loop` ↔ `gf_vblank_wait_loop_cont`) compiles to **real
+  nested calls** (objdump-verified: `call` + `ret`, no tail-calls), ~1 pair
+  per spin iteration; the chain stops unwinding after the suspend flow and
+  grows ~412 KB/frame (≈6,000 pairs) until the 8 MiB thread stack dies.
+- **Poisoning event (~31 frames post-press):** the last clean IRQ request
+  comes from a DISPSTAT VBlank-wait (`0x080033A0`, `gpc=0x080033BA`); from
+  the next frame onward `g_irq_nest_depth` **never returns to 0** (measured:
+  the wait-block clear `0x08000416` runs at nd=1, the handler at nd=2). The
+  mainline permanently runs "inside" a handler that never re-accounts its
+  exit (guest `pop {r0}; bx r0` return interleaved with the vblank request).
+  This explains the desktop churn *and* mirrors the device's
+  flag-contradiction/handler findings. It also explains why the mobile
+  guard's `nest_depth == 0` gate never fires once stuck.
+**Fix shipped (safety net):** `tools/patches/host-stack-guard-desktop.patch`
+(supersedes `mobile-host-stack-guard.patch`): the guard is platform-neutral,
+armed on the desktop `--tcp` game thread via `host_stack_guard_arm_current`
+(2 MiB margin), plus a **critical tier** (`host_stack_critically_low`, last
+0.5 MiB) that unwinds even when `g_irq_nest_depth > 0` — the stuck state.
+Validated: the deterministic press repro (SIGSEGV at +26) now survives with
+`runtime: host-stack guard unwind count=… (nested)` lines; the process stays
+alive (bounded; steps become very slow while the poisoned state persists).
+Android arming extended with the same critical tier (untested on device).
+**Still open (the true root):** the nest-depth accounting at the
+return/IRQ interleave in `runtime_irq`/`runtime_exception_return`
+(`g_irq_nest_depth`/`g_irq_iret_depth`), and the upstream split-loop merge
+(roll-in gap) that would remove the recursion entirely. Also: whether the
+windowed churn (PIP path) and the device signatures share this exact
+poisoning once the guard keeps it alive.
+
 
 
 ### Playtest session 1 — first-battle path now fully static (2026-10-06)

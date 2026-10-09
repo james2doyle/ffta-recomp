@@ -154,7 +154,7 @@ specific file; `--expect public|private` asserts the build mode.
 
 ## Known behavior
 
-- **Host-stack guard** (`tools/patches/mobile-host-stack-guard.patch`): a spin
+- **Host-stack guard** (`tools/patches/host-stack-guard-desktop.patch`; supersedes `mobile-host-stack-guard.patch`): a spin
   that fails to unwind — the split vblank-wait loop (`0x08000418` ↔
   `0x08000428`) — now unwinds through the runtime's standard yield path
   before the 256 MiB game-thread stack is exhausted, logging
