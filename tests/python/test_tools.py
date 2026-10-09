@@ -7,6 +7,8 @@ Covers the pure logic the healing/audit flow depends on:
   - misspack.prologue_scan: thumb push-with-lr backscan on a synthetic ROM
 
 Run: .venv/bin/python tests/python/test_tools.py [-v]
+Requires capstone (misspack dependency): use .venv per README setup, or
+`pip install capstone==5.0.7` — CI installs that same pin.
 """
 import pathlib
 import struct
@@ -18,8 +20,16 @@ import unittest
 REPO = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "tools"))
 
-import cache_harvest  # noqa: E402
-import misspack  # noqa: E402
+try:
+    import cache_harvest  # noqa: E402
+    import misspack  # noqa: E402
+except ModuleNotFoundError as exc:
+    if exc.name == "capstone":
+        raise SystemExit(
+            "unit-py needs capstone (misspack dependency): run via "
+            ".venv/bin/python (README setup) or `pip install "
+            "capstone==5.0.7`") from None
+    raise
 
 
 class TraceSplitTest(unittest.TestCase):

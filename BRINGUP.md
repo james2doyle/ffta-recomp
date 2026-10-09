@@ -2878,3 +2878,25 @@ only, no code change):
   split by private material, and the presentation-matrix refinements
   (≥2 widths, sample authored columns, fade compositor invariant,
   stale-margin guard, headless-only caveat for windowed paths).
+
+### 2026-10-08 (cont.) — CI fix: unit-py needs capstone on the runner
+
+GitHub CI (tier 1) failed `unit-py` with an empty detail line. Root cause
+(reproduced in a fresh clone with system `python3`): `test_tools.py` imports
+`tools/misspack.py`, which does a module-level `import capstone`; local
+runs always used `.venv` (capstone 5.0.7) but CI runs the system
+interpreter, so the import aborted the whole module before unittest could
+run. The empty detail was a second (reporting) gap: `check_unit_py()` read
+only the last *stdout* line, and unittest/tracebacks go to stderr.
+
+Fixes:
+- `.github/workflows/ci.yml`: `actions/setup-python` 3.12 +
+  `pip install capstone==5.0.7` (pinned to match `.venv`; manylinux
+  `py3-none` wheel — no build deps on the runner).
+- `tools/check.py`: `check_unit_py()` falls back to the most useful stderr
+  line on failure instead of an empty detail.
+- `tests/python/test_tools.py`: missing capstone raises a one-line
+  actionable `SystemExit` ("run via .venv" / pip line), not a raw traceback.
+Verified: fresh-clone `--only unit-py` passes with capstone importable
+(PYTHONPATH simulation of the CI env); fails with the friendly line without
+it; local `--only unit-cpp,unit-py,patches` green via `.venv`.

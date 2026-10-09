@@ -200,7 +200,10 @@ command so later changes cannot regress silently:
   clone with no game data. Private tier: everything needing the game image
   or fixtures, on a self-hosted runner with the material pre-placed (or a
   token-gated private bundle), trusted events only — a PR job on a runner
-  that can read the ROM is an exfiltration path.
+  that can read the ROM is an exfiltration path. Install the tier's tool
+  deps explicitly on the runner (observed: the Python unit tests import a
+  tool that needs capstone — local runs pass via `.venv`, so the gap only
+  shows as an import abort in CI; pin the wheel to the `.venv` version).
 - **Gate your submodule patches if you keep them.** Each patch must apply
   to the pristine pin (or be already applied and reverse cleanly) — and
   exports must be made with `--no-pager --no-ext-diff --no-color`: diff

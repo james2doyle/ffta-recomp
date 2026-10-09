@@ -70,6 +70,12 @@ def check_unit_cpp():
 def check_unit_py():
     r = run([sys.executable, "tests/python/test_tools.py"])
     line = (r.stdout.strip().splitlines() or [""])[-1]
+    if r.returncode != 0 and not line.strip():
+        # unittest reports and import tracebacks go to stderr; without this
+        # fallback the table shows an empty detail for those failures.
+        err = [l for l in r.stderr.strip().splitlines() if l.strip()]
+        line = next((l for l in reversed(err) if "error" in l.lower()),
+                    err[-1] if err else f"exit {r.returncode}")
     return r.returncode == 0, line
 
 

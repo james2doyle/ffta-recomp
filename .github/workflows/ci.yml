@@ -34,6 +34,18 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             ninja-build libsdl2-dev libgl-dev libfreetype-dev libharfbuzz-dev
 
+      # unit-py imports tools/misspack.py, which needs capstone. Local runs
+      # always use .venv (README setup); the runner needs the same dep on
+      # the interpreter that runs check.py (sys.executable). Pinned to the
+      # .venv version; manylinux py3-none wheel, nothing to build.
+      - name: Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Python deps (unit-py)
+        run: python3 -m pip install "capstone==5.0.7"
+
       - name: Configure
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 
