@@ -870,6 +870,43 @@ if needed), engine checkout at gbarecomp/platform/android/.
   harvesting surface (adb-forwarded TCP debug), but playable depth still
   comes from the Phase 5 audit loop.
 
+### Android port — skeleton to device-verified boot (2026-10-08)
+Implemented on the engine's Android shell (pin `ecc9c55`, which is upstream
+`main`; `platform/android` verified against all remote heads).
+
+- **Game-side surface**: `android/` Gradle project (Gradle 8.11.1 / AGP
+  8.10.1; identity `org.gbarecomp.fftarecomp`, variant
+  `final_fantasy_tactics_advance`, landscape), runtime-only
+  `android/game_android.toml`, CMake `if(ANDROID)` → SHARED target `main`
+  with forced `GBARECOMP_ENABLE_MODS=ON` (links the trusted-plugin
+  lifecycle), SDL2-target guard for the launcher, per-platform default
+  config; `src/main.cpp` mobile hooks (`mobile_prepare_process`, phone run
+  options, `SDL_main` via `mobile_run_with_stack`).
+- **Build**: JDK 21 (Gradle 8.11.1 rejects JDK 27); NDK 27.1.12297006 via
+  sdkmanager (its exit 1 on a root-owned `emulator/package.xml` is
+  harmless — the NDK unzips fine). First build 2m51s; libmain.so ≈ 99 MB;
+  APK 37 MB with private ROM/BIOS embed (never committed; `.gitignore`
+  covers `*.apk`).
+- **Device (Xiaomi Mi 11, Android 14/API 34)**: AUTOSTART boot to gameplay;
+  `cpu_backend=static-recompiled`; zero dispatch misses; flash512 detected;
+  virtual pad default; 256 MiB game thread. `[video] resize_view = true`
+  enables the desktop-validated expanded view: 356x160 filling 3200x1440
+  (~9x); authored margins verified on the intro field (house/fence continue
+  into the margins, no wrap). 256-wide title/UI BGs wrap cosmetically at
+  wide views — same policy behavior desktop validated.
+- **Mods state quirk**: the runtime's startup commit persists raw
+  `enabled=false` for default-enabled, never-touched features (no launcher
+  seeding on mobile), so they switch off from the second launch on.
+  `android/payload/mods/state.toml` now ships `enabled = true` for fresh
+  installs (player-owned thereafter; device state fixed manually).
+  Candidate upstream note.
+- **Gate**: `tools/validate_android.sh` (install → AUTOSTART launch → five
+  assertions → evidence pull to `android/artifacts/last-run/`); PASSED on
+  device. Its fetch handling treats `exec-out`-folded remote `cat:` errors
+  as missing files (caught a false-positive miss frag before the fix).
+- **Deferred**: release signing/packaging, touch-first scheme, perf/size
+  pass, upstream note, AGENTS/README pointers.
+
 ### Playtest session 1 — first-battle path now fully static (2026-10-06)
 The user played the desktop build interactively (letter-only keymap; see the
 IBus note above) through the intro, menus and into the first battle (two

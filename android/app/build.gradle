@@ -1,0 +1,41 @@
+plugins {
+    id "com.android.application"
+}
+
+// Engine / UI checkouts: the pinned submodules by default; a feature worktree
+// can be selected with -PgbarecompRoot=... / -PrecompUiRoot=... (or the
+// GBARECOMP_ROOT / RECOMP_UI_ROOT environment variables).
+def gameRoot = rootDir.parentFile
+def pick = { String prop, String env, File fallback ->
+    def v = providers.gradleProperty(prop).orNull ?: System.getenv(env)
+    return v ? new File(v) : fallback
+}
+def engineRoot = pick("gbarecompRoot", "GBARECOMP_ROOT", new File(gameRoot, "gbarecomp"))
+def recompUiRoot = pick("recompUiRoot", "RECOMP_UI_ROOT", new File(gameRoot, "recomp-ui"))
+
+ext.gbaGame = [
+    applicationId : "org.gbarecomp.fftarecomp",
+    versionCode   : 1,
+    versionName   : "0.1.0",
+    title         : "Final Fantasy Tactics Advance",
+    romLabel      : "Final Fantasy Tactics Advance (USA) ROM",
+    romSha1       : ["4ac05441f4de70a4ec3dd932116346c61b8783d9"],
+    romSize       : 16777216,
+    romFile       : "ffta_usa.gba",
+    biosRequired  : true,
+    orientation   : "landscape",
+    payloadVersion: "2",
+    setupNote     : "Landscape tactics: use the on-screen pad and buttons; " +
+                    "long-press or three-finger tap for the runtime settings menu.",
+    variant       : "final_fantasy_tactics_advance",
+    gameToml      : new File(rootDir, "game_android.toml"),
+    payloadDirs   : [
+        [from: new File(gameRoot, "mods/preloaded"), into: "mods"],
+        [from: new File(rootDir, "payload/mods"), into: "mods"],
+    ],
+    gameRoot      : gameRoot,
+    engineRoot    : engineRoot,
+    recompUiRoot  : recompUiRoot,
+]
+
+apply from: new File(engineRoot, "platform/android/gbarecomp-app.gradle")

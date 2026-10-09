@@ -7,17 +7,20 @@
 #include "mod_function_hooks.h"
 #include "mod_runtime.h"
 #include "ffta_ram_dispatch.h"
+#include "mobile_platform.h"
 
 #if defined(GBAGAME_RECOMP_UI)
 #include "game_launcher_boot.h"
 #endif
 
-#if !defined(_WIN32)
+#if !defined(_WIN32) && !defined(__ANDROID__)
 #include <sys/resource.h>
 // Generated guest code turns every guest BL into a host C call; FFTA's
 // call chains plus the PPU renderer exceed the Linux 8 MiB default. The
 // framework reserves 16 MiB on Windows via LINKER:--stack; on Linux the
-// main-thread stack is governed by RLIMIT_STACK, so raise it here.
+// main-thread stack is governed by RLIMIT_STACK, so raise it here. On
+// Android the game runs on a 256 MiB pthread (mobile_platform.h), so this
+// is desktop-only.
 static void raise_stack_limit() {
     struct rlimit rl;
     if (getrlimit(RLIMIT_STACK, &rl) == 0) {
@@ -155,8 +158,8 @@ int ffta_ws_bg_x_provider(int bg, int x, int y, int* hw_x) {
 
 }  // namespace
 
-int main(int argc, char** argv) {
-#if !defined(_WIN32)
+int ffta_main(int argc, char** argv) {
+#if !defined(_WIN32) && !defined(__ANDROID__)
     raise_stack_limit();
 #endif
     for (int i = 1; i < argc; ++i) {
@@ -166,6 +169,14 @@ int main(int argc, char** argv) {
             return 0;
         }
     }
+
+    std::vector<std::string> args(argv, argv + argc);
+    // Android: private-storage layout, log file, staged game.toml, no
+    // pre-boot launcher. No-op on desktop (args left untouched).
+    gbarecomp::MobileProcessOptions mobile;
+    mobile.game_config = GBARECOMP_DEFAULT_GAME_CONFIG;
+    mobile.program_name = "./FFTARecomp";
+    const bool on_mobile = gbarecomp::mobile_prepare_process(args, mobile);
 
     gbarecomp::RunOptions opts;
     opts.builtin_game_name = "Final Fantasy Tactics Advance";
@@ -181,7 +192,7 @@ int main(int argc, char** argv) {
     opts.extended_view_frame = ffta_ws_margin_policy;
     opts.builtin_rom_sha1 = "4ac05441f4de70a4ec3dd932116346c61b8783d9";
     opts.launcher_region = "USA";
-    opts.launcher_game_config = "game.toml";
+    opts.launcher_game_config = GBARECOMP_DEFAULT_GAME_CONFIG;
 
     // FFTA relocates position-independent save/flash helpers into a moving
     // stack frame and calls them by computed address; canonicalize those
@@ -195,14 +206,32 @@ int main(int argc, char** argv) {
     // the reset callback; this covers run paths that skip the pass.
     gba_mod_set_function_hook_enabled("ffta.lzss-guard", 1);
 
+    if (on_mobile) {
+        // Phones fill the screen with the desktop-validated expanded view
+        // (decision 2026-10-08); physical-pixel sizing keeps the runtime
+        // chrome readable, resume after an OS kill, touch-friendly UI.
+        opts.resize_view_sizing = gbarecomp::RunOptions::ViewSizing::Density;
+        opts.resume_suspend_state_on_launch = true;
+        opts.ui_touch_friendly = true;
+    }
+
 #if defined(GBAGAME_RECOMP_UI)
-    std::vector<std::string> args(argv, argv + argc);
+    // Mobile args carry --no-launcher, so this returns false on device.
     if (game_launcher_preboot(args, opts)) return 0;
+#endif
     std::vector<char*> av;
     av.reserve(args.size());
     for (auto& arg : args) av.push_back(arg.data());
     return gbarecomp::run_game(static_cast<int>(av.size()), av.data(), opts);
-#else
-    return gbarecomp::run_game(argc, argv, opts);
-#endif
 }
+
+#if defined(__ANDROID__)
+extern "C" int SDL_main(int argc, char** argv) {
+    // Desktop-sized host stack for the recompiled corpus (mobile_platform.h).
+    return gbarecomp::mobile_run_with_stack(ffta_main, argc, argv);
+}
+#else
+int main(int argc, char** argv) {
+    return ffta_main(argc, argv);
+}
+#endif

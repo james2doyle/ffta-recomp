@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Original vector emblem: a downward sword on an indigo field.
+     No third-party artwork (project hygiene rule). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#16203A"
+        android:pathData="M0,0h108v108h-108z" />
+    <path
+        android:fillColor="#D9A441"
+        android:pathData="M54,14L59,19L54,24L49,19z" />
+    <path
+        android:fillColor="#7A4E2A"
+        android:pathData="M51,24L57,24L57,42L51,42z" />
+    <path
+        android:fillColor="#D9A441"
+        android:pathData="M36,42L72,42L72,48L36,48z" />
+    <path
+        android:fillColor="#C9D1DC"
+        android:pathData="M49,48L59,48L56,80L54,88L52,80z" />
+</vector>

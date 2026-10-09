@@ -1,0 +1,42 @@
+# Android runtime config — Gradle stages this into the app payload as
+# variants/final_fantasy_tactics_advance/game.toml under the app's private
+# files/ directory (mobile_prepare_process chdirs there first).
+#
+# Runtime-only: the recompiled corpus is produced on desktop from the full
+# game.toml; this file carries just what the runtime reads at launch. ROM and
+# BIOS are never packaged publicly — the setup activity imports them through
+# the SAF picker and verifies size + SHA-1 against the manifest pins.
+
+[game]
+name = "Final Fantasy Tactics Advance"
+short_name = "final_fantasy_tactics_advance"
+default_region = "USA"
+
+[bios]
+path = "../../bios/gba_bios.bin"
+sha1 = "300c20df6731a33952ded8c436f7f186d25d3492"
+hle = false                     # LLE: recompiled real BIOS required (user dump)
+
+[rom]
+path = "../../roms/ffta_usa.gba"
+sha1 = "4ac05441f4de70a4ec3dd932116346c61b8783d9"
+
+[save]
+type = "flash512"
+size = 65536
+path = "../../saves/ffta_us.sav"
+
+[video]
+screen = "raw"                  # exact BGR555 passthrough (desktop parity)
+view_width = 240                # native start; the host display selects the width below
+# Android opt-in for the desktop-validated resize-driven expanded view: fills
+# the display at the drawable aspect (clamped to the 448 cap authorized by
+# RunOptions.max_view_width). Desktop keeps its opt-in flag (--resize-view).
+resize_view = true
+
+[audio]
+shadow = false                  # no MP2K shadow mixer; recompiled canon only
+
+[runtime]
+debug_port = 19888
+window_title = "FFTARecomp"

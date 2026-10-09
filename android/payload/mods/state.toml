@@ -1,0 +1,18 @@
+# Default mod selection staged with the app payload (fresh installs only —
+# state.toml is player-owned and is never overwritten on payload updates).
+#
+# The widescreen feature is default-enabled in its manifest, but the engine's
+# runtime commit persists a raw `enabled = false` for never-touched features,
+# which would disable the authored field margins from the second launch on.
+# An explicit `enabled = true` here makes the selection durable; players can
+# still toggle it in the runtime settings menu (long-press / three-finger tap).
+format_version = 1
+
+[[package]]
+id = "ffta.enhancement.widescreen"
+version = "1.0.0"
+
+[[feature]]
+package_id = "ffta.enhancement.widescreen"
+id = "widescreen"
+enabled = true
