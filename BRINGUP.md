@@ -3603,10 +3603,11 @@ process alive; the close route and its resume pc are reported).
 
 **Engine additions rolled in with the acceptance:**
 - The abandon close restores the **IRQ-enable state** captured at IRQ
-  entry (IE/IME). The phantom-era suspend save disables interrupts; a
-  resumed frame-gate wait otherwise spins forever on the game's
-  IRQ-ticked frame flag (observed: IE/IME 0 -> restored 0x2003/1, logged
-  `restore IRQ enable at close`).
+  entry (IE/IME). (Corrected reading, later entry: the gate the stalled
+  flow waits at is the crt0 frame gate on `[0x03000E10]`, which is the
+  save flow's own one-time completion marker (writes 0x0100), *not* an
+  IRQ-ticked flag — IF stays 0 throughout the healthy flow. The restore
+  is kept as coherence hygiene; observed IE/IME 0 -> 0x2003/1.)
 - The resume intercept logs its pair (`abandon-resume intercept
   want=… got=…`) so the mechanism is visible in every run.
 
@@ -3617,3 +3618,55 @@ intercept cannot fire; IE-restore alone does not move it). Steppable and
 free-run TCP paths are green; windowed pacing is queued for the next
 session with this note and the capture recipe (watchdog ring + observe
 reads).
+
+### 2026-10-09 (late) — Windowed close-route fixed: the full chain
+
+The present-paced windowed path (`play.sh` + `--tcp-observe`) now passes
+the acceptance too. Each mechanism, all visible in the run log:
+
+1. **ISR vector guard** — the phantom excursion trampled IWRAM
+   `[0x03007FFC]` (observed wild 0x080000FC; healthy 0x03000F10). The
+   abandon close snapshots it at IRQ entry and restores it
+   (`restore ISR vector at close: 0x080000FC->0x03000F10`).
+2. **IRQ-enable restore** — IE/IME 0 -> entry values (`0x2003`/`1`).
+3. **Mode-coherent resume** — `runtime_dispatch` derives the execution
+   mode from `CPSR.T`, not the pc bit; the phantom's ARM excursion left T
+   clear, so the redirect to `0x814186E` resolved as an **ARM** dispatch
+   -> table miss -> self-heal bridge -> interpreter `Undefined` at
+   `0x8141906` -> deliberate abort (also the source of the
+   `mode="arm"` self-heal frag for `0x814186E` — **do not seed**). The
+   intercept now forces `CPSR.T` from the close-time snapshot:
+   `abandon-resume intercept want=0x0814186E got=0x080033B6 (thumb=1)`.
+4. **One-unwind while a resume is pending** — present-in-place runners
+   never unwind on vblank by design, so a wedged post-close flow reached
+   no `runtime_dispatch` at all and the intercept could not act (the
+   long-standing "no-dispatch stall" variant: guest pc churning through
+   the 0x080033xx data region, frames presenting, screen static).
+   `runtime_should_yield` now returns true **once** while
+   `g_abandon_resume_pc` is armed (`g_irq_nest_depth == 0`): the runner
+   redispatches, and the intercept fires. One unwind, one dispatch —
+   frame-boundary resume misses are not reintroduced (the redirect
+   happens at a dispatch boundary, not an interior pc).
+
+**Evidence:** windowed acceptance (`desktop_accept.py --mode window`)
+**PASS** — 39 distinct screens / 4,883 frames, close route, process
+alive; the TCP free-run acceptance (`--mode tcp`) 3x PASS (24k frames/35
+screens close route; 24k/37 clean route; 19.5k/26); `hangrepro` PASS;
+full gate ALL PASS with the new opt-in `desktop-accept` suite
+(`check.py --only desktop-accept`; skips without state3/playtest.sav).
+
+**Residual (documented, not fixed):** a rare windowed-path variant derails
+the press flow into a corrupted computed jump that lands on BIOS `0x0FF8`
+(disarm-verified: a thumb compare-loop, NOT an "ARM routine" as first
+noted), triggering the self-heal bridge; the bridge then ran away and hit
+the interpreter runaway guard — `SELF-HEAL bridge for 0x00000FF8 exceeded
+200000000 instructions without returning to stop_pc=0x08094FCC … Aborting
+rather than spinning silently` (acceptance run 2026-10-09). Evidence it is
+press-path, not idle: a 60 s no-press idle control on the same state is
+clean (zero self-heal; frames advance; screens transition normally), and
+the healthy press flows (steppable + tcp free-run, many runs) never reach
+`0x0FF8`. The dispatch resolves thumb correctly, so this is NOT the
+`0x814186E` mode-coherence issue — it is the same family as the phantom
+resumption (a corrupted pc at an indirect transfer). Next step when
+prioritized: sweep the steppable press phase for a deterministic repro of
+the abort, then ring the transfer that produces `0x0FF8`.

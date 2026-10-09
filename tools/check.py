@@ -206,6 +206,71 @@ def check_patches():
     return ok, " ".join(details)
 
 
+def _acceptance_lock():
+    """Cross-process lock so concurrent check runs never race two acceptance
+    games (they share evidence paths and would collide regardless of port)."""
+    import fcntl
+    lock_dir = REPO / "logs" / "desktop_accept"
+    lock_dir.mkdir(parents=True, exist_ok=True)
+    f = open(lock_dir / ".lock", "w")
+    try:
+        fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        f.close()
+        return None
+    return f
+
+
+def check_desktop_accept():
+    """Opt-in TCP-observed free-run acceptance of the suspend-save press
+    (tools/desktop_accept.py --mode tcp). Skips without game.state3 /
+    saves/playtest.sav, or while another acceptance holds the lock."""
+    if not (REPO / "game.state3").exists() or not (REPO / "saves" / "playtest.sav").exists():
+        return True, "skipped (needs game.state3 + saves/playtest.sav)"
+    lock = _acceptance_lock()
+    if lock is None:
+        return True, "skipped (another acceptance running)"
+    try:
+        r = run([sys.executable, "tools/desktop_accept.py", "--mode", "tcp",
+                 "--port", "19878", "--work", "logs/desktop_accept/tcp",
+                 "--observe", "60"], timeout=300)
+    finally:
+        lock.close()
+    if r.returncode == 77:
+        return True, "skipped (prerequisites missing)"
+    if r.returncode == 0:
+        return True, "PASS: desktop acceptance (tcp free-run)"
+    return False, f"FAIL: desktop acceptance rc={r.returncode}"
+
+
+def check_desktop_accept_window():
+    """Opt-in WINDOWED acceptance (present-in-place path): play.sh +
+    --tcp-observe + ydotool press, scored identically. This is the path
+    where the abandon-resume one-unwind hook and mode coherence matter
+    (present-in-place never unwinds on VBlank by design). Skips (rc 77)
+    without a display / ydotool / state3 / playtest.sav."""
+    if not (REPO / "game.state3").exists() or not (REPO / "saves" / "playtest.sav").exists():
+        return True, "skipped (needs game.state3 + saves/playtest.sav)"
+    if not (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")):
+        return True, "skipped (needs a display)"
+    if shutil.which("ydotool") is None:
+        return True, "skipped (needs ydotool)"
+    lock = _acceptance_lock()
+    if lock is None:
+        return True, "skipped (another acceptance running)"
+    try:
+        r = run([sys.executable, "tools/desktop_accept.py", "--mode", "window",
+                 "--port", "19879", "--work", "logs/desktop_accept/window",
+                 "--observe", "60"], timeout=300)
+    finally:
+        lock.close()
+    if r.returncode == 77:
+        return True, "skipped (prerequisites missing)"
+    if r.returncode == 0:
+        return True, "PASS: desktop acceptance (windowed present-in-place)"
+    return False, f"FAIL: windowed desktop acceptance rc={r.returncode}"
+
+
 def check_hangrepro():
     """Opt-in deterministic press repro (tools/hangrepro.py): the state3
     suspend->A hang must stay bounded (pre-guard it SIGSEGV'd at ~+26 steps;
@@ -245,6 +310,8 @@ CHECKS = {
     "patches": check_patches,
     "android-static": check_android_static,
     "hangrepro": check_hangrepro,
+    "desktop-accept": check_desktop_accept,
+    "desktop-accept-window": check_desktop_accept_window,
     "android-apk": check_android_apk,
     "attract": check_attract,
     "ws_smoke": check_ws_smoke,

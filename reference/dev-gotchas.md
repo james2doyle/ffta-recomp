@@ -129,6 +129,23 @@ recipe below is validated there.
   sequence resumed at `0x8033BA` — computed/logged values can disagree with
   what the CPU really executed; confirm every hand-off in the per-instruction
   ring before drawing conclusions.
+- **Present-in-place never unwinds on vblank** (windowed runner): a wedged
+  guest can stay inside one dispatch forever (frames still present, screen
+  frozen, no new `runtime_dispatch`). Diagnostic: pc sampling churns in a
+  data region; the fix pattern for a runtime redirect is the one-shot
+  unwind hook `runtime_abandon_resume_pending()` consulted by
+  `runtime_should_yield` (2026-10-09, BRINGUP § windowed close-route).
+- **IWRAM addresses worth knowing in stall triage**: `[0x03007FFC]` =
+  the ISR vector (healthy: `0x03000F10`, the game's IWRAM IRQ dispatcher;
+  the 2026-10-09 phantom trampled it to `0x080000FC`); `[0x03000E10]` =
+  the save flow's completion marker the crt0 frame gate (`gf_vblank_wait_loop`)
+  waits on (nonzero exits; the healthy flow writes `0x0100`). NEITHER is
+  IRQ-ticked — a stalled flow waiting on `0x03000E10` means the save flow
+  never completed, not that IRQs are off.
+- **`runtime_dispatch` derives thumb/arm from `CPSR.T`, not the pc bit**
+  — redirecting a pc while the CPU carries a stale mode resolves the
+  target in the wrong mode (table miss -> bridge -> Undefined). Always
+  make the mode coherent with the redirect.
 - **Ring dump at any breakpoint**: launch with `GBARECOMP_INSN_TRACE=1`
   (the fingerprint ring must be armed) and, at a gdb stop, call
   `runtime_fp_save_file("/tmp/fp.bin")` — the whole per-instruction ring

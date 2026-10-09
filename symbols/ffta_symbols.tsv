@@ -208,6 +208,11 @@
 # evidence: BRINGUP § true root — the suspend flow copies 0x40 B of stack
 # context to EWRAM through it).
 0x0814186C	thumb	swi0b_thunk
+# The veneer's second halfword (`bx lr`); a separate walker unit and the
+# flow-continuation resume target of the 2026-10-09 abandon-close chain
+# (`abandon-resume intercept want=0x0814186E`): the delayed iret restores
+# this pc so the veneer returns into the suspend flow.
+0x0814186E	thumb	swi0b_thunk_tail
 # Post-suspend return flow (press repro): prologue push {r4-r6,lr} @0x81453F8;
 # writes 0x8f/0/8 setup values; bl swi0b_thunk @0x8145486 copies 0x40 B of
 # live stack context (r0=sp) to EWRAM — the routine the corrupted BIOS

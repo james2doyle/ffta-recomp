@@ -28,10 +28,10 @@ index bc6663c..3574b4f 100644
          }
  
 diff --git a/src/armv4t/runtime_arm.cpp b/src/armv4t/runtime_arm.cpp
-index 78f06d6..c7c213c 100644
+index 78f06d6..8359a6d 100644
 --- a/src/armv4t/runtime_arm.cpp
 +++ b/src/armv4t/runtime_arm.cpp
-@@ -847,10 +847,28 @@ constexpr uint32_t kBiosRegionEnd = 0x00004000u;
+@@ -847,10 +847,50 @@ constexpr uint32_t kBiosRegionEnd = 0x00004000u;
  
  }  // namespace
  
@@ -41,6 +41,23 @@ index 78f06d6..c7c213c 100644
 +// first dispatch after the close is redirected there (BRINGUP § flow-continuation
 +// resume). 0 = disarmed.
 +static uint32_t g_abandon_resume_pc = 0;
++// The interrupted context's mode at the close (CPSR.T of the IRQ entry save).
++// The phantom excursion can leave the CPU in ARM (BIOS trampolines); the
++// resumed flow is the interrupted thumb context, and runtime_dispatch derives
++// the mode from CPSR.T — without this the resume resolves as an ARM dispatch
++// (table miss -> bridge -> Undefined; 2026-10-09 windowed abort).
++static bool g_abandon_resume_t = true;
++
++// True while the one-shot abandon-resume redirect is armed (the first
++// dispatch after an abandoned-IRQ close). runtime_should_yield consults this
++// so a present-in-place runner (which normally never unwinds on vblank) still
++// takes one instruction-boundary unwind: the runner redispatches, and
++// runtime_dispatch's intercept redirects to the coherent resume pc. Without
++// it, a wedged post-close flow parks in native loops with no dispatch forever
++// (2026-10-09 windowed stall variant).
++extern "C" bool runtime_abandon_resume_pending(void) {
++    return g_abandon_resume_pc != 0u;
++}
 +
  extern "C" void runtime_dispatch(uint32_t target_pc) {
      // A generated caller can fall through to another dispatch when the yielded
@@ -50,17 +67,22 @@ index 78f06d6..c7c213c 100644
 +        const uint32_t want = g_abandon_resume_pc;
 +        g_abandon_resume_pc = 0u;
 +        std::fprintf(stderr,
-+            "runtime_dispatch: abandon-resume intercept want=0x%08X got=0x%08X\n",
-+            want, target_pc);
++            "runtime_dispatch: abandon-resume intercept want=0x%08X got=0x%08X "
++            "(thumb=%u)\n",
++            want, target_pc, g_abandon_resume_t ? 1u : 0u);
 +        if ((target_pc & ~1u) != want) {
 +            g_cpu.R[15] = want;
 +            target_pc = want;
 +        }
++        if (g_abandon_resume_t)
++            g_cpu.cpsr |= CPSR_T_BIT;
++        else
++            g_cpu.cpsr &= ~CPSR_T_BIT;
 +    }
      // Strip THUMB bit; codegen handles the mode via cpsr_T already.
      uint32_t pc = target_pc & ~1u;
      if (runtime_trace_enabled())
-@@ -1417,6 +1435,14 @@ extern "C" void runtime_irq(uint32_t return_address) {
+@@ -1417,6 +1457,19 @@ extern "C" void runtime_irq(uint32_t return_address) {
      const uint32_t saved_r2  = g_cpu.R[2];
      const uint32_t saved_r3  = g_cpu.R[3];
      const uint32_t saved_r12 = g_cpu.R[12];
@@ -72,10 +94,15 @@ index 78f06d6..c7c213c 100644
 +    // restores the entry enable state — the phantom's disable is not real.
 +    const uint16_t saved_ie   = bus_read_u16(0x04000200u);
 +    const uint16_t saved_ime  = bus_read_u16(0x04000208u);
++    // ISR vector [0x03007FFC]: the phantom excursion can trample this IWRAM
++    // vector (observed wild 0x080000FC in a windowed stall), killing the
++    // game's frame tick; the gate then spins forever (present-in-place never
++    // unwinds). Restore at the abandon close like IE/IME.
++    const uint32_t saved_isr  = bus_read_u32(0x03007FFCu);
      // Record the active IRQ source(s) (IE & IF) in the trace addr field and the
      // nesting depth in aux so a ring dump names which interrupt is being
      // vectored and how deep — used to pin the MC-HP-002 IRQ storm. Reading
-@@ -1503,6 +1529,26 @@ extern "C" void runtime_irq(uint32_t return_address) {
+@@ -1503,6 +1556,26 @@ extern "C" void runtime_irq(uint32_t return_address) {
      drive_irq_instruction();
      constexpr uint32_t kMaxIrqDispatches = 4'000'000u;
      uint32_t irq_guard = 0u;
@@ -102,7 +129,7 @@ index 78f06d6..c7c213c 100644
      while (g_irq_iret_depth != my_depth) {
          if (++irq_guard >= kMaxIrqDispatches) {
              std::fprintf(stderr,
-@@ -1513,12 +1559,60 @@ extern "C" void runtime_irq(uint32_t return_address) {
+@@ -1513,12 +1586,68 @@ extern "C" void runtime_irq(uint32_t return_address) {
              break;
          }
          drive_irq_instruction();
@@ -149,8 +176,16 @@ index 78f06d6..c7c213c 100644
 +        // the guest just computed (0x814186E — the save flow's continuation).
 +        // Hand that pc to the next runtime_dispatch as a one-shot resume.
 +        g_abandon_resume_pc = g_cpu.R[15];
++        g_abandon_resume_t = (saved_cpsr & CPSR_T_BIT) != 0;
 +        const uint16_t ie  = bus_read_u16(0x04000200u);
 +        const uint16_t ime = bus_read_u16(0x04000208u);
++        const uint32_t isr = bus_read_u32(0x03007FFCu);
++        if (isr != saved_isr) {
++            bus_write_u32(0x03007FFCu, saved_isr);
++            std::fprintf(stderr,
++                "runtime_irq: restore ISR vector at close: 0x%08X->0x%08X\n",
++                isr, saved_isr);
++        }
 +        if (ie != saved_ie || ime != saved_ime) {
 +            bus_write_u16(0x04000200u, saved_ie);
 +            bus_write_u16(0x04000208u, saved_ime);
@@ -975,7 +1010,7 @@ index 72de208..e8fc86e 100644
          if (trace_on_miss && trace_on_miss[0] != '\0') {
              bool dump = trace_on_miss[0] == '1' && trace_on_miss[1] == '\0';
 diff --git a/src/runtime/runtime_bus_bridge.cpp b/src/runtime/runtime_bus_bridge.cpp
-index 044fc13..a655e05 100644
+index 044fc13..7ae2ae3 100644
 --- a/src/runtime/runtime_bus_bridge.cpp
 +++ b/src/runtime/runtime_bus_bridge.cpp
 @@ -8,6 +8,7 @@
@@ -986,9 +1021,12 @@ index 044fc13..a655e05 100644
  #include "multiplayer_slice.h"
  #include "../armv4t/arm_ir.h"
  #include "../armv4t/symbol_lookup.h"
-@@ -989,6 +990,34 @@ void runtime_set_vblank_input_hook(std::function<void()> h) {
+@@ -988,7 +989,43 @@ void runtime_set_vblank_input_hook(std::function<void()> h) {
+     g_vblank_input_hook = std::move(h);
  }
  
++extern "C" bool runtime_abandon_resume_pending(void);
++
  extern "C" bool runtime_should_yield(void) {
 +    // Host-stack budget guard: branch/dispatch chains that fail to unwind
 +    // (e.g. a busy-wait split across generated functions whose wake flag
@@ -1018,10 +1056,16 @@ index 044fc13..a655e05 100644
 +            return true;
 +        }
 +    }
++    // Abandon-close continuation: the first instruction boundary after the
++    // close unwinds (even under present-in-place, which otherwise never
++    // returns true) so the runner redispatches and runtime_dispatch's
++    // one-shot intercept can redirect to the coherent resume pc.
++    if (g_irq_nest_depth == 0u && runtime_abandon_resume_pending())
++        return true;
      if (g_session_execution) {
          if (gbarecomp::runtime_dispatch_suspended()) return true;
          auto* bus = gbarecomp::g_active_bus;
-@@ -1090,6 +1119,7 @@ extern "C" bool runtime_should_yield(void) {
+@@ -1090,6 +1127,7 @@ extern "C" bool runtime_should_yield(void) {
          }
      }
  

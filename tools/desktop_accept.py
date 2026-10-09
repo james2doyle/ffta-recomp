@@ -121,6 +121,8 @@ def main():
     ap.add_argument("--observe", type=float, default=90.0)
     ap.add_argument("--scale", type=int, default=2)
     ap.add_argument("--view-width", type=int, default=320)
+    ap.add_argument("--work", default="logs/desktop_accept",
+                    help="evidence directory (log, summary.json, screens/)")
     ap.add_argument("--mode", choices=("window", "tcp"), default="window",
                     help="window: play.sh + --tcp-observe + ydotool input; "
                          "tcp: headless free-run + --tcp (input via set_keyinput)")
@@ -133,12 +135,13 @@ def main():
         print("SKIP: ydotool not on PATH")
         return 77
 
+    global WORK
+    WORK = REPO / args.work
     WORK.mkdir(parents=True, exist_ok=True)
     card = WORK / "card.sav"
     shutil.copyfile(FLASH, card)
     log = WORK / "run.log"
     log.write_text("")
-
     env = dict(os.environ)
     env["GBARECOMP_WS_WIP"] = "1"
     logf = open(log, "wb")
@@ -192,13 +195,20 @@ def main():
             time.sleep(0.15)
             call(sock, "set_keyinput", value=0x03FF)
         else:
-            subprocess.Popen(["ydotool", "key", "45:1"])
+            # Verified injection with retries: a missed press invalidates the
+            # whole observation, so make it a hard precondition.
             seen_a = False
-            for _ in range(12):
-                if read_keyinput(sock) not in ("ff03", ""):
-                    seen_a = True
-                time.sleep(0.03)
-            subprocess.run(["ydotool", "key", "45:0"])
+            for attempt in range(3):
+                subprocess.Popen(["ydotool", "key", "45:1"])
+                for _ in range(14):
+                    if read_keyinput(sock) not in ("ff03", ""):
+                        seen_a = True
+                        break
+                    time.sleep(0.03)
+                subprocess.run(["ydotool", "key", "45:0"])
+                if seen_a:
+                    break
+                time.sleep(0.4)
         detail.append(f"press_seen_in_keyinput={seen_a}")
         if not seen_a:
             ok = False

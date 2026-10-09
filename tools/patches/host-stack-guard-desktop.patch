@@ -208,7 +208,7 @@ index b560791..7fb0c8b 100644
      return save_ok ? 0 : 1;
  }
 diff --git a/src/runtime/runtime_bus_bridge.cpp b/src/runtime/runtime_bus_bridge.cpp
-index 044fc13..a655e05 100644
+index 044fc13..7ae2ae3 100644
 --- a/src/runtime/runtime_bus_bridge.cpp
 +++ b/src/runtime/runtime_bus_bridge.cpp
 @@ -8,6 +8,7 @@
@@ -219,9 +219,12 @@ index 044fc13..a655e05 100644
  #include "multiplayer_slice.h"
  #include "../armv4t/arm_ir.h"
  #include "../armv4t/symbol_lookup.h"
-@@ -989,6 +990,34 @@ void runtime_set_vblank_input_hook(std::function<void()> h) {
+@@ -988,7 +989,43 @@ void runtime_set_vblank_input_hook(std::function<void()> h) {
+     g_vblank_input_hook = std::move(h);
  }
  
++extern "C" bool runtime_abandon_resume_pending(void);
++
  extern "C" bool runtime_should_yield(void) {
 +    // Host-stack budget guard: branch/dispatch chains that fail to unwind
 +    // (e.g. a busy-wait split across generated functions whose wake flag
@@ -251,10 +254,16 @@ index 044fc13..a655e05 100644
 +            return true;
 +        }
 +    }
++    // Abandon-close continuation: the first instruction boundary after the
++    // close unwinds (even under present-in-place, which otherwise never
++    // returns true) so the runner redispatches and runtime_dispatch's
++    // one-shot intercept can redirect to the coherent resume pc.
++    if (g_irq_nest_depth == 0u && runtime_abandon_resume_pending())
++        return true;
      if (g_session_execution) {
          if (gbarecomp::runtime_dispatch_suspended()) return true;
          auto* bus = gbarecomp::g_active_bus;
-@@ -1090,6 +1119,7 @@ extern "C" bool runtime_should_yield(void) {
+@@ -1090,6 +1127,7 @@ extern "C" bool runtime_should_yield(void) {
          }
      }
  

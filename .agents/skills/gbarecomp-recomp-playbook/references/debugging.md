@@ -34,6 +34,29 @@ data. Do not skip straight to step 3 when the mechanism is unknown — most
 "who wrote this" hunts that stall are mechanism confusion (DMA vs CPU vs
 the capture layer's own bugs).
 
+## Redirects: keep the CPU mode coherent with the target
+
+`runtime_dispatch`-family redispatching derives thumb/arm from the live
+CPSR.T (not from the pc's low bit). A runtime side (resume helpers,
+unwind paths, close handlers) that redirects a pc while the CPU carries a
+stale mode will resolve the target in the wrong mode: table miss → self-
+heal bridge → interpreter `Undefined` → loud abort, plus a misleading
+`mode="arm"`/`mode="thumb"` miss proposal that must not be seeded. Snapshot
+the expected mode at the point the flow was interrupted and force it on
+the redirect.
+
+## Present-in-place runners never unwind on vblank
+
+When the host presents frames from inside the guest's yield hook
+(present-in-place), a wedged guest can remain inside a single dispatch
+forever — frames keep presenting, the screen stays frozen, and no new
+`runtime_dispatch` occurs (so dispatch-boundary healing never runs).
+Diagnose by pc sampling (churn inside a data region or gate loop) plus the
+watchdog dump; the fix pattern for a pending runtime-side redirect is a
+one-shot unwind: expose a `pending_resume()` predicate and have the yield
+hook return true once while it is armed, so the runner redispatches and
+the redirect can act.
+
 ## Ring walks: falsify the story, then diff the delta
 
 The per-instruction ring is ground truth over every bookkeeping log: a
