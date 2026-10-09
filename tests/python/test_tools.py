@@ -165,9 +165,12 @@ class RepoHygieneTests(unittest.TestCase):
         if not (REPO / ".git").exists():
             self.skipTest("not a git checkout")
         # git grep exits 1 when there are no matches (the good case).
+        # The pathspec excludes THIS file: its source necessarily contains
+        # the pattern string and would otherwise match itself.
         r = subprocess.run(
             ["git", "-C", str(REPO), "grep", "-n", "-I", "-E",
-             r"/home/|/Users/"],
+             r"/home/|/Users/", "--", ".",
+             ":(exclude)tests/python/test_tools.py"],
             capture_output=True, text=True)
         self.assertIn(r.returncode, (0, 1), r.stderr)
         if r.returncode == 0:
