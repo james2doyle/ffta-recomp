@@ -3370,3 +3370,8 @@ NOT be seeded (the code is Thumb; the T-bit loss is fallout of the original
 handler abandonment). The true root remains open: *why* the SWI-return
 cancel chain cuts the handler short (floor respected, handler still lost) —
 the close makes that a correctness bug, not a hang.
+
+**Playtest confirmation (same day, user):** closing the game after the
+suspend flow behaved cleanly — no hang (the pre-fix failure mode), matching
+the instrumented repro. The remaining boundary (coverage-corruption fallout
+after the close) is unchanged and tracked above.
