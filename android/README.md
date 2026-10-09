@@ -165,6 +165,12 @@ specific file; `--expect public|private` asserts the build mode.
   (2026-10-08, open — `BRINGUP.md` § Android device hang); capture it with
   `tools/hangprobe.py` plus the device-forensics recipe
   (`reference/dev-gotchas.md` § Android device forensics).
+- **Desktop repro (2026-10-09):** the same hang now reproduces headless:
+  steppable `--tcp` + `savestate_load game.state3` + A → deterministic
+  SIGSEGV in ~26 steps; gdb backtrace = nested `gf_vblank_wait_loop`
+  stack exhaustion (the same nesting the guard bounds on device). Recipe +
+  mechanism: `BRINGUP.md` § 2026-10-09 (commit bb441d8); dev-gotchas
+  § Run modes.
 - Repackaging after a native relink can leave a junk blob inside an
   incrementally updated APK (67 MB vs the normal 37 MB, observed once);
   `rm -rf android/app/build` before packaging when artifact size matters

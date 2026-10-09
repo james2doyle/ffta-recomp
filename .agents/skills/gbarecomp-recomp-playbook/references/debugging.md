@@ -53,6 +53,15 @@ the capture layer's own bugs).
   pathologically slow frame look identical at 60 seconds.
 - When a specific input triggers it, bisect the frames budget to the exact
   first wedged frame. That window is gold for the first-divergence hunt.
+- Bound-check a hot loop before calling it a spin: read its exit condition
+  and counters (a block looping with a count register that decrements
+  normally is healthy engine work — mixers/copiers look spin-like under
+  low-rate sampling; dumping PC samples alone misidentifies them).
+- Trip/watchdog heuristics fire on healthy busy-waits too (games that poll
+  their vblank flag instead of halting; frames/vblank counters advance
+  during any spin because the PPU ticks per instruction). A trip is a
+  pointer, not proof — the discriminator is whether the loop's exit
+  condition ever becomes true.
 - If the spin sits in an HLE/shadow-serviced area (audio mixer, timing
   model), suspect host-side model desync before guest logic.
 - On devices, an audio output that restarts constantly (repeated platform
@@ -111,6 +120,23 @@ branch-calls.
 - The nesting is a *carrier*: a wait that outlives its expected wake is a
   behavioral stall. Find why the wake never arrives (interrupt-mask state,
   callback stalls) before treating the spin itself as the bug.
+- **Turn the nesting into a crash to get a backtrace.** The unwind-and-
+  redispatch paths (steppable `--tcp`, frame-driven runs) nest too, and the
+  worker thread's finite stack makes it SIGSEGV in seconds — far easier to
+  root-cause than an RSS-creeping hang. Recipe: connect, `savestate_load`
+  the state (plain `--load-state` is not applied by `--tcp`), drive the
+  trigger with `set_keyinput`, `step` until it dies; run the process under
+  `gdb -batch -ex run -ex bt --args <exe> … --tcp <port>` and drive it from
+  a second process. Confirm exhaustion: `grep -c '^#'` ≈ thread-stack
+  bytes ÷ ~60 B/frame; rsp lands at the thread-stack bottom; the repeated
+  frame pair names the recursing split.
+- Gate the repro: N clean pre-trigger steps + a crash at a fixed distance
+  after the trigger means the *trigger* starts the unbounded spin — that
+  window (tens of frames) is the first-divergence hunting ground.
+- Same convergence, three faces: windowed present-in-place = nesting
+  masked into a behavioral churn; unwind-and-redispatch = crash; finite
+  mobile stack + guard = bounded freeze. Pick the face that instruments
+  best — usually the crash.
 
 ## On-device hangs without root (Android)
 

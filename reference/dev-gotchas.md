@@ -17,7 +17,19 @@ real hours once.
   validation harness uses the framework's own oracle:
   `reference/oracle-harness.md`.
 - `tools/disarm.py` halts silently at the first undecodable halfword — use
-  narrow windows anchored on known boundaries.
+  narrow windows anchored on known boundaries, and always state the mode
+  (`arm`/`thumb`): wrong-mode output reads as plausible garbage.
+- Data-vs-code traps: pointer tables masquerade as code (cross-check the
+  other mode; validate against known structure). For runtime-relocated
+  IWRAM blobs, dump via `read_iwram` during a live session and disassemble
+  with capstone at the known base — partial dumps of unknown base are
+  useless.
+- **Input injection: `ydotool` only.** This session is Wayland and the
+  game window is native — `xdotool` cannot see or reach it (user directive:
+  never use it). Verify a press actually lands by reading KEYINPUT
+  (`read_io 0x04000130`, active-low) while the key is held; silent focus
+  loss eats injected keys, and "the game ignored input" is not a valid
+  conclusion without that check.
 
 ## Run modes and tracing
 
@@ -31,6 +43,13 @@ real hours once.
 - `--tcp` mode does NOT process `--load-state` (silently skipped — no
   `savestate_loaded` line). Load over TCP with `savestate_load {path}`
   (GBAS container; refuses wrong SHA-1/version).
+- Desktop repro of the Android save-hang (2026-10-09): `--tcp` +
+  `savestate_load game.state3` → `step`×98 → `set_keyinput 0x03FE` ×4 →
+  `0x03FF` → deterministic SIGSEGV ~26 steps later. gdb bt: ~284k nested
+  `gf_vblank_wait_loop` ↔ `gf_vblank_wait_loop_cont` frames = host-stack
+  exhaustion (~60 B/frame); pre-press 600 steps clean. Drive it alongside
+  `gdb -batch -ex run -ex bt --args …` for the tombstone. Mechanism + fix
+  candidates: `BRINGUP.md` § 2026-10-09.
 - Tracing without code changes: `GBARECOMP_MISS_IWRAM_DUMP` (state at first
   IWRAM miss), `GBARECOMP_IWRAM_DUMP` (exit state), `GBARECOMP_WRAM_TRACE`
   +`_LO/_HI` (per-frame write diff), `GBARECOMP_INSN_TRACE=1` +

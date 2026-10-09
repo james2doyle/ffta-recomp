@@ -138,6 +138,11 @@ Pair the runner against a real emulator fed the same input script.
   completed frames often still compare at the same index even when the
   CPU-side offset exists).
 - Writes are the ground truth to diff; the screen is a symptom.
+- Replaying a recorded input trace from boot keeps engines in lockstep only
+  until the first UI/RNG divergence. Menu-heavy sessions drift silently —
+  one side takes a different branch and every later screen differs. For
+  mid-session states, navigate the oracle *to* the state by screenshots
+  instead of trusting trace replay.
 
 ## External saves as verification material
 

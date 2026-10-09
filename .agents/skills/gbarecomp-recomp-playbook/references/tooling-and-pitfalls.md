@@ -183,6 +183,17 @@ killing anything: this converts "it hung again" into a pc + stack + caller
 chain without any replay. The frame counter is the hang signal; the pc is
 the diagnosis.
 
+- **Verify input landing, always.** Injected keys are silently eaten when
+  the game window doesn't have focus; read the KEYINPUT register
+  (active-low, `read_io 0x04000130`) *during* the hold to prove the press
+  reached the machine. "The game ignored input" conclusions are invalid
+  without a catch-verified down-read.
+- **Wayland sessions:** X11 injection tools (xdotool) cannot reach a
+  native Wayland game window — and may not even enumerate it — so use
+  kernel-level injection (ydotool). X11 window management is unreliable
+  there too; prefer app-side input (the runner's own `set_keyinput`) when
+  the debug port is available.
+
 ### Device (mobile) live sessions
 
 - Extra runtime args arrive via an app-private `debug-args.txt` (create
