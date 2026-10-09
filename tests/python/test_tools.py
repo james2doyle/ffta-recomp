@@ -157,5 +157,22 @@ class SaveCheckTest(unittest.TestCase):
             self.assertIn("CRC32 mismatch", r2.stdout)
 
 
+class RepoHygieneTests(unittest.TestCase):
+    """Tracked files must stay portable: no absolute home-directory paths
+    (they leak the author's layout and break on every other checkout)."""
+
+    def test_no_absolute_home_paths(self):
+        if not (REPO / ".git").exists():
+            self.skipTest("not a git checkout")
+        # git grep exits 1 when there are no matches (the good case).
+        r = subprocess.run(
+            ["git", "-C", str(REPO), "grep", "-n", "-I", "-E",
+             r"/home/|/Users/"],
+            capture_output=True, text=True)
+        self.assertIn(r.returncode, (0, 1), r.stderr)
+        if r.returncode == 0:
+            self.fail("absolute home paths in tracked files:\n" + r.stdout)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

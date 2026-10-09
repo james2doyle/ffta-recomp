@@ -59,6 +59,11 @@ Run this after every play session; it is the whole loop in order.
   catches 1–2 extra PCs per session — budget a resolve iteration for them.
 - Trusting savestates across builds when bisecting: rebuilds can move what
   the state maps to; regenerate the state when in doubt.
+- Hardcoded absolute machine paths in tools or docs (the author's home
+  directory) — they break every other checkout and leak the author's
+  layout. Resolve the repo root from `__file__` in tools, describe external
+  mirrors without machine paths in docs, and add a repo-hygiene test that
+  greps tracked files for absolute home-path patterns.
 - Letting the playtest loop run for hours without closing a batch: smaller
   sessions converge faster and make bisecting trivial.
 

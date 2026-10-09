@@ -1,9 +1,9 @@
 # Terence Fergusson — FFTA Mechanics Guide (GameFAQs 26262) reference summary
 
-Full copy archived OUTSIDE the repo:
-`/home/james/Git/refs/ffta-gamefaqs/fergusson_mechanics.txt` (v0.95, 552 KB,
-9,093 lines; plain-text mirror `alexandria.rpgclassics.com`). Facts
-summarized with attribution; the document itself is not committed.
+Full copy archived OUTSIDE the repo in a local reference mirror
+(`ffta-gamefaqs/fergusson_mechanics.txt`; v0.95, 552 KB, 9,093 lines;
+plain-text mirror `alexandria.rpgclassics.com`). Facts summarized with
+attribution; the document itself is not committed.
 
 ## Section index (line numbers in the full copy)
 

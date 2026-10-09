@@ -27,5 +27,5 @@ Highlights:
 Not included: the recovered **String Tables** page. It is a raw dump of the
 game's in-game text ripped from the ROM, so it would put ROM-extracted text
 in git — against the project's hygiene rule. The archived copy (with the
-rest of the recovered set) lives outside the repo at
-`/home/james/Git/refs/datacrystal-ffta/`.
+rest of the recovered set) lives in a local reference mirror outside the
+repo (`datacrystal-ffta/`).

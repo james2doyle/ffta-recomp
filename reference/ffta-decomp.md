@@ -1,7 +1,7 @@
 # ffta-decomp (charlie-troy) — reference summary
 
 Cloned reference material for the annotation pass. The clone lives **outside
-this repo** at `/home/james/Git/refs/ffta-decomp` (re-clone:
+this repo** in a local reference mirror (re-clone:
 https://github.com/charlie-troy/ffta-decomp). It pins the same ROM
 (`rom_sha1 4ac05441f4de70a4ec3dd932116346c61b8783d9`).
 
@@ -30,7 +30,7 @@ https://github.com/charlie-troy/ffta-decomp). It pins the same ROM
 
 ## Companion: FFTA_Engine_Hacks (LeonarthCG)
 
-`/home/james/Git/refs/FFTA_Engine_Hacks` — job/race customization docs, a
+Local reference mirror `FFTA_Engine_Hacks` — job/race customization docs, a
 per-animation data tree (`Engine Hacks/jobAndRaceCustomization/…`), and an
 Event-Assembler buildfile. Mostly mod-facing data; the address→description
 index was already consumed into BRINGUP (§ FFTA_Engine_Hacks study).

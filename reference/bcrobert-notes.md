@@ -1,9 +1,9 @@
 # BCROBERT — "FFTA notes v12.2" reference summary
 
-Preserved copy: `/home/james/Git/refs/ffta-notes-bcrobert` (pack dated
-2013–2015; author BCROBERT, hacking credits include Darthatron). Facts
-extracted below with attribution; the pack itself is reference-only and is
-not committed.
+Preserved copy: local reference mirror outside the repo (directory
+`ffta-notes-bcrobert`; pack dated 2013–2015; author BCROBERT, hacking
+credits include Darthatron). Facts extracted below with attribution; the
+pack itself is reference-only and is not committed.
 
 ## What was harvested (2026-10-07)
 

@@ -2455,8 +2455,8 @@ the tree.
   license segregation vs the repo's PolyForm NC). **Removed** the
   `String Tables.txt` dump — ROM-ripped in-game text, against the project's
   no-ROM-content rule regardless of the wiki license; the archived copy
-  (plus a full backup of the recovered set) lives outside the repo at
-  `/home/james/Git/refs/datacrystal-ffta/`.
+  (plus a full backup of the recovered set) lives in a local reference
+  mirror outside the repo (`datacrystal-ffta/`).
 - Root `LICENSE`: PolyForm Noncommercial 1.0.0 (matches the gbarecomp
   framework), per user decision.
 - `THIRD_PARTY_ATTRIBUTION.md` (new): submodules (gbarecomp PolyForm NC,
@@ -2688,8 +2688,8 @@ fail-closed pillarbox, per-frame policy, verification probes and smoke
 tools. FFTA needs none of the provider machinery for field scenes (its
 rings are real 512-px data); the UI-anchoring model is the reference for
 W3 if HUD stays wide. WarioWareTwistedRecomp has NO widescreen
-implementation (attract tooling reference only). Clones kept at
-/home/james/Git/refs/EmeraldRecomp and /home/james/Git/refs/WarioWareTwistedRecomp.
+implementation (attract tooling reference only). Local clones kept
+outside the repo (`EmeraldRecomp`, `WarioWareTwistedRecomp`).
 
 W3 next: per-scene policy via `extended_view_frame` (world map → pillarbox
 or clamp; menus/transitions → pillarbox; field → wide); margin polish
