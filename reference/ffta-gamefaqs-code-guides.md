@@ -1,8 +1,7 @@
 # GameFAQs code compilations — reference summary (25621 / 26118 / 27385 / 22129)
 
-Four community documents swept 2026-10-07 (copies in a local reference
-mirror, `ffta-gamefaqs/`; facts extracted with attribution, not
-committed wholesale):
+Four community documents swept 2026-10-07 (facts extracted with
+attribution; the documents themselves are not distributed with this repo):
 
 | FAQ | Author | What it holds | Harvest |
 |---|---|---|---|

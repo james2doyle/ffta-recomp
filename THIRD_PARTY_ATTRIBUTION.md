@@ -44,7 +44,7 @@ Community research is used as reference only, with attribution (see
 spiiin/FFTAUtils, charlie-troy/ffta-decomp (**no license** — facts and
 addresses referenced; its sources/logs are never ingested), and the
 JoKyR / BCROBERT / GameFAQs guide authors (facts and brief attributed
-quotes only; full copies are kept outside the repository).
+quotes only; full copies are not distributed with this repository).
 
 ### Data Crystal pages (the one included exception)
 
@@ -54,5 +54,5 @@ Documentation License 1.2** — full license text in
 `reference/datacrystal/LICENSE-GFDL-1.2.txt`, attribution and source links in
 `reference/datacrystal/README.md`. Those files stay under GFDL 1.2; the rest
 of the repository is PolyForm Noncommercial 1.0.0. (The recovered
-string-tables dump is **not** included — it is ROM-extracted game text; the
-archived copy lives outside the repo.)
+string-tables dump is **not** included — it is ROM-extracted game text,
+and is not distributed with this repo.)

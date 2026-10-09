@@ -41,8 +41,8 @@
 0x0813BF4C	rom	0x4	gTitleTilemapPtr
 0x08135E3C	rom	0x4	gTitleBgTilesetPtr
 # Section 5: BCROBERT FFTA notes v12.2 — BASIC ROM MAP + structures.txt
-# (copy preserved at refs/ffta-notes-bcrobert; offsets +0x08000000, imported
-# 2026-10-07). Record layouts in reference/bcrobert-notes.md.
+# (offsets +0x08000000, imported 2026-10-07). Record layouts in
+# reference/bcrobert-notes.md.
 0x080CE80C	rom	0x1	gGoldMultiplier
 0x0836DAA4	rom	0x4	gSoldierSpritePtr
 0x08390E44	rom	0x4	gActionTablePtr

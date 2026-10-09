@@ -195,8 +195,7 @@
 0x081452F4	thumb	m4a_player_status_query
 0x0814513C	thumb	m4a_player_command_dispatch
 # Section 4: BCROBERT FFTA notes v12.2 ("get speed formula", verified against
-# disarm: thumb `push {r4,r5,lr}` prologue at 0x0812E368; already emitted)
-# (pack preserved at refs/ffta-notes-bcrobert).
+# disarm: thumb `push {r4,r5,lr}` prologue at 0x0812E368; already emitted).
 0x0812E368	thumb	get_speed_formula
 
 # Section 5: event-VM + decompressor anchors (2026-10-07; naming-only —

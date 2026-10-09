@@ -730,9 +730,9 @@ our ROM (SHA-1 matched; their MAP_COUNT=163 is an off-by-one):
 
 ### FFTA_Engine_Hacks study (2026-10-06) — VM cluster CORRECTION
 Studied LeonarthCG/FFTA_Engine_Hacks (Event Assembler hack package, no
-license → reference/quote only; clone /tmp/FFTA_Engine_Hacks; derived
-address indexes /tmp/ffta_repo_{org_sites,literal_refs}.tsv — re-clone if
-wiped). It is effectively an **address→description index**: 576
+license → reference/quote only; derived address indexes from a scratch
+clone — re-clone the public repo if needed). It is effectively an
+**address→description index**: 576
 `ORG $addr` patch sites, each with an inline comment about the vanilla
 routine.
 - **CORRECTION (ROM-verified during the study): the 0x080C7EC0 / 0x080C85A0
@@ -832,8 +832,8 @@ Researched ahead of a possible Android release (user question: what gates
 Android playability — answer: not the pointer-pool lens; only the executed
 path matters, and device builds have self-heal disabled, so misses fail
 loudly and feed the Phase 5 audit loop). Sources: mstan's EmeraldRecomp and
-WarioWareTwistedRecomp (shallow clones in /tmp/refrepos/ — re-clone if
-wiped), engine checkout at gbarecomp/platform/android/.
+WarioWareTwistedRecomp (shallow scratch clones — re-clone the public repos
+if needed), engine checkout at gbarecomp/platform/android/.
 
 - **The Android app shell lives in the ENGINE, not the game repos.**
   `gbarecomp/platform/android/` is present in our pin `ecc9c55` (same
@@ -1822,8 +1822,8 @@ around f18,3xx listed above.
 
 ### 2026-10-07 (cont.) — Community references: DataCrystal FFTA pages recovered
 
-User recovered the old DataCrystal FFTA wiki pages (Wayback 2021-06-14) to
-`/tmp/datacrystal-ffta`; text extractions committed under
+User recovered the old DataCrystal FFTA wiki pages (Wayback 2021-06-14);
+text extractions committed under
 `reference/datacrystal/` (GFDL 1.2, attribution in its README). Standouts:
 - **Scripting page** = event-VM opcode table (execute callback / fade /
   set map / message box / …) — the documentation layer for the
@@ -2454,9 +2454,8 @@ the tree.
   README (attribution, source URLs/oldids, HTML→text modification note,
   license segregation vs the repo's PolyForm NC). **Removed** the
   `String Tables.txt` dump — ROM-ripped in-game text, against the project's
-  no-ROM-content rule regardless of the wiki license; the archived copy
-  (plus a full backup of the recovered set) lives in a local reference
-  mirror outside the repo (`datacrystal-ffta/`).
+  no-ROM-content rule regardless of the wiki license, so it stays out of
+  version control (the rest of the recovered set is likewise not committed).
 - Root `LICENSE`: PolyForm Noncommercial 1.0.0 (matches the gbarecomp
   framework), per user decision.
 - `THIRD_PARTY_ATTRIBUTION.md` (new): submodules (gbarecomp PolyForm NC,
@@ -2688,8 +2687,7 @@ fail-closed pillarbox, per-frame policy, verification probes and smoke
 tools. FFTA needs none of the provider machinery for field scenes (its
 rings are real 512-px data); the UI-anchoring model is the reference for
 W3 if HUD stays wide. WarioWareTwistedRecomp has NO widescreen
-implementation (attract tooling reference only). Local clones kept
-outside the repo (`EmeraldRecomp`, `WarioWareTwistedRecomp`).
+implementation (attract tooling reference only).
 
 W3 next: per-scene policy via `extended_view_frame` (world map → pillarbox
 or clamp; menus/transitions → pillarbox; field → wide); margin polish
