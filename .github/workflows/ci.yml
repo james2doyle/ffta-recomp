@@ -2,7 +2,7 @@
 # Runs the host unit tests (C++/Python) and patch integrity on a fresh
 # checkout. The full gate (attract, widescreen smoke, route replays) needs
 # game.gba + BIOS + the local fixtures and belongs on a self-hosted runner
-# gated to trusted events — see README § Continuous integration.
+# gated to trusted events — see tests/README.md § Continuous integration.
 name: CI (tier 1)
 
 on:

@@ -25,7 +25,7 @@ Usage:
   .venv/bin/python tools/check.py --only NAME[,NAME...]
 
 CI tier 1 runs the no-private-material subset (no ROM/BIOS/savestates
-needed): `--only unit-cpp,unit-py,patches` — see README § Continuous
+needed): `--only unit-cpp,unit-py,patches` — see tests/README.md § Continuous
 integration.
 """
 import argparse

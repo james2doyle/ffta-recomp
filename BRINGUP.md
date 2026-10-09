@@ -2943,3 +2943,16 @@ no dumps):
 - negative suite on the built tree: missing ROM / truncated ROM /
   wrong-hash ROM / truncated BIOS — all rc=1 with their distinct
   messages; restored tree re-ran idempotent (8.4 s, FULLY_STATIC).
+
+### 2026-10-08 (cont.) — README split: testing docs → tests/README.md
+
+Root README's § "Playtesting & debugging with tools/play.sh",
+§ "The playtest → healing loop", § "Verification & regression" and
+§ "Continuous integration" moved verbatim to the new `tests/README.md`
+(316 lines; it also hosts the host-unit-test commands). Root keeps a
+short "Testing & debugging" pointer section between "Run it" and the
+layout table; Setup and its collapsible manual route are unchanged.
+Cross-references updated: AGENTS.md (reading order, workflow B,
+reference index), `tools/check.py` docstring, `ci.yml` tier comment;
+in-file "see below" pointers now target `tests/README.md` sections.
+Docs-only — no behavior change (`unit-py` green, 11 tests).

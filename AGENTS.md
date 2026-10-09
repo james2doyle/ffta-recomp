@@ -2,8 +2,9 @@
 
 IMPORTANT: Prefer retrieval-led reasoning over pre-training-led reasoning for
 GBA recompilation, ROM disassembly, and gbarecomp framework tasks. Read
-`README.md` (setup + the playtest/healing loop) first, then this file (rules
-of engagement); `BRINGUP.md` is the decision log. Verify every ROM claim with
+`README.md` (setup + run) and `tests/README.md` (playtesting, healing loop,
+gates, CI) first, then this file (rules of engagement); `BRINGUP.md` is the
+decision log. Verify every ROM claim with
 `tools/disarm.py` disassembly and cite the address. Deep detail is not kept
 here — load it via § "Reference index" only when the task needs it.
 
@@ -54,8 +55,8 @@ included).
    route worth guarding as a fixture + `check.py` entry.
 4. Commit with a dated `BRINGUP.md` entry.
 
-**B. Playtest → healing loop** — after every session (full version: README
-§ "The playtest → healing loop"):
+**B. Playtest → healing loop** — after every session (full version:
+`tests/README.md` § "The playtest → healing loop"):
 1. Harvest: the miss proposals are journaled live in
    `logs/playtest_misses.frag`; after a crash also run
    `tools/cache_harvest.py --out logs/proposal.frag` (heal-cache filenames).
@@ -132,7 +133,8 @@ port — README § Roadmap. History, evidence, crash playbooks: `BRINGUP.md`.
 | Topic | Load |
 |---|---|
 | Decisions, priors, corrections, crash playbooks | `BRINGUP.md` |
-| Setup, playtest/debug cookbook, healing loop, CI, roadmap | `README.md` |
+| Setup, run, layout, roadmap | `README.md` |
+| Playtest/debug cookbook, healing loop, gates, coverage, CI, unit tests | `tests/README.md` |
 | Harness traps: run modes, capture envs, close handling, RAM-dispatch, saves, submodule pins, framework patches | `reference/dev-gotchas.md` |
 | Oracle + frame-diff protocol (park phase, sync rules, builds) | `reference/oracle-harness.md` |
 | Widescreen internals + validation | `reference/widescreen.md` |
