@@ -206,10 +206,15 @@ access, which is enough:
 - Pins (2026-10-06): gbarecomp @ `ecc9c55` (newest main, chosen
   deliberately), recomp-ui @ `cac2b8f`; nested: arm-recomp-core @ 15fc7b7,
   rbengine @ 2a03e7, recomp-net @ c58f125.
-- `tools/patches/*.patch` are working-tree edits to `gbarecomp/` —
-  re-apply after submodule updates; `tools/check.py --only patches`
-  validates all of them (forward against the pristine pin, reverse when
-  applied).
+- `tools/patches/*.patch` are working-tree edits to `gbarecomp/`. Re-apply
+  after submodule updates with the **consolidated** `gbarecomp-local.patch`
+  (one pristine→dev diff); the per-feature files are reference diffs only —
+  their contexts interleave and do not stack in any order (verified
+  2026-10-09). `tools/check.py --only patches` validates all of them
+  (forward against the pristine pin, reverse when applied) and **replays
+  pin + consolidated, requiring a byte-match with the dev tree** — it fails
+  on drift or a stale consolidated patch (regenerate with
+  `git --no-pager -C gbarecomp diff --no-ext-diff --no-color`).
 
 ## Run examples
 

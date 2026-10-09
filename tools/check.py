@@ -157,6 +157,42 @@ def check_patches():
         else:
             ok = False
             details.append(f"{name}: INVALID")
+    # Replay integrity: pin + the consolidated patch must byte-match the dev
+    # tree. This catches submodule drift (unrecorded edits) and any mangling
+    # the per-file forward/reverse checks would miss. The per-feature files
+    # are reference diffs and deliberately are NOT stacked here (their
+    # contexts interleave after historical re-exports; the consolidated
+    # patch is the canonical re-apply unit).
+    cons = REPO / "tools" / "patches" / "gbarecomp-local.patch"
+    if cons.exists():
+        with tempfile.TemporaryDirectory(prefix="gbpatch.") as td:
+            arch = subprocess.run(
+                ["bash", "-c", f"git -C gbarecomp archive HEAD | tar -x -C {td}"],
+                cwd=str(REPO), capture_output=True, text=True)
+            app = subprocess.run(
+                ["patch", "-p1", "-s", "-f", "--no-backup-if-mismatch",
+                 "-i", str(cons)], cwd=td, capture_output=True, text=True)
+            if arch.returncode != 0 or app.returncode != 0:
+                ok = False
+                details.append("gbarecomp-local replay: apply FAILED")
+            else:
+                tracked = run(["git", "-C", "gbarecomp", "ls-files"]).stdout.split()
+                bad = []
+                for f in tracked:
+                    dev = REPO / "gbarecomp" / f
+                    if not dev.is_file():
+                        continue  # gitlinks and directories
+                    rep = pathlib.Path(td) / f
+                    if not rep.exists() or rep.read_bytes() != dev.read_bytes():
+                        bad.append(f)
+                if bad:
+                    ok = False
+                    details.append(
+                        f"gbarecomp-local replay: {len(bad)} file(s) differ "
+                        f"(e.g. {', '.join(bad[:3])})")
+                else:
+                    details.append(
+                        f"gbarecomp-local replay: {len(tracked)}-file tree matches")
     return ok, " ".join(details)
 
 
