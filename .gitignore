@@ -113,6 +113,11 @@ frames/
 captures/
 diffs/
 
+# Screenshot captures stay local as well — the README is deliberately
+# image-free (decided 2026-10-08: no ROM pixels in history, even as a
+# README illustration)
+*screenshot*.png
+
 # -----------------------------------------------------------------------------
 # Editors & OS cruft
 # -----------------------------------------------------------------------------

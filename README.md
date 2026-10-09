@@ -1,7 +1,6 @@
 # FFTA Recomp
 
-Native PC recompilation of **Final Fantasy Tactics Advance** (GBA, USA / AFXE)
-built on the [mstan/gbarecomp](https://github.com/mstan/gbarecomp) framework.
+> Native PC recompilation of **Final Fantasy Tactics Advance** (GBA, USA / AFXE) built on the [mstan/gbarecomp](https://github.com/mstan/gbarecomp) framework.
 
 This is not an emulator. The game's ARM/Thumb code is statically translated to
 host C++ (AOT), compiled, and executed natively — with a **self-healing
@@ -23,9 +22,13 @@ FULLY_STATIC on its replay). The **offline coverage push**'s goal (pool
 reach) was reached deliberately via strict-push verified seeds (event-crawl
 batches **af/ag**) with the attract hash byte-exact — the blind speculative
 path itself stays off (interior-split hazard; re-trial gated, § Roadmap).
-The attract regression gate hash has been stable since pinning. Remaining:
-widescreen W1b–W3, the gated offline-push re-trial, the long-run attract
-contact sheet, the upstream note, and the Android port — § Roadmap.
+The attract regression gate hash has been stable since pinning.
+**Widescreen is complete** (W1–W3): up to 448 px via `--resize-view` /
+`--view-width`, ring scenes authoring their margins from the game's own
+field, the world map pillarboxed, transitions verified — gated by the
+`tools/ws_check.py` smoke matrix. Remaining: the gated offline-push
+re-trial, the long-run attract contact sheet, the upstream note, and the
+Android port — § Roadmap.
 
 > **You must own the game and BIOS.** Both are user-supplied, hash-verified at
 > launch, and **never committed** (no ROM-derived bytes in git history, ever —
@@ -87,11 +90,11 @@ hashes and fails loudly if either is wrong or missing.
 assumes them; diffs kept on top of the pinned submodule):
 ```sh
 cd gbarecomp
-git apply ../tools/patches/oracle-save-autoload.patch
-git apply ../tools/patches/selfheal-journal-close-hardening.patch
+for p in ../tools/patches/*.patch; do git apply "$p"; done
 cd ..
 ```
-`tools/check.py --only patches` guards their validity.
+`tools/check.py --only patches` guards their validity (forward against a
+pristine submodule + reverse against the patched tree).
 
 **6. Recompile the BIOS (one-time).** Run it *from `gbarecomp/`* so the
 output lands in `gbarecomp/src/runtime/generated_bios/`, and pass the
@@ -192,6 +195,7 @@ playtests cannot clobber each other.
 |---|---|
 | `tools/play.sh` | windowed game, instrumentation on |
 | `tools/play.sh --scale N` | bigger window (1–8; 8 = 1920×1280) |
+| `tools/play.sh --resize-view` | widescreen windowed — the view follows the window (up to 448 px; fixed width: `--view-width 320\|384\|448`; default stays faithful 240) |
 | `tools/play.sh --fullscreen` | borderless desktop fullscreen |
 | `tools/play.sh --launcher` | run the settings UI first |
 | `tools/play.sh --tcp-observe PORT` | window + read-only debug port (see below) |
@@ -201,9 +205,10 @@ Notes:
 - `--tcp` (without `-observe`) is structurally headless — the TCP branch
   returns before window init. For a windowed session always use
   `--tcp-observe PORT`.
-- `--view-width` is the widescreen *view* feature, not a window size — FFTA
-  clamps it to 240 by design. Dev override: `GBARECOMP_WS_WIP=1` (see
-  `reference/widescreen.md`).
+- `--view-width` is the widescreen *view* feature, not a window size. FFTA
+  now supports 320/384/448 (default stays faithful 240; `--resize-view`
+  follows the window, windowed only). `GBARECOMP_WS_WIP` is no longer
+  needed — see `reference/widescreen.md`.
 - Extra flags pass straight through to `FFTARecomp`; the build must exist
   (`build/FFTARecomp`) before launching.
 
@@ -266,9 +271,11 @@ For deeper captures (no code changes): `GBARECOMP_INSN_TRACE=1` +
   `tools/dualrun.py probe saveflow`.
 - **Long sessions.** Supported — present-in-place + background healing keep
   long runs stable, and the frag stays current throughout.
-- **Widescreen experiments.** `GBARECOMP_WS_WIP=1 tools/play.sh --scale 4
-  --view-width 320` — margins are wrapped BG columns, not content;
-  `reference/widescreen.md` tracks the state of play.
+- **Widescreen.** `tools/play.sh --scale 4 --resize-view` (or
+  `--view-width 448`) — ring scenes (battle/pub) fill the margins with the
+  game's own field content; the world map and menus stay pillarboxed /
+  native; the automated smoke test is `tools/ws_check.py`.
+  `reference/widescreen.md` is the map.
 
 ### Housekeeping
 
@@ -402,10 +409,11 @@ GBARECOMP_INPUT_REPLAY=logs/playthrough.csv ./build/FFTARecomp ...` — expect
   serial) with per-run save/coverage isolation; `--fast` for the quick
   subset. `tools/savecheck.py` validates raw/RTN5 saves offline.
   The `saves/regress/` fixtures are local-only (never redistributed), so a
-  fresh clone has nothing to replay: use `--only unit-cpp`,
-  `--only unit-py`, `--only attract` (or `tools/attract_check.py`) until you
-  have regenerated routes by playing + resolving; `--fast` also needs the
-  fixture for its `savecheck` step.
+  fresh clone has nothing to replay: use
+  `--only unit-cpp,unit-py,patches` (the CI subset — no dumps needed) or
+  `--only attract` (dumps but no fixtures) until you have regenerated routes
+  by playing + resolving; `--fast` also needs the fixture for its
+  `savecheck` step.
 - **Coverage lenses:** `tools/coverage_report.py` reports executed path
   (ground truth), walker's static reach, and pointer-pool reach (a proxy —
   not a goal; FFTA needs FULLY_STATIC on executed paths, not 100 % of a
@@ -463,14 +471,14 @@ Two tiers, split by what may leave your machine:
   submodule, so it works on a fresh clone). It needs no ROM, BIOS, or
   savestates, and therefore cannot run the game itself.
 - **Tier 2 — the full gate (`attract`, `ws_smoke`, route replays).** Needs
-  `game.gba` + BIOS + the sha-pinned local fixtures (`game.state1/2`,
+  `game.gba` + BIOS + the sha-pinned local fixtures (`saves/ws_fixtures/`,
   `saves/regress/`), which are game-derived and never committed. Run it on
   a **self-hosted runner with the material pre-placed**, or a job that
   fetches a private fixture bundle under a token — gated to
   `push`/`workflow_dispatch` and **never** exposed to fork-PR workflows
   (a PR job on a runner that can read the ROM is an exfiltration path).
-  The sha pins (regress save + both states) fail loudly if the runner's
-  fixtures drift.
+  The sha pins (regress save + the ws fixtures) fail loudly if the
+  runner's fixtures drift.
 
 ## Repository layout
 
@@ -482,7 +490,7 @@ Two tiers, split by what may leave your machine:
 | `generated/` | Recompiler output — gitignored, **never edited** |
 | `mods/` | Preloaded mod catalog shipped beside the exe — the default-enabled `ffta.enhancement.widescreen` manifest activating the linked `ffta.widescreen` plugin |
 | `gbarecomp/`, `recomp-ui/` | Pinned framework submodules (see `AGENTS.md` for pins) |
-| `tools/` | The whole harness: `play.sh`, `check.py` (regression gate), `savecheck.py` (save validation), `resolve.py`, `cache_harvest.py`, `cycle.py`, `attract_check.py`, `misspack.py`, `coverage_report.py`, `framediff.py`, `dualrun.py`, `ringscan.py`, `keyprobe.py`, `trace_split.py`, `disarm.py`, … |
+| `tools/` | The whole harness: `play.sh`, `check.py` (regression gate), `ws_check.py` (widescreen smoke), `savecheck.py` (save validation), `resolve.py`, `cache_harvest.py`, `cycle.py`, `attract_check.py`, `misspack.py`, `coverage_report.py`, `framediff.py`, `dualrun.py`, `ringscan.py`, `keyprobe.py`, `trace_split.py`, `disarm.py`, … |
 | `.agents/skills/` | Project-local agent skills — `gbarecomp-recomp-playbook`, a portable healing-loop/audit playbook with task-grouped references |
 | `inputs/` | Deterministic input traces (`<frame>,0x<hex>` active-low, sticky) |
 | `symbols/` | Curated symbol seeds (attributed; consumed via `--symbols`) |
@@ -510,6 +518,10 @@ Full rules live in `AGENTS.md`; the essentials:
 - [mstan/gbarecomp](https://github.com/mstan/gbarecomp) — the recompilation
   framework (read its `PRINCIPLES.md`, `DEBUG.md`, `docs/TOML_SCHEMA.md`);
   `recomp-ui` for the launcher/runtime UI.
+- [mstan/EmeraldRecomp](https://github.com/mstan/EmeraldRecomp) and
+  [mstan/WarioWareTwistedRecomp](https://github.com/mstan/WarioWareTwistedRecomp)
+  — reference implementations for the widescreen margin/UI-anchoring model
+  (studied for `reference/widescreen.md`).
 - Community research (used as reference only, with attribution — see
   `BRINGUP.md` studies): Data Crystal wiki (ROM/RAM maps), LeonarthCG/
   FFTA_Engine_Hacks (address index), spiiin/FFTAUtils (map-data formats),
@@ -568,16 +580,7 @@ noncommercial purposes. Third-party components keep their own terms (the
 
 **Open / next**
 
-1. **Widescreen — W2+W3 landed (2026-10-08).** Run it: `--view-width 320`
-   (default stays faithful 240). Field margins render from the guest's own
-   512-wide rings; the world map **pillarboxes** (its margins are the
-   256-px wrap); 256-wide UI layers are confined to the native span. Battle
-   and pub margins fill 100 % with the center 240 pixel-identical to the
-   faithful render; attract byte-exact; gate 8/8. Next: transition polish,
-   384/448 validation + `--resize-view`, an Emerald-style smoke test, and
-   moving the install to the activation-plugin lifecycle. Protocol notes +
-   EmeraldRecomp cross-reference: `reference/widescreen.md`.
-2. **Offline coverage push — re-trial gated.** The speculative literal
+1. **Offline coverage push — re-trial gated.** The speculative literal
    harvest reaches +4,912 units, but it split the guarded LZSS decoder at an
    interior entry (`0x08005544`): the save-menu route resumes into the
    unguarded interior, bypasses the entry check, and runs away (f17,794;
@@ -587,18 +590,29 @@ noncommercial purposes. Third-party components keep their own terms (the
    **interior-split policy** so speculative interior roots cannot bypass
    entry guards (guard extension and/or seed exclusion), is still to design
    and is the re-trial trigger.
-3. **Long-run attract contact sheet (f6000+)** and the **upstream note**
+2. **Long-run attract contact sheet (f6000+)** and the **upstream note**
    covering the bridge stop-contract + relocated-stub resume classes (a
    gbarecomp issue).
-4. **Android port** (research done; the app shell ships inside gbarecomp).
+3. **Android port** (research done; the app shell ships inside gbarecomp).
    Device builds run with self-heal disabled — the static coverage this
    loop builds is its prerequisite.
-5. Optional: a mod layer from the community notes' verified hack sites
+4. Optional: a mod layer from the community notes' verified hack sites
    (QoL/difficulty/test-speed); share the reverse-engineered save-record
    format when the wiki scene is reachable.
 
 **Landed (context)**
 
+- **Widescreen — complete 2026-10-08 (W1–W3).** `--view-width 320|384|448`
+  or `--resize-view` (default stays faithful 240). Ring scenes
+  (battle/pub) fill the margins with the game's own 512-wide field content
+  (the wide center is pixel-identical to the faithful render); the world
+  map pillarboxes (its margins are the 256-px map wrap) and 256-wide UI
+  layers are confined to the native span; scene transitions verified
+  (margins dim with the scene through fades; leaving the pub restores the
+  pillarbox). Hooks install via the default-enabled `mods/` manifest
+  (`ffta.widescreen` activation plugin). Smoke test: `tools/ws_check.py`
+  (6 cases x 320/384/448, wired into `check.py`); attract gate byte-exact.
+  Protocol/code map: `reference/widescreen.md`.
 - **Save-flow divergence — resolved 2026-10-08** (commit `1eeb60f`): the
   aborts were our ram-dispatch mid-copy re-entry, not a guest divergence;
   every save repro/route replays strict-clean (open-minor: ~950-frame

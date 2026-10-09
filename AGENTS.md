@@ -306,11 +306,10 @@ bounded heal-worker stop, diagnostics flushed before the worker join).
   relocated-stub canonicalization + sentinel/count fixups
   (`src/ffta_ram_dispatch.h`) and the LZSS decoder entry guard
   (`[[mod_function_hook]]` → `ffta.lzss-guard`, `src/main.cpp`); first full
-  Totema summons completed (BRINGUP § "Summon crash"). Remaining: widescreen
-  transition polish + plugin-lifecycle migration (W3 m1+m2 landed:
-  `--view-width` up to 448, per-scene policy — world map pillarboxes, UI
-  layers confined to the native span — and the `tools/ws_check.py` matrix;
-  see reference/widescreen.md),
+  Totema summons completed (BRINGUP § "Summon crash"). Widescreen is
+  complete (W1–W3: `--view-width` up to 448 / `--resize-view`, per-scene
+  policy, activation-plugin lifecycle, `tools/ws_check.py` matrix;
+  reference/widescreen.md). Remaining:
   the offline-push re-trial (gated on an interior-split policy),
   f6000+ attract contact sheet, upstream note on the bridge stop-contract
   runaway, and the Android port — see README § Roadmap for the full list.
