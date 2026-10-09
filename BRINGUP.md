@@ -3320,3 +3320,53 @@ Docs: android/README (thin-surface row, § Device-free checks, build-command
 fix, junk-blob cross-ref, deferred item 1 now packaging-only), tests/README
 (verification + CI notes), AGENTS commands, README tools list; the playbook
 verification reference gains the artifact-guard bullet.
+
+## 2026-10-09 — Suspend→A IRQ abandonment: the phantom nest-depth is closed
+## (state3 press repro)
+
+Follows the hang-walk entry above. The press repro's `g_irq_nest_depth`
+poison is fixed at the drive loop; the stack guard remains the second line
+of defense.
+
+**Evidence chain (deterministic, instrumented):**
+- gdb transition log over the press (breakpoints on the depth increment, the
+  iret site, the decrement sites): healthy frames = `IRQ++` (nd 0→1) →
+  IRET-SIG → next entry at nd=0. At vbl=129 the IRQ fires from the DISPSTAT
+  wait helper (`0x080033BA`, inside `wait_for_vblank`) and **no IRQ-mode
+  exception return (BIOS 0x13C) ever follows** — the handler chain is cut
+  short (its SWI-return cancels churn at `0x0814186E`, the `bl 0x814186c`
+  return site). From vbl=140 every VBlank nests inside the phantom
+  (nd=2; 45,690 entries logged at kill).
+- Host backtrace at the first nested entry: the drive loop is dispatching
+  mainline (`0x08141B74` halfword-copy loop + bx veneer → `ram_dispatch`
+  into IWRAM `0x03007D64/72`).
+- Cancel trace (vbl 126–145): the handler's return ledger falls back to the
+  IRQ floor (depth 6 → floor 3) without the iret; the floor holds, but the
+  drive loop then adopts whatever executes next — forever.
+
+**Fix** (`tools/patches/irq-handler-abandon-close.patch`,
+`gbarecomp/src/armv4t/runtime_arm.cpp`): `runtime_irq`'s drive loop detects
+the abandonment — ledger at the IRQ floor while running outside the BIOS
+(~0x40000 dispatches), or simply ≥4 VBlank boundaries inside the loop (no
+legal GBA handler spans multiple frames) — and closes the IRQ as if the iret
+had fired: completion signal, ledger restore, depth decrement. The entry
+register snapshot is deliberately NOT restored on that path (the mainline has
+advanced past the interrupted instant; clobbering its live registers would
+corrupt the in-flight work).
+
+**Validated:** the repro's transition log shows every IRQ entry at nd=1
+(129/129), one `handler at depth 1 abandoned without an iret (4 vblanks …
+— closing the IRQ` line, and the step that previously wedged for 240 s
+completes in 0.02 s. `check.py --only hangrepro` → 1.2 s PASS (suite updated:
+the press must close the phantom and advance past the old wedge). `cycle.py`
+PASS, attract hash unchanged.
+
+**Residual (open, next session):** after the close the flow advances ~4
+frames into the suspend-return routine (`0x08145470+`) and ends at the
+self-heal coverage boundary — Thumb code `0x08145484` is reached with
+CPSR.T clear → ARM lookup → dispatch miss → bridge Undefined at
+`0x08145488`. The proposal frag `[[extra_func]] 0x08145484 mode = "arm"` must
+NOT be seeded (the code is Thumb; the T-bit loss is fallout of the original
+handler abandonment). The true root remains open: *why* the SWI-return
+cancel chain cuts the handler short (floor respected, handler still lost) —
+the close makes that a correctness bug, not a hang.

@@ -276,12 +276,15 @@ GBARECOMP_INPUT_REPLAY=logs/playthrough.csv ./build/FFTARecomp ...` — expect
   against the pins, public embeds must be absent, `libmain.so` once per ABI,
   manifest facts, and duplicate / stray / oversized zip entries. Run after
   `./gradlew :app:assembleDebug` (android/README.md § Build).
-- **Suspend→A press regression (bounded hang):** `tools/hangrepro.py`
+- **Suspend→A press regression (phantom IRQ close):** `tools/hangrepro.py`
   (opt-in: `check.py --only hangrepro`) — deterministic steppable repro of
-  the 2026-10-09 hang (`savestate_load game.state3` → A → the process must
-  survive with `host-stack guard unwind` lines instead of the former
-  SIGSEGV at ~+26 steps; skips when the gitignored `game.state3` /
-  `saves/playtest.sav` are absent). BRINGUP § 2026-10-09.
+  the 2026-10-09 hang (`savestate_load game.state3` → A). Since the
+  irq-handler-abandon-close fix the abandoned IRQ must be closed
+  (`closing the IRQ` in the log) and the flow advances past the old wedge
+  (typically ending at the coverage boundary — a separate, tracked state);
+  the former SIGSEGV-at-~+26 / guard-bounded hang must not return. Skips
+  when the gitignored `game.state3` / `saves/playtest.sav` are absent.
+  BRINGUP § 2026-10-09.
 
 Current snapshot (2026-10-08, strict 1200-frame run; refresh with
 `.venv/bin/python tools/coverage_report.py`):

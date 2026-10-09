@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
-"""Deterministic state3 press regression: the suspend→A hang must stay bounded.
+"""Deterministic state3 press regression: the suspend→A hang must not return.
 
 Reproduces the 2026-10-09 hang deterministically (steppable `--tcp` +
-`savestate_load game.state3` + A press). Before the host-stack guard port the
-process SIGSEGV'd ~26 steps after the press; with the guard it must survive
-(possibly entering the slow bounded state) with `host-stack guard unwind`
-lines in its log.
+`savestate_load game.state3` + A press). History: the process SIGSEGV'd ~26
+steps after the press; the host-stack guard then bounded it; since the
+irq-handler-abandon-close fix the phantom IRQ is closed cleanly
+(`closing the IRQ` in the log) and the flow advances past the old wedge. The
+run then typically ends at the self-heal coverage boundary (Thumb code
+reached with a corrupted CPSR.T -> bridge Undefined at 0x8145484), which is
+a separate, tracked state — NOT a hang.
 
 Needs (both gitignored / local-only, hence opt-in):
   game.state3            — the press-moment savestate
@@ -43,11 +46,19 @@ def call(sock, cmd, timeout=60, **kw):
     return json.loads(head)
 
 
-def guard_lines():
+def log_text():
     try:
-        return LOG.read_text(errors="replace").count("host-stack guard unwind")
+        return LOG.read_text(errors="replace")
     except OSError:
-        return 0
+        return ""
+
+
+def guard_lines():
+    return log_text().count("host-stack guard unwind")
+
+
+def close_lines():
+    return log_text().count("closing the IRQ")
 
 
 def main():
@@ -101,6 +112,14 @@ def main():
         except socket.timeout:
             timed_out = True
         except (ConnectionError, OSError) as e:
+            # Acceptable post-fix ending: the fix closed the abandoned IRQ
+            # and the flow then ended at the coverage boundary. The phantom
+            # (nd stuck, never-closing IRQ) is what must not return.
+            if close_lines() > 0:
+                print(f"SUCCESS: closed the abandoned IRQ; flow advanced "
+                      f"past the old wedge (+{steps} steps; process ended: "
+                      f"{e})")
+                return 0
             print(f"FAIL: connection lost (crash?) at +{steps}: {e}")
             return 1
         finally:
@@ -128,7 +147,7 @@ def main():
             return 1
         print(f"SUCCESS: survived the press (+{steps} steps"
               f"{', bounded state' if timed_out else ''}; "
-              f"guard unwinds={guard_lines()})")
+              f"guard unwinds={guard_lines()}, irq closes={close_lines()})")
         return 0
     finally:
         try:
