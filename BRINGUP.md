@@ -941,9 +941,11 @@ SIGSEGV "stack pointer is not in a rw map", 512+ frames of alternating
 
 ### Android: virtual pad idle auto-hide (2026-10-08)
 - Feature: the touch pad hides after 5 s of screen-wide touch inactivity;
-  any touch reveals it, and the revealing gesture presses nothing (a wake
-  tap cannot activate a control the player was not aiming at). Held
-  pad/toggle touches keep it visible so a control never vanishes mid-press.
+  any touch reveals it and the revealing touch also acts (a first cut
+  consumed the wake gesture — two swallowed taps while driving the menus
+  over adb proved the double-tap friction, so reveal now presses through).
+  Held pad/toggle touches keep it visible so a control never vanishes
+  mid-press.
 - Engine: `tools/patches/touch-pad-idle-hide.patch` —
   `RunOptions::touch_pad_idle_hide_seconds` (0 = off) flows through
   `configure_touch` into `host_window`: per-present idle check, a `reveal`
@@ -952,8 +954,10 @@ SIGSEGV "stack pointer is not in a rw map", 512+ frames of alternating
   `host_window: pad idle-hidden (N s quiet)`.
 - FFTA opts in with 5 s (`src/main.cpp`); inert without a touch pad.
 - Verified: desktop cycle + check ALL PASS (9/9, patch listed); device
-  screencaps: pad visible @3 s (BIOS), hidden @9 s (log line present),
-  tap reveals and the game resumes unchanged. Upstream candidate.
+  screencaps: pad visible @3 s (BIOS), hidden @9 s (log line present);
+  after the flip, a single tap on the idle-hidden menu pressed through
+  (opened the Load screen, byte-identical render) with the pad restored.
+  Upstream candidate.
 
 ### Playtest session 1 — first-battle path now fully static (2026-10-06)
 The user played the desktop build interactively (letter-only keymap; see the

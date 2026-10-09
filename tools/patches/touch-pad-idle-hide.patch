@@ -1,16 +1,8 @@
 diff --git a/src/runtime/host_window.cpp b/src/runtime/host_window.cpp
-index 22ca157..42d34d4 100644
+index 22ca157..855ff25 100644
 --- a/src/runtime/host_window.cpp
 +++ b/src/runtime/host_window.cpp
-@@ -367,6 +367,7 @@ struct Backend {
-         float start_x = 0.0f, start_y = 0.0f;
-         float grab_dx = 0.0f, grab_dy = 0.0f;  // toggle centre - finger
-         bool routed = false;
-+        bool reveal = false;  // idle-hide wake gesture: reveals, presses nothing
-     };
-     std::array<TouchPoint, 10> touches{};
-     // Virtual gamepad capability (Android by default; desktop via
-@@ -374,6 +375,10 @@ struct Backend {
+@@ -374,6 +374,10 @@ struct Backend {
      bool touch_controls = false;
      bool pad_visible = false;
      bool pad_choice_saved = false;
@@ -21,7 +13,7 @@ index 22ca157..42d34d4 100644
      // Player-placed pad toggle: centre as a fraction of the safe area, so it
      // keeps its place across rotation. Unset = bottom-right corner.
      bool toggle_pos_saved = false;
-@@ -748,6 +753,17 @@ bool pad_toggle_available(const Backend* b) {
+@@ -748,6 +752,17 @@ bool pad_toggle_available(const Backend* b) {
      return b && b->touch_policy && (b->touch_controls || b->touch_emulation);
  }
  
@@ -39,7 +31,7 @@ index 22ca157..42d34d4 100644
  Backend::TouchPoint* find_touch(Backend* b, SDL_FingerID id) {
      if (!b) return nullptr;
      for (auto& touch : b->touches)
-@@ -1001,7 +1017,7 @@ private:
+@@ -1001,7 +1016,7 @@ private:
  #endif
  
  void draw_touch_pad(Backend* b, HostOverlay& ov) {
@@ -48,7 +40,7 @@ index 22ca157..42d34d4 100644
      const PadLayout p = compute_pad_layout(b);
      const uint16_t held = active_touch_buttons(b);
      const auto S = OverlaySpace::Drawable;
-@@ -1054,7 +1070,7 @@ void draw_touch_pad(Backend* b, HostOverlay& ov) {
+@@ -1054,7 +1069,7 @@ void draw_touch_pad(Backend* b, HostOverlay& ov) {
      pill(p.start, 3, "START", p.start.h * 0.5f);
  }
  void draw_pad_toggle(Backend* b, HostOverlay& ov) {
@@ -57,7 +49,7 @@ index 22ca157..42d34d4 100644
      const PadLayout p = compute_pad_layout(b);
      const auto S = OverlaySpace::Drawable;
      const PadRect& r = p.toggle;
-@@ -1348,6 +1364,29 @@ bool runtime_menu_open(const Backend* b) {
+@@ -1348,6 +1363,29 @@ bool runtime_menu_open(const Backend* b) {
  // builds) the settings menu on top. Nothing here reads or writes guest state
  // except through the game's own overlay callback.
  void draw_host_chrome(Backend* b, HostOverlay& ov, bool menu_open) {
@@ -87,7 +79,7 @@ index 22ca157..42d34d4 100644
      if (menu_open) return;
      if (b->host_overlay) b->host_overlay(&ov);
      draw_touch_pad(b, ov);
-@@ -1362,8 +1401,8 @@ void render_host_layers(Backend* b) {
+@@ -1362,8 +1400,8 @@ void render_host_layers(Backend* b) {
      const bool menu_open = false;
  #endif
      const bool chrome = !menu_open &&
@@ -98,7 +90,7 @@ index 22ca157..42d34d4 100644
      if (!chrome && !menu_open) return;
  
      // Native GBA presentation uses a 240x160 SDL logical size. Host chrome
-@@ -2508,12 +2547,16 @@ void HostWindow::set_runtime_ui(RecompRuntimeUi* ui) {
+@@ -2508,12 +2546,16 @@ void HostWindow::set_runtime_ui(RecompRuntimeUi* ui) {
  #endif
  
  void HostWindow::configure_touch(bool policy, std::uint32_t claims,
@@ -116,7 +108,7 @@ index 22ca157..42d34d4 100644
      if (emulate_touch) {
          // SDL then reports the left mouse button as a touch finger
          // (touchId SDL_MOUSE_TOUCHID), exercising the real finger path.
-@@ -2583,6 +2626,10 @@ void HostWindow::set_touch_pad_visible(bool visible) {
+@@ -2583,6 +2625,10 @@ void HostWindow::set_touch_pad_visible(bool visible) {
      if (b->pad_visible == visible && b->pad_choice_saved) return;
      b->pad_visible = visible;
      b->pad_choice_saved = true;
@@ -127,15 +119,14 @@ index 22ca157..42d34d4 100644
      // Any finger currently on a pad button is released with the pad.
      for (auto& t : b->touches)
          if (t.active && t.pad) t.buttons = 0;
-@@ -2793,17 +2840,24 @@ HostWindow::Events HostWindow::pump() {
+@@ -2793,13 +2839,19 @@ HostWindow::Events HostWindow::pump() {
                      &te.view_x, &te.view_y);
                  TouchHub::instance().submit(te);
              };
-+            // Any finger activity refreshes the pad idle timer; a gesture
-+            // that starts while the pad is idle-hidden only reveals it (the
-+            // revealing gesture presses nothing, so a wake-up tap cannot
-+            // activate a control the player was not aiming at).
-+            const bool reveal_gesture = b->pad_idle_hidden;
++            // Any finger activity refreshes the pad idle timer and reveals a
++            // hidden pad; the touch then acts normally, so a tap after the
++            // quiet period is never swallowed (menu-heavy games would need a
++            // double tap otherwise).
 +            b->pad_last_touch_ms = SDL_GetTicks();
 +            b->pad_idle_hidden = false;
              const PadLayout pad = compute_pad_layout(b);
@@ -145,36 +136,11 @@ index 22ca157..42d34d4 100644
                      touch->y = touch->start_y = py;
                      const uint16_t buttons =
 -                        (b->pad_visible && b->touch_controls)
-+                        (!reveal_gesture && pad_overlay_shown(b))
++                        pad_overlay_shown(b)
                              ? pad_buttons_at(pad, px, py, b->px_per_mm) : 0;
                      // The toggle wins over the pad so it can never be buried
                      // under a button (it is small and player-movable).
--                    if (pad_toggle_available(b) &&
-+                    if (!reveal_gesture && pad_toggle_available(b) &&
-                         pad.toggle.contains(px, py, 2.0f * b->px_per_mm)) {
-                         touch->toggle = true;
-                         touch->grab_dx = pad.toggle.x + pad.toggle.w * 0.5f - px;
-@@ -2811,6 +2865,8 @@ HostWindow::Events HostWindow::pump() {
-                     } else if (buttons) {
-                         touch->pad = true;
-                         touch->buttons = buttons;
-+                    } else if (reveal_gesture) {
-+                        touch->reveal = true;
-                     } else {
-                         touch->routed = true;
-                         route(TouchPhase::Down);
-@@ -2819,7 +2875,9 @@ HostWindow::Events HostWindow::pump() {
-             } else if (auto* touch = find_touch(b, e.tfinger.fingerId)) {
-                 touch->x = px;
-                 touch->y = py;
--                if (touch->pad) {
-+                if (touch->reveal) {
-+                    // Idle-hide wake gesture: consumed until release.
-+                } else if (touch->pad) {
-                     // Sliding between pad buttons follows the finger.
-                     touch->buttons = pad_buttons_at(pad, px, py, b->px_per_mm);
-                 } else if (touch->routed) {
-@@ -3113,7 +3171,8 @@ void HostWindow::set_resize_driven_view(bool /*enabled*/) {}
+@@ -3113,7 +3165,8 @@ void HostWindow::set_resize_driven_view(bool /*enabled*/) {}
  void HostWindow::set_runtime_ui(RecompRuntimeUi* /*ui*/) {}
  #endif
  void HostWindow::configure_touch(bool /*policy*/, std::uint32_t /*claims*/,
@@ -185,7 +151,7 @@ index 22ca157..42d34d4 100644
  bool HostWindow::touch_pad_visible() const { return false; }
  void HostWindow::set_touch_pad_visible(bool /*visible*/) {}
 diff --git a/src/runtime/host_window.h b/src/runtime/host_window.h
-index 261d693..3246519 100644
+index 261d693..84067d7 100644
 --- a/src/runtime/host_window.h
 +++ b/src/runtime/host_window.h
 @@ -103,8 +103,11 @@ public:
@@ -194,7 +160,7 @@ index 261d693..3246519 100644
      // Backspace = platform Back) for development and validation.
 +    // `pad_idle_hide_seconds` hides the pad overlay (and its toggle) after
 +    // that many seconds of screen-wide touch inactivity (0 = never); any
-+    // touch reveals it and the revealing gesture presses nothing.
++    // touch reveals it and then acts normally.
      void configure_touch(bool policy, std::uint32_t claims, int pad_default,
 -                         bool emulate_touch);
 +                         bool emulate_touch, int pad_idle_hide_seconds = 0);
@@ -240,7 +206,7 @@ index b560791..9058a45 100644
      return save_ok ? 0 : 1;
  }
 diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
-index cb6717c..47de6c0 100644
+index cb6717c..2c725e1 100644
 --- a/src/runtime/runtime.h
 +++ b/src/runtime/runtime.h
 @@ -164,6 +164,11 @@ struct RunOptions {
@@ -249,7 +215,7 @@ index cb6717c..47de6c0 100644
  
 +    // Virtual pad idle auto-hide: seconds of screen-wide touch inactivity
 +    // before the pad overlay (and its toggle) hides; any touch reveals it
-+    // again and the revealing gesture presses nothing. 0 = never hide.
++    // again (the revealing touch then acts normally). 0 = never hide.
 +    int touch_pad_idle_hide_seconds = 0;
 +
      // Optional host-drawn presentation layer (host_overlay.h). Called on every
