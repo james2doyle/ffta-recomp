@@ -3177,4 +3177,5 @@ tools list; the playbook's verification reference gains the portable lesson
 
 Remaining from the survey (tiers 2–3): Robolectric shell unit tests and the
 APK content guard — both need SDK/Gradle (and the guard a built APK); a
-separate tier when wanted.
+separate tier when wanted. Both now sit on the `android/README.md` deferred
+list (Robolectric as its own item; the guard under release packaging).

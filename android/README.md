@@ -172,3 +172,9 @@ real phone stays the authority for runtime behavior.
 2. Touch-first input scheme (the engine's virtual pad is the v1 control).
 3. Perf/size pass (first build only measured qualitatively).
 4. Upstream note: mods-state default persistence on launcher-less runs.
+5. Robolectric shell unit tests (device-free JVM, no emulator): exercise the
+   engine shell's Java logic — SAF import verification (size/SHA-1 reject
+   paths, temp-file cleanup), payload install (version marker,
+   `state.toml`/`.sav` player-file preservation), `GbaGameConfig`
+   merged-manifest wiring — via `./gradlew :app:testDebugUnitTest`. Needs
+   test deps (junit + Robolectric) and an SDK-equipped CI tier.
