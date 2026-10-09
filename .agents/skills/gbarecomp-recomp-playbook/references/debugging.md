@@ -36,6 +36,16 @@ the capture layer's own bugs).
 
 ## Ring walks: falsify the story, then diff the delta
 
+The per-instruction ring is ground truth over every bookkeeping log: a
+computed/printed "return target" can disagree with the PC the CPU actually
+fetched next. When a control transfer looks wrong, dump the ring **at the
+failure site** (a debugger call to the ring-save function works mid-run;
+exit-time dumps are lost on aborts) and read the fetch sequence around the
+hand-off — the real target is whichever PC the next record fetches. An
+exception return that pops a guest-stack value can legitimately land inside
+a *different* function's argument setup, several bytes off any known
+boundary; disarm the landing site before theorizing.
+
 Per-instruction rings can be dumped while the guest is alive
 (`GBARECOMP_INSN_TRACE=1` + the TCP `fp_save <path>` command; no crash or
 watchdog trip needed). Format: 16-byte header `<IIQ>`, then 80-byte

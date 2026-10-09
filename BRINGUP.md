@@ -3488,3 +3488,17 @@ The chain, in execution order:
 `break runtime_dispatch_miss`, condition `entry_pc==0x08145484`, then
 `call runtime_fp_save_file("/tmp/fp.bin")` at the stop. Parse records
 `<Q18I` 80 B: cycles, pc, cpsr, r0..r12, sp(=16), lr(=17).
+
+**Playtest re-confirmation (same day):** loading `game.state3` alone (no A
+press) reproduces the close and then the boundary abort (SIGABRT at the
+bridge) — the poisoned flow re-executes from the restored context; expect
+this endpoint until the R1 containment fix lands.
+
+**Detail correction (disarm-verified):** the miss target `0x8145484` is not
+a call — it is the *second* instruction of the CpuFastSet argument setup in
+`post_suspend_flow` (`0x8145482 mov r0,sp; 0x8145484 adds r1,r5,#0;
+0x8145486 bl swi0b_thunk`). The corrupted BIOS `subs pc, lr, #4` computed
+`new_pc = (LR−4)&~3 = 0x814548B−4 → 0x8145484`, i.e. the exception return
+landed two bytes inside the setup, and ARM-mode decoding of `adds r1,r5,#0`
+is the "Undefined at 0x8145488" abort. The earlier "interior resume seed"
+reading of this address was a mislabel of the same mechanism.

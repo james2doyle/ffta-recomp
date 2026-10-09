@@ -118,6 +118,17 @@ recipe below is validated there.
   stack visibly grows → print `g_irq_nest_depth` at mainline PCs; a stuck
   ≥1 (poisoned by a guest-return × IRQ interleave) disables the
   `nest_depth == 0` gate. See BRINGUP § 2026-10-09 later.
+- **BIOS addresses you will see in rings** (standard GBA BIOS; roles here
+  chain-verified 2026-10-09): `0x00` reset vector → `0x68` init; `0x84/0x88`
+  init path that switches to ARM; `0x18` IRQ vector; `0x64`/`0x13C`
+  `subs pc, lr, #4` exception-return sites (ARM `-4` compensation is wrong
+  for a THUMB LR — watch for off-by-2/4 returns); `0x170..0x188` SWI entry /
+  epilogue; `0xB56..0xB9C` CpuFastSet-style copy loop region.
+- **The ring is ground truth over bookkeeping logs**: the 2026-10-09 chain
+  showed an `exc-ret new_pc=0x814186E` log line while the actual fetch
+  sequence resumed at `0x8033BA` — computed/logged values can disagree with
+  what the CPU really executed; confirm every hand-off in the per-instruction
+  ring before drawing conclusions.
 - **Ring dump at any breakpoint**: launch with `GBARECOMP_INSN_TRACE=1`
   (the fingerprint ring must be armed) and, at a gdb stop, call
   `runtime_fp_save_file("/tmp/fp.bin")` — the whole per-instruction ring

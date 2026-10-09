@@ -172,7 +172,9 @@ specific file; `--expect public|private` asserts the build mode.
   pre-fix it SIGSEGV'd ~26 steps after the press (nested
   `gf_vblank_wait_loop` frames); now the phantom IRQ closes, the loop is
   one frame, and the flow advances past the old wedge (ending at a
-  tracked coverage boundary). The in-battle suspend save → title trigger
+  tracked coverage boundary — a deterministic bridge abort, expected
+  until the engine-side SWI-return containment fix lands; BRINGUP
+  § true root). The in-battle suspend save → title trigger
   is described in `BRINGUP.md` § 2026-10-08/09; on-device capture:
   `tools/hangprobe.py` + `reference/dev-gotchas.md` § Android device
   forensics. Device re-verification after these two fixes is pending

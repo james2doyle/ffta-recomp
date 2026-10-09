@@ -203,6 +203,16 @@
 # ffta-decomp docs + our disassembly; interiors documented in reference/event-vm.md.
 0x0801F098	thumb	decompressor_u16len
 0x08141868	thumb	swi0c_thunk
+# SWI veneer table 0x8141860+ (svc #N; bx lr pairs). 0x814186C = SWI 0x0B
+# (CpuFastSet): the hot veneer in the 2026-10-09 press-flow chain (ring
+# evidence: BRINGUP § true root — the suspend flow copies 0x40 B of stack
+# context to EWRAM through it).
+0x0814186C	thumb	swi0b_thunk
+# Post-suspend return flow (press repro): prologue push {r4-r6,lr} @0x81453F8;
+# writes 0x8f/0/8 setup values; bl swi0b_thunk @0x8145486 copies 0x40 B of
+# live stack context (r0=sp) to EWRAM — the routine the corrupted BIOS
+# `subs pc, lr, #4` re-entered mid-argument-setup (BRINGUP § true root).
+0x081453F8	thumb	post_suspend_flow
 0x08123860	thumb	evt_healing_case
 0x08123B68	thumb	evt_death_case
 0x08123898	thumb	mission_script_trigger
