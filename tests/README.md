@@ -82,6 +82,7 @@ single long-lived watcher per session.
 |---|---|
 | `.venv/bin/python tools/keyprobe.py PORT` | live KEYINPUT monitor (active-low) — verifies host keys reach the guest. Click the window once (focus) first. |
 | `.venv/bin/python tools/livewatch.py PORT` | frame-stall watchdog — snapshots registers, state hash and an IWRAM stack window to `/tmp/hang_*.json` the moment the frame counter stops advancing |
+| `.venv/bin/python tools/hangprobe.py PORT` | read-only hang probe — registers + IF/IE/IME + FFTA wake flag + IRQ vector + miss report; safe on stalled sessions (never send `savestate_save` there — it wedges the single-client server) |
 | `.venv/bin/python tools/quit.py PORT` | clean remote close (archives + flushes) |
 | raw TCP reads | memory/register reads for ad-hoc questions — see `gbarecomp/TCP.md`; observe mode has no stepping |
 
@@ -96,7 +97,10 @@ For deeper captures (no code changes): `GBARECOMP_INSN_TRACE=1` +
   names the pc/state. Close with `quit.py`, then reproduce offline:
   `tools/spinhunt.py <trace> <save> <frames>` bisects strict replays; the
   frag/cache shows what to seed. (Crash classes: the table in the next
-  section.)
+  section.) On an Android device, probe read-only first
+  (`tools/hangprobe.py`) — a savestate request wedges the observe server on
+  a stalled guest, and the session's `/proc` is evidence (recipe:
+  `reference/dev-gotchas.md` § Android device forensics).
 - **A missing-coverage stretch.** Just play — every miss is journaled; then
   run the healing loop below (harvest → misspack → merge → resolve →
   cycle).

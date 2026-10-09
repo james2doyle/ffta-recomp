@@ -920,8 +920,8 @@ SIGSEGV "stack pointer is not in a rw map", 512+ frames of alternating
   frame-boundary unwind and its depth guard counts only BL pushes, so the
   growth is unbounded; desktop masks this with an unlimited main-thread
   stack (Pitfall 2) — the finite 256 MiB mobile thread turns it into a
-  crash. Why the flag stalled on device (session-6 class) is not yet
-  root-caused; the guard below makes it diagnosable.
+  crash. Why the flag stalls on device is the subject of § "Android device
+  hang" below (reproducible via the in-battle suspend-save flow).
 - **Config fix attempted, blocked by the finder.** `[[extra_func]]
   resume = true` at 0x08000428 does not roll in: alias containment requires
   the candidate to lie inside the host's *linear* walk extent (0x418..0x422,
@@ -962,6 +962,49 @@ SIGSEGV "stack pointer is not in a rw map", 512+ frames of alternating
 - Tuned 5 s → 15 s on user request the same evening; re-verified on device
   (`pad idle-hidden (15 s quiet)` fires; live gameplay naturally exercises
   reveal-and-act).
+
+### Android device hang — in-battle save → title (2026-10-08, open)
+User-reproducible (three captures): an in-battle suspend save followed by
+the return to title wedges the game. Live forensics (no root — whole-stack
+dump via `run-as` + `/proc/<pid>/mem`, plus the TCP observe channel;
+recipe: `reference/dev-gotchas.md` § Android device forensics):
+
+- **Carrier = the split vblank wait loop.** The 256 MiB game-thread stack
+  holds ~2.1 M nested frames of `gf_vblank_wait_loop` ↔
+  `gf_vblank_wait_loop_cont` (64-byte frames; return into
+  `gf_vblank_wait_loop+0x258`, right after `bl gf_vblank_wait_loop_cont`;
+  each frame carries guest resume PC 0x0800041A) — the cross-function
+  back-edge nesting from the crash section above, growing ~20 MiB/min. The
+  host-stack guard would unwind it at 224 MiB (a bounded freeze, not a
+  crash — working as designed); no guard line had fired when captured.
+- **Trigger = the suspend-save flow.** Every capture shows the flash
+  record mid-write (next group counter, checksum mismatch; the previous
+  group stays valid, so a restart recovers the earlier suspend — save
+  safety verified with `tools/savecheck.py`). The guest then waits on flag
+  0x03000E10, which the vblank callback (0x080004B0 … m4a SoundMain) must
+  set; it never arrives.
+- **No coverage component** in the latest captures (FULLY_STATIC, zero
+  misses; one earlier capture had a single intermittent bridged miss — a
+  red herring).
+- **Prime suspect: device audio.** `PlayerBase::stop() from IPlayer` at
+  ~28/s since the first boot (~96 k lines — the SDL audio device is
+  constantly restarting). The wake callback runs SoundMain before setting
+  the flag (session-6 mechanics). First knob to try:
+  `GBARECOMP_AUDIO_DIRECT=1` (the WWT device fix); IWRAM m4a-blob frames
+  (`gf_tfunc_03003550/03003564`, `gf_afunc_0300364C/030037B4`) sit just
+  above the nesting on the stack.
+- **Mobile miss journaling is wired:** `src/main.cpp` sets
+  `GBARECOMP_MISS_FRAG` under `on_mobile`, so bridged PCs durably rewrite
+  `files/recomp_master_misses_AFXE.toml.frag` — a hung/killed session can
+  no longer lose the proposal (the exit-time report never runs on kill).
+- **Probe kit:** `tools/hangprobe.py <port>` — read-only registers,
+  IF/IE/IME, wake flag, IRQ vector, miss report. Never send
+  `savestate_save` to a stalled observe server: it queues at "the next
+  present" and wedges the single-client server (learned the hard way).
+- **Next:** capture IF/IE/IME + flag on the next reproduction (distinguishes
+  "IRQs blocked" from "callback stalled"); then test the direct-audio knob;
+  upstream note: stack-guard patch + the finder roll-in gap (a
+  branch-target block beyond a host's linear walk extent cannot merge).
 
 ### Playtest session 1 — first-battle path now fully static (2026-10-06)
 The user played the desktop build interactively (letter-only keymap; see the

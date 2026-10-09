@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <vector>
 
@@ -212,6 +213,13 @@ int ffta_main(int argc, char** argv) {
     opts.touch_pad_idle_hide_seconds = 15;
 
     if (on_mobile) {
+        // Durable miss journaling on device (mobile has no exit-time report
+        // when a session hangs or is killed): every missed PC rewrites this
+        // proposal fragment in the app's files/ dir the moment it is bridged,
+        // so the device doubles as a harvestable audit surface. Overwrite=0
+        // keeps any externally provided path authoritative.
+        setenv("GBARECOMP_MISS_FRAG",
+               "recomp_master_misses_AFXE.toml.frag", 0);
         // Phones fill the screen with the desktop-validated expanded view
         // (decision 2026-10-08); physical-pixel sizing keeps the runtime
         // chrome readable, resume after an OS kill, touch-friendly UI.

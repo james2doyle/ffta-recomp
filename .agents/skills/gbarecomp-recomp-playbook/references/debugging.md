@@ -55,6 +55,10 @@ the capture layer's own bugs).
   first wedged frame. That window is gold for the first-divergence hunt.
 - If the spin sits in an HLE/shadow-serviced area (audio mixer, timing
   model), suspect host-side model desync before guest logic.
+- On devices, an audio output that restarts constantly (repeated platform
+  log lines) destabilizes timing and is a prime suspect for wait-loop
+  stalls — test the engine's direct-audio mode before deep-diving the
+  guest.
 
 ## Memory growth triage (climbing RSS during a hang)
 
@@ -79,6 +83,56 @@ the capture layer's own bugs).
   growth). It is downstream of whatever corrupted the guest state: fix the
   root; meanwhile kill stalled sessions (memory frees on exit) and gate
   probes with write-triggered abort hooks that stop runaways within seconds.
+
+## Split-function busy-waits nest host frames (finite-stack trap)
+
+A spin whose back-edge crosses a generated-function boundary compiles to a
+host call per iteration; while the wait's wake condition is unmet, those
+frames accumulate and only unwind when the loop finally exits. Desktop runs
+with an effectively unlimited main-thread stack, so this presents as RSS
+creep; a finite mobile thread stack turns the same wait into a SIGSEGV
+(deep tombstone: one return address repeated hundreds of times). The
+frame-boundary unwind that would bound it may be suppressed by
+present-in-place, whose depth guard counts only call-pushes, not
+branch-calls.
+
+- Read a stack dump: a repeated return address + nearest-symbol lookup
+  names the recursing call site; growth rate over time tells you whether
+  anything bounds it.
+- Bound it at runtime: give the game thread a stack budget and unwind
+  through the ordinary instruction-boundary yield path once a probe
+  crosses it — gated exactly like the frame-present yield (never inside a
+  live IRQ handler). This converts an eventual crash into a logged,
+  bounded freeze.
+- Merge it at the source where the finder supports interior resume
+  aliases (an intra-function back-edge is one host frame); when the
+  candidate block lies beyond the host's linear walk extent the roll-in
+  does not fire — note that as an engine gap.
+- The nesting is a *carrier*: a wait that outlives its expected wake is a
+  behavioral stall. Find why the wake never arrives (interrupt-mask state,
+  callback stalls) before treating the spin itself as the bug.
+
+## On-device hangs without root (Android)
+
+`debuggerd` is root-gated on production builds even for debug apps. Use
+`run-as` same-uid access instead: `/proc/<pid>/maps` (thread stacks are
+labeled `[anon:stack_and_tls:<tid>]`), `syscall` ("running" = userspace
+spin), `/proc/<pid>/mem` via `dd` for stack dumps, `stat` utime/stime for
+a real CPU rate. Symbolize dumped pointers against the *unstripped* build
+with the NDK's llvm tools. A deep-stack dump plus the repeated return
+address identifies the spinning call site; the frames above it name the
+flow that entered it. Full recipe: this project's
+`reference/dev-gotchas.md` § Android device forensics.
+
+## The observe server: single client, and the savestate trap
+
+The `--tcp-observe` surface serves one client at a time; a long-lived
+watcher holds the slot, so disconnect it before other probes. Critically:
+`savestate_save` is serviced by the runner at the *next present* — on a
+stalled guest that never presents, the request never completes and wedges
+the single-client server. On a suspected stall, probe read-only first
+(registers, interrupt-enable and flag reads, miss report); never lead with
+savestate. Keep a one-shot read-only probe script per project.
 
 ## Relocated-code re-entry (planted stubs)
 

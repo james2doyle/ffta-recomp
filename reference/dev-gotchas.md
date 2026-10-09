@@ -66,6 +66,45 @@ real hours once.
   the window aspect, windowed-only by design; `--fullscreen` = borderless).
   Validation: `tools/ws_check.py`; internals: `reference/widescreen.md`.
 
+## Android device forensics (no root)
+
+Stock Android 14: `debuggerd -b <pid>` is root-gated even for debuggable
+apps, `/proc/<pid>/task/<tid>/stack` is unreadable, and SIGTERM is not a
+close mechanism — but `run-as <pkg>` (debug build) gives full same-uid
+access, which is enough:
+
+- Thread stacks are labeled in `/proc/<pid>/maps` as
+  `[anon:stack_and_tls:<tid>]`; the recompiled game thread's is the
+  ~256 MiB one. `ps -AT` lists tid/name/state (state is the 9th column).
+- Same-uid reads that work via `run-as`: `maps`, `stat` (utime+stime
+  deltas ≈ CPU rate; one-shot `top` percentages mislead), `syscall`
+  ("running" = userspace spin; otherwise the blocked syscall + args incl.
+  sp), and `/proc/<pid>/mem` (`dd bs=4096 skip=<addr/4096>` seeks).
+- Pull dumps out via the app dir: `adb shell run-as <pkg> dd
+  if=/proc/<pid>/mem of=files/x.bin bs=4096 skip=N count=M`, then
+  `adb exec-out run-as <pkg> cat files/x.bin > /tmp/x.bin` (delete the
+  device copy afterward).
+- Symbolize stack pointers with the NDK's `llvm-symbolizer`/`llvm-nm`
+  against the UNSTRIPPED build output
+  (`android/app/build/intermediates/cxx/Release/*/obj/arm64-v8a/libmain.so`;
+  the in-APK lib is stripped). The lib's runtime base is its first `r-xp`
+  map: `vaddr = runtime_addr - base`. A repeated return address across a
+  deep stack names the recursing call site directly.
+- Device sessions read extra runtime args from `files/debug-args.txt`
+  (create with `run-as`; e.g. `--tcp-observe 19888` +
+  `adb forward tcp:19888 tcp:19888`). Observe servers are single-client;
+  `savestate_save` queues for "the next present", so on a stalled guest it
+  never completes and WEDGES the server — probe read-only
+  (`tools/hangprobe.py`) instead.
+- Miss proposals on device: live journaling needs `GBARECOMP_MISS_FRAG`
+  (FFTA sets it in `src/main.cpp` `on_mobile`); the exit-time report never
+  runs on a hung/killed session.
+- Save transplant: `am force-stop` first, then `run-as <pkg> mkdir -p
+  files/saves`, `adb push` to `/data/local/tmp`, `run-as cp` into place,
+  md5-compare, relaunch. Validate the image first with
+  `tools/savecheck.py`. The game keeps redundant record groups — an
+  interrupted write is ignored in favor of the previous valid group.
+
 ## BIOS recompile, build, stack
 
 - BIOS recompile must run with cwd = `gbarecomp/` **and pass

@@ -132,6 +132,10 @@ For TCP debugging: `adb forward tcp:19888 tcp:19888` plus `--tcp-observe
   `runtime: host-stack guard unwind count=… pc=…` to `android-runtime.log`.
   If the underlying stall recurs on device, expect a bounded freeze with
   guard lines rather than a native crash — grab the log for the next step.
+  The reproducible trigger is the in-battle suspend save → title flow
+  (2026-10-08, open — `BRINGUP.md` § Android device hang); capture it with
+  `tools/hangprobe.py` plus the device-forensics recipe
+  (`reference/dev-gotchas.md` § Android device forensics).
 - Repackaging after a native relink can leave a junk blob inside an
   incrementally updated APK (67 MB vs the normal 37 MB, observed once);
   `rm -rf android/app/build` before packaging when artifact size matters

@@ -183,6 +183,24 @@ killing anything: this converts "it hung again" into a pc + stack + caller
 chain without any replay. The frame counter is the hang signal; the pc is
 the diagnosis.
 
+### Device (mobile) live sessions
+
+- Extra runtime args arrive via an app-private `debug-args.txt` (create
+  with `adb run-as`); `--tcp-observe PORT` + `adb forward` gives the same
+  read-only surface as desktop.
+- Live-journal dispatch misses to the app files directory (env-gated frag
+  path): a hung or killed session never runs exit-time reports, so the
+  live journal is the only harvest.
+- No-root forensics: `run-as` same-uid `/proc` reads (thread-stack labels,
+  `syscall`, `/proc/<pid>/mem` dumps) symbolized against the unstripped
+  build; `debuggerd` is root-gated on production builds. Leave a wedged
+  session alive while harvesting; restart only after captures.
+- Never send a queued savestate request while the guest is stalled — it
+  waits for the next present and wedges the single-client observe server.
+- Touch overlays: an auto-hidden pad must let the revealing touch act —
+  consuming the wake gesture forces a double tap and reads as input lag in
+  menu-heavy games (learned on FFTA's pad idle-hide, 2026-10-08).
+
 ### Game-owned engine hooks: lifecycle and build flags
 
 Engines that expose hook seams (provider pointers, margin/policy flags,
