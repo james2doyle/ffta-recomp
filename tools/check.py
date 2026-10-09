@@ -132,9 +132,11 @@ def check_savecheck():
 
 
 def check_patches():
-    """tools/patches/*.patch must be real diffs matching the pinned submodule:
-    apply-able forward to a pristine gbarecomp, or reversible from the patched
-    dev tree. Catches mangled/empty exports (2026-10-08 regression)."""
+    """tools/patches/*.patch must be real diffs matching the pinned submodules:
+    apply-able forward to a pristine tree, or reversible from the patched dev
+    tree. Catches mangled/empty exports (2026-10-08 regression). Patches named
+    arm-recomp-core-* target the nested external/arm-recomp-core repo; all
+    others target gbarecomp itself."""
     details = []
     ok = True
     names = sorted(p.name for p in (REPO / "tools" / "patches").glob("*.patch"))
@@ -146,11 +148,13 @@ def check_patches():
             ok = False
             details.append(f"{name}: missing")
             continue
-        fwd = run(["git", "-C", "gbarecomp", "apply", "--check", str(p)])
+        root = ("gbarecomp/external/arm-recomp-core"
+                if name.startswith("arm-recomp-core") else "gbarecomp")
+        fwd = run(["git", "-C", root, "apply", "--check", str(p)])
         if fwd.returncode == 0:
             details.append(f"{name}: forward-ok")
             continue
-        rev = run(["git", "-C", "gbarecomp", "apply", "--check",
+        rev = run(["git", "-C", root, "apply", "--check",
                    "--reverse", str(p)])
         if rev.returncode == 0:
             details.append(f"{name}: reverse-ok (applied)")
@@ -162,24 +166,30 @@ def check_patches():
     # the per-file forward/reverse checks would miss. The per-feature files
     # are reference diffs and deliberately are NOT stacked here (their
     # contexts interleave after historical re-exports; the consolidated
-    # patch is the canonical re-apply unit).
-    cons = REPO / "tools" / "patches" / "gbarecomp-local.patch"
-    if cons.exists():
+    # patch is the canonical re-apply unit). Same for the nested
+    # arm-recomp-core repo with its own consolidated patch.
+    for root, cons_name, label in (
+            ("gbarecomp", "gbarecomp-local.patch", "gbarecomp-local"),
+            ("gbarecomp/external/arm-recomp-core",
+             "arm-recomp-core-local.patch", "arm-recomp-core-local")):
+        cons = REPO / "tools" / "patches" / cons_name
+        if not cons.exists():
+            continue
         with tempfile.TemporaryDirectory(prefix="gbpatch.") as td:
             arch = subprocess.run(
-                ["bash", "-c", f"git -C gbarecomp archive HEAD | tar -x -C {td}"],
+                ["bash", "-c", f"git -C {root} archive HEAD | tar -x -C {td}"],
                 cwd=str(REPO), capture_output=True, text=True)
             app = subprocess.run(
                 ["patch", "-p1", "-s", "-f", "--no-backup-if-mismatch",
                  "-i", str(cons)], cwd=td, capture_output=True, text=True)
             if arch.returncode != 0 or app.returncode != 0:
                 ok = False
-                details.append("gbarecomp-local replay: apply FAILED")
+                details.append(f"{label} replay: apply FAILED")
             else:
-                tracked = run(["git", "-C", "gbarecomp", "ls-files"]).stdout.split()
+                tracked = run(["git", "-C", root, "ls-files"]).stdout.split()
                 bad = []
                 for f in tracked:
-                    dev = REPO / "gbarecomp" / f
+                    dev = REPO / root / f
                     if not dev.is_file():
                         continue  # gitlinks and directories
                     rep = pathlib.Path(td) / f
@@ -188,11 +198,11 @@ def check_patches():
                 if bad:
                     ok = False
                     details.append(
-                        f"gbarecomp-local replay: {len(bad)} file(s) differ "
+                        f"{label} replay: {len(bad)} file(s) differ "
                         f"(e.g. {', '.join(bad[:3])})")
                 else:
                     details.append(
-                        f"gbarecomp-local replay: {len(tracked)}-file tree matches")
+                        f"{label} replay: {len(tracked)}-file tree matches")
     return ok, " ".join(details)
 
 

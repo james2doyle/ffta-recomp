@@ -3375,3 +3375,57 @@ the close makes that a correctness bug, not a hang.
 suspend flow behaved cleanly — no hang (the pre-fix failure mode), matching
 the instrumented repro. The remaining boundary (coverage-corruption fallout
 after the close) is unchanged and tracked above.
+
+## 2026-10-09 — Split-loop gap roll-in: the vblank wait loop is one host
+## frame now (issue #30 proposed fix 4)
+
+**Root.** The crt0 frame gate at 0x08000418: the finder's linear walk stops
+at the unconditional `b 0x0800042A` @0x08000420 (literal pool
+[0x08000424,0x08000428) follows), so the beq target 0x08000428 — the 2-byte
+back-edge `b 0x08000418` — sat beyond the walk extent and was rooted as its
+own function (`vblank_wait_loop_cont`). Emission lowered the loop's two
+edges as host C calls (`call gf_vblank_wait_loop_cont` on the beq-taken
+path; `call gf_vblank_wait_loop` on the back-edge — objdump-verified
+`call`/`ret` pairs), nesting ~2 host frames per spin iteration. Healthy
+frames unwound every pass; a stalled flag (the suspend-flow era) nested to
+284k frames / stack death.
+
+**Fix (three small parts + a seed):**
+- finder (`function_finder.cpp`): the mid-function alias phase gains a *gap
+  roll-in* — an explicit `resume` candidate beyond every host's clamped
+  extent rolls into a host that directly branches to it when it lies before
+  the next real function start; the host extent grows over the block (and
+  the dead pool bytes between the old end and it).
+- emitter (`emit_function.cpp`): builds the in-body goto-target set
+  (backward targets ∪ alias entries) for the codegen.
+- codegen (nested `external/arm-recomp-core`): a direct branch inside the
+  current function's extent whose target is labelled lowers to
+  `goto L_<addr>` (was backward-only; forward labelled targets fell to C
+  calls).
+- config: `[[extra_func]] 0x08000428 resume = true` (game.toml, with the
+  disarm.py evidence note) — the gating that keeps gap roll-in opt-in.
+
+**Verified:** dispatch entry `{0x08000428u, 1u, 1u, gf_vblank_wait_loop}`
+(resume alias); `vblank_wait_loop_cont` gone (corpus 55103 → 55102); the
+built loop body contains NO generated-function call except the once-per-pass
+exit block (`gf_tfunc_0800042A`) — the per-iteration call pair is gone;
+attract hash byte-identical; `check.py` ALL PASS (11/11; route replays
+FULLY_STATIC); `hangrepro` 1.2 s PASS. The IRQ-abandonment close (d152a46)
+stays as the second line of defense.
+
+**Audit note:** the only other `_cont` split
+(`worldmap_camera_ease_cont`, 0x08038C3E) is a different shape — a
+clamp-truncated block chain whose edges lower via block dispatch, no host
+framing — no action needed. The `vblank_wait_loop_cont` symbol name is kept
+in the TSV for trace readability (the address is still a dispatchable
+resume entry).
+
+**Patches:** consolidated exports are now TWO — `gbarecomp-local.patch`
+(nested gitlink excluded: GNU patch cannot apply a submodule-commit hunk)
+plus the nested repo's first local patch `arm-recomp-core-local.patch`;
+`check.py`'s `patches` check routes by filename prefix and replays both
+against their pins.
+
+**Still open:** the true root of the handler loss (why the SWI-return cancel
+chain cuts the handler short) — unchanged; the press repro still ends at
+the coverage boundary.

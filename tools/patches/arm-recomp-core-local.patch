@@ -1,0 +1,40 @@
+diff --git a/profiles/armv4t_gba/arm_codegen.cpp b/profiles/armv4t_gba/arm_codegen.cpp
+index c671da5..7a4bfc1 100644
+--- a/profiles/armv4t_gba/arm_codegen.cpp
++++ b/profiles/armv4t_gba/arm_codegen.cpp
+@@ -462,10 +462,13 @@ std::string emit_direct_branch(uint32_t target, uint32_t branch_pc,
+         if (!refill.empty()) s << indent << cyc << " += " << refill << ";\n";
+     }
+ 
+-    if (!is_link &&
++    const bool in_body_goto =
+         target >= ctx.current_function_addr &&
+         target < ctx.current_function_end_addr &&
+-        target < branch_pc) {
++        (target < branch_pc ||
++         (ctx.in_body_goto_targets != nullptr &&
++          ctx.in_body_goto_targets->count(target) != 0));
++    if (!is_link && in_body_goto) {
+         s << indent << "if (runtime_trace_enabled()) runtime_trace_event(RUNTIME_TRACE_BRANCH, "
+           << fmt_hex32(branch_pc) << ", " << fmt_hex32(target)
+           << ", 0u, 0u);\n";
+diff --git a/profiles/armv4t_gba/arm_codegen.h b/profiles/armv4t_gba/arm_codegen.h
+index e1f2fd6..69d1c06 100644
+--- a/profiles/armv4t_gba/arm_codegen.h
++++ b/profiles/armv4t_gba/arm_codegen.h
+@@ -77,6 +77,15 @@ struct CodegenCtx {
+     // B: no call-return frame is pushed, because no guest return can ever
+     // consume it. nullptr/absent → every BL is a call.
+     const std::unordered_map<uint32_t, uint32_t>* link_branch_targets = nullptr;
++
++    // In-body goto targets: instruction addresses inside
++    // [current_function_addr, current_function_end_addr) that carry a C label
++    // in the emitted body (backward branch targets + mid-function
++    // alias/resume entries, including branch-target blocks rolled in from the
++    // walk-end gap by the finder). A direct branch to one of these lowers to
++    // `goto L_<addr>` instead of a C call, keeping split loops inside a single
++    // host frame. nullptr → forward in-body branches lower to calls as before.
++    const std::unordered_set<uint32_t>* in_body_goto_targets = nullptr;
+ };
+ 
+ class ArmCodegen {

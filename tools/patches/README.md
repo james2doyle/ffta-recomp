@@ -1,21 +1,27 @@
 # Local framework patches
 
-Working-tree edits kept applied on top of the pinned `gbarecomp/` submodule.
+Working-tree edits kept applied on top of the pinned `gbarecomp/`
+submodule — and, for `arm-recomp-core-*` patches, its nested
+`external/arm-recomp-core` submodule (patches are routed by that filename
+prefix; everything else targets `gbarecomp` itself).
 
-**Re-apply after a submodule update with the consolidated patch:**
+**Re-apply after a submodule update with the consolidated patches:**
 
 ```sh
 git -C gbarecomp apply ../tools/patches/gbarecomp-local.patch
+git -C gbarecomp/external/arm-recomp-core apply \
+  ../../../tools/patches/arm-recomp-core-local.patch
 ```
 
-`gbarecomp-local.patch` is one pristine→dev diff of the whole tracked tree.
-`tools/check.py`'s `patches` check (1) sanity-validates every file in this
-directory per the rules below and (2) replays pin + consolidated and
-requires the result to byte-match the dev tree (tracked files, including
-gitlink entries skipped) — it fails on any drift between the recorded
-patches and the actual submodule state. **After any further framework edit,
-regenerate the consolidated patch** (export command below) or the check
-fails.
+Each `*-local.patch` is one pristine→dev diff of its repo's whole tracked
+tree. `tools/check.py`'s `patches` check (1) sanity-validates every file in
+this directory per the rules below (forward against its target's pin, or
+reverse on the patched dev tree) and (2) replays pin + each consolidated
+patch and requires the result to byte-match the corresponding dev tree
+(tracked files, including gitlink entries skipped) — it fails on any drift
+between the recorded patches and the actual submodule states. **After any
+further framework edit, regenerate the matching consolidated patch** (export
+commands below) or the check fails.
 
 The per-feature files below are **reference diffs** (history and
 attribution): each applies forward to the pin individually and
@@ -27,6 +33,7 @@ patch to re-apply; use these files to see what each change was for.
 | Patch | Target | Purpose |
 |---|---|---|
 | `gbarecomp-local.patch` | whole dev tree (canonical re-apply unit) | Consolidated pristine→dev diff; replay-verified byte-identical to the dev tree by `check.py` `patches` |
+| `arm-recomp-core-local.patch` | nested repo `gbarecomp/external/arm-recomp-core` (canonical re-apply unit) | In-body forward gotos (2026-10-09): a direct branch whose target lies inside the current function's extent AND carries a label (backward target, or a gap block rolled in as an alias) lowers to `goto L_<addr>` instead of a C call — how the split vblank loop stays in one host frame (see `BRINGUP.md` § split-loop gap roll-in). |
 | `oracle-save-autoload.patch` | `gbarecomp/oracle/main.cpp` | Make the oracle autoload `<rom>.sav` next to the ROM |
 | `selfheal-journal-close-hardening.patch` | `gbarecomp/src/runtime/{runtime_arm_default_aborts,overlay_loader,runtime}.cpp` | Durable live miss-frag journal + bounded heal-worker shutdown (see `BRINGUP.md` § close-hardening) |
 | `mmio-cap-dma-reentrancy.patch` | `gbarecomp/src/gba/gba_io.{h,cpp}` | MMIO-cap per-call record control — fixes guest-DMA destination writes being swallowed by the write32 split flag (see `BRINGUP.md` § MMIO cap gap) |
@@ -39,12 +46,18 @@ Export after further submodule edits (regenerates the canonical patch; the
 replay check above goes red until you do):
 
 ```sh
-git --no-pager -C gbarecomp diff --no-ext-diff --no-color > tools/patches/gbarecomp-local.patch
+git --no-pager -C gbarecomp diff --no-ext-diff --no-color -- . \
+  ':(exclude)external/arm-recomp-core' > tools/patches/gbarecomp-local.patch
+git --no-pager -C gbarecomp/external/arm-recomp-core diff --no-ext-diff \
+  --no-color > tools/patches/arm-recomp-core-local.patch
 ```
 
 A plain `git diff` piped through a pager/formatter produces non-apply-able
 files — that happened once (see BRINGUP); `--no-ext-diff --no-color` is
-mandatory.
+mandatory. The `:(exclude)external/arm-recomp-core` pathspec keeps the dirty
+nested submodule's gitlink out of gbarecomp-local.patch (GNU patch cannot
+apply a submodule-commit hunk; the nested repo is covered by its own
+consolidated patch).
 
 `gbarecomp` is licensed **PolyForm Noncommercial 1.0.0** (© 2026 Matthew
 Stanley); patched copies remain under its terms. These files are diffs only —
