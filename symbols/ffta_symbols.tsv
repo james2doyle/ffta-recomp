@@ -296,3 +296,15 @@
 # [gMsgWorkBuffer]+0x40 with IRQs off and returns (clearing)
 # [gMsgWorkBuffer]+4. See BRINGUP § batch ah.
 0x03002B70	arm	irq_buffer_swap
+
+# Section 17: vblank scheduler + m4a frame-service additions (2026-10-09;
+# hang reproduction — BRINGUP § 2026-10-09). m4a_frame_tick = the first call
+# of vblank_callback (0x080004B4, lr 0x080004B9) and drives the per-frame
+# m4a service before the callback's other work; writes gSoundInfo+4 (pcm
+# counter) at pc 0x08144B02 (hang-trace evidence). vblank_task_runner /
+# vblank_queue_init = the 0x03000E10 vblank scheduler queue's runner and
+# init from the handoff-cluster audit (BRINGUP § handoff cluster); the
+# queue's +0 u16 tick flag is what vblank_wait_loop (0x08000418) polls.
+0x08144AF0	thumb	m4a_frame_tick
+0x080069F4	thumb	vblank_task_runner
+0x08006A7C	thumb	vblank_queue_init
