@@ -3142,3 +3142,39 @@ State sweep of the docs that still described the port as pending:
 
 Docs-only — no code, config, or gate change (`unit-py` re-run green, 11
 tests).
+
+### 2026-10-09 (cont.) — Android device-free checks land; CI tier 1 runs them
+
+Implements the Tier-1 slice of the device-free test survey: new
+`tools/android_static_check.py` — the `android-static` suite in
+`tools/check.py` (also in `--fast`), run by CI tier 1
+(`--only unit-cpp,unit-py,patches,android-static`). Stdlib Python only: no
+SDK, no device, no Gradle build, no private material.
+
+17 checks:
+- identity: applicationId ↔ the gate's PACKAGE; gate activity constants;
+  variant ↔ `[game] short_name` across build.gradle / game.toml /
+  game_android.toml; ROM sha1 (4 sources) + size + filename; BIOS sha1
+  across game.toml / game_android.toml / the engine template default (LLE
+  stays on); save type/size parity.
+- payload: `state.toml` enables `ffta.enhancement.widescreen` (the
+  second-launch persistence fix) and matches the pinned catalog manifest;
+  both mods sources wired; `resize_view = true` stays the Android opt-in.
+- hygiene: no ROM/save/APK/state artifacts tracked; android
+  build/artifacts/local.properties outputs stay gitignored.
+- gate behavior: `tools/validate_android.sh` against a fake `adb` (PATH shim
+  + `FADB_SCENARIO`; shellcheck-clean): clean run GATE PASSED with evidence
+  pulled; SELF-HEAL / missing-log / crash-buffer / setup-still-resumed runs
+  GATE FAILED with the matching assertion; `--help` exits 0, bad usage 2.
+
+Evidence: suite green locally (0.7 s in the gate); the exact CI line
+`--only unit-cpp,unit-py,patches,android-static` ALL PASS; in-memory
+mutation checks (resize_view=false, variant drift) are caught. Docs: AGENTS
+commands table, tests/README verification + CI, android/README § Device-free
+checks (+ thin-surface row), gate-script header, README testing bullet +
+tools list; the playbook's verification reference gains the portable lesson
+(fake-tool gate self-test + config-contract CI tier).
+
+Remaining from the survey (tiers 2–3): Robolectric shell unit tests and the
+APK content guard — both need SDK/Gradle (and the guard a built APK); a
+separate tier when wanted.

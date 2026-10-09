@@ -96,7 +96,8 @@ cmake --build build --target FFTARecomp --parallel 8
 |---|---|
 | Fresh-clone bootstrap | `python3 build.py` (idempotent; `--force`, `--no-smoke`, `--jobs N`) |
 | Full regression gate | `.venv/bin/python tools/check.py` (`--fast`; `--jobs N`; `--only a,b`) |
-| CI subset (no dumps needed) | `--only unit-cpp,unit-py,patches` — `.github/workflows/ci.yml` |
+| CI subset (no dumps needed) | `--only unit-cpp,unit-py,patches,android-static` — `.github/workflows/ci.yml` |
+| Android static checks (device-free) | `tools/android_static_check.py` — suite `android-static` in `tools/check.py` |
 | Widescreen smoke | `.venv/bin/python tools/ws_check.py` (fixtures `saves/ws_fixtures/`) |
 | Playtest (windowed, instrumented) | `tools/play.sh [--scale N \| --resize-view \| --tcp-observe PORT]` |
 | Attract golden gate | `.venv/bin/python tools/attract_check.py` (`--repin` only for deliberate changes) |

@@ -204,6 +204,15 @@ command so later changes cannot regress silently:
   deps explicitly on the runner (observed: the Python unit tests import a
   tool that needs capstone — local runs pass via `.venv`, so the gap only
   shows as an import abort in CI; pin the wheel to the `.venv` version).
+- **Give device/emulator-facing gates a device-free CI tier.** Most of a
+  device gate's failure surface is testable without the device: assert the
+  config contract that breaks silently (identity pins consistent across
+  build files, payload/default-state files the runtime persists, no
+  private/binary artifacts tracked) and self-test the gate script itself by
+  putting a fake external tool (`adb`) first on `PATH`, selected by a
+  scenario env var — the clean scenario must pass and pull evidence; miss,
+  crash, missing-input and stuck-launch scenarios must fail with the right
+  assertion. Keep boot/rendering/perf acceptance on real hardware.
 - **Wrap the verified fresh-clone recipe in one idempotent bootstrap
   script.** Keep it stdlib-only on the system interpreter (it runs before
   the project venv exists), make every step detect completion (submodules,

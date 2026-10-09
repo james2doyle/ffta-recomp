@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """One-command regression gate for the FFTA recomp worktree.
 
-Runs: host unit tests (C++ + Python) -> patch validity -> attract golden
-gate -> widescreen smoke (margin census / center-crop / stale guard, needs
-the local game.state1/state2 fixtures) -> strict route replays (user
-save-load repro, session G, session K) against the frozen fixtures in
-saves/regress/.
+Runs: host unit tests (C++ + Python) -> patch validity -> device-free
+Android checks -> attract golden gate -> widescreen smoke (margin census /
+center-crop / stale guard, needs the local game.state1/state2 fixtures) ->
+strict route replays (user save-load repro, session G, session K) against
+the frozen fixtures in saves/regress/.
 
 The checks are independent processes, so they run concurrently by default
 (--jobs; auto = min(8, cpus)). Each game run gets isolated outputs — its own
@@ -20,13 +20,13 @@ silently redefining the baseline.
 
 Usage:
   .venv/bin/python tools/check.py            # everything (~1.5-2 min)
-  .venv/bin/python tools/check.py --fast     # unit tests + attract only
+  .venv/bin/python tools/check.py --fast     # unit tests + android checks + attract
   .venv/bin/python tools/check.py --jobs 1   # serial
   .venv/bin/python tools/check.py --only NAME[,NAME...]
 
 CI tier 1 runs the no-private-material subset (no ROM/BIOS/savestates
-needed): `--only unit-cpp,unit-py,patches` — see tests/README.md § Continuous
-integration.
+needed): `--only unit-cpp,unit-py,patches,android-static` — see
+tests/README.md § Continuous integration.
 """
 import argparse
 import concurrent.futures
@@ -156,18 +156,30 @@ def check_patches():
     return ok, " ".join(details)
 
 
+def check_android_static():
+    """Device-free Android checks (tools/android_static_check.py): identity
+    pin consistency, the mods payload contract, tracked-file hygiene, and a
+    fake-adb self-test of the device gate script. Needs only the checkout —
+    no SDK, no device, no private material."""
+    r = run([sys.executable, "tools/android_static_check.py"], timeout=300)
+    line = (r.stdout.strip().splitlines() or [""])[-1]
+    return r.returncode == 0, line or f"exit {r.returncode}"
+
+
 CHECKS = {
     "unit-cpp": check_unit_cpp,
     "unit-py": check_unit_py,
     "savecheck": check_savecheck,
     "patches": check_patches,
+    "android-static": check_android_static,
     "attract": check_attract,
     "ws_smoke": check_ws_smoke,
     "user_load": lambda: strict_route(REG / "user_load_trace.csv", 1600),
     "route_G": lambda: strict_route(REG / "sessionG_trace.csv", 19400),
     "route_K": lambda: strict_route(REG / "sessionK_trace.csv", 29884),
 }
-FAST = ["unit-cpp", "unit-py", "savecheck", "patches", "attract"]
+FAST = ["unit-cpp", "unit-py", "savecheck", "patches", "android-static",
+        "attract"]
 # Checks that execute the game binary (require it to exist); the others run
 # on a fresh clone without the ROM (CI tier 1: unit-cpp, unit-py, patches).
 NEEDS_EXE = {"attract", "ws_smoke", "user_load", "route_G", "route_K"}
@@ -177,7 +189,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--fast", action="store_true")
     ap.add_argument("--only",
-                    help="comma-separated subset, e.g. unit-cpp,unit-py,patches")
+                    help="comma-separated subset, e.g. "
+                         "unit-cpp,unit-py,patches,android-static")
     ap.add_argument("--jobs", type=int, default=0,
                     help="concurrent checks (default: auto = min(8, cpus); "
                          "1 = serial)")

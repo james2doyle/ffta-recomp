@@ -238,7 +238,8 @@ GBARECOMP_INPUT_REPLAY=logs/playthrough.csv ./build/FFTARecomp ...` — expect
   free for GUI testing; runs in parallel (`--jobs`); 6 cases x 320/384/448
   in seconds.
 - **Full gate:** `.venv/bin/python tools/check.py` — host unit tests
-  (C++ + Python), patch validity, the attract gate, the widescreen smoke,
+  (C++ + Python), patch validity, the device-free Android checks, the
+  attract gate, the widescreen smoke,
   and strict route
   replays (user
   save-load, sessions G/K) against frozen fixtures in `saves/regress/`
@@ -248,7 +249,8 @@ GBARECOMP_INPUT_REPLAY=logs/playthrough.csv ./build/FFTARecomp ...` — expect
   subset. `tools/savecheck.py` validates raw/RTN5 saves offline.
   The `saves/regress/` fixtures are local-only (never redistributed), so a
   fresh clone has nothing to replay: use
-  `--only unit-cpp,unit-py,patches` (the CI subset — no dumps needed) or
+  `--only unit-cpp,unit-py,patches,android-static` (the CI subset — no dumps
+  needed) or
   `--only attract` (dumps but no fixtures) until you have regenerated routes
   by playing + resolving; `--fast` also needs the fixture for its
   `savecheck` step.
@@ -261,6 +263,13 @@ GBARECOMP_INPUT_REPLAY=logs/playthrough.csv ./build/FFTARecomp ...` — expect
   crash health, and pulls evidence into `android/artifacts/last-run/`. Build,
   run and known device behavior: `android/README.md`; on-device forensics:
   `reference/dev-gotchas.md` § Android device forensics.
+- **Android, device-free:** `tools/android_static_check.py` (suite
+  `android-static`; CI tier 1) — identity/pin consistency across
+  `android/app/build.gradle` / `game_android.toml` / `game.toml`, the mods
+  payload contract (`state.toml` keeps widescreen enabled), tracked-file
+  hygiene, and a fake-`adb` self-test of the device gate script (clean run
+  passes; SELF-HEAL / missing-log / crash / setup-still-resumed runs fail).
+  No SDK or device needed; guide: `android/README.md`.
 
 Current snapshot (2026-10-08, strict 1200-frame run; refresh with
 `.venv/bin/python tools/coverage_report.py`):
@@ -309,10 +318,12 @@ Two tiers, split by what may leave your machine:
 - **Tier 1 — `.github/workflows/ci.yml` (fork-safe, no private material).**
   Runs on GitHub-hosted runners for every push/PR: checks out the pinned
   submodules, installs the build packages, configures, and runs
-  `tools/check.py --only unit-cpp,unit-py,patches` — the host unit tests
-  (C++/Python) and patch integrity (forward-validated against the pristine
-  submodule, so it works on a fresh clone). It needs no ROM, BIOS, or
-  savestates, and therefore cannot run the game itself.
+  `tools/check.py --only unit-cpp,unit-py,patches,android-static` — the host
+  unit tests (C++/Python), patch integrity (forward-validated against the
+  pristine submodule, so it works on a fresh clone), and the device-free
+  Android checks (identity pins, payload contract, tracked-file hygiene, a
+  fake-`adb` self-test of the device gate script; no SDK needed). It needs no
+  ROM, BIOS, or savestates, and therefore cannot run the game itself.
 - **Tier 2 — the full gate (`attract`, `ws_smoke`, route replays).** Needs
   `game.gba` + BIOS + the sha-pinned local fixtures (`saves/ws_fixtures/`,
   `saves/regress/`), which are game-derived and never committed. Run it on

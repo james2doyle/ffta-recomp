@@ -1,8 +1,9 @@
 # CI tier 1 — fork-safe, no private material (no ROM/BIOS/savestates).
-# Runs the host unit tests (C++/Python) and patch integrity on a fresh
-# checkout. The full gate (attract, widescreen smoke, route replays) needs
-# game.gba + BIOS + the local fixtures and belongs on a self-hosted runner
-# gated to trusted events — see tests/README.md § Continuous integration.
+# Runs the host unit tests (C++/Python), patch integrity, and the
+# device-free Android checks on a fresh checkout. The full gate (attract,
+# widescreen smoke, route replays) needs game.gba + BIOS + the local
+# fixtures and belongs on a self-hosted runner gated to trusted events —
+# see tests/README.md § Continuous integration.
 name: CI (tier 1)
 
 on:
@@ -49,5 +50,5 @@ jobs:
       - name: Configure
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 
-      - name: Gate (unit-cpp, unit-py, patches)
-        run: python3 tools/check.py --only unit-cpp,unit-py,patches
+      - name: Gate (unit-cpp, unit-py, patches, android-static)
+        run: python3 tools/check.py --only unit-cpp,unit-py,patches,android-static

@@ -230,7 +230,8 @@ All testing, debugging and verification workflows live in
 - **CI** — `.github/workflows/ci.yml` (fork-safe tier 1) and the full-gate
   tier split
 - **Android** — device gate `tools/validate_android.sh` (install → launch →
-  assertions → evidence); build/run guide: [android/README.md](android/README.md)
+  assertions → evidence) plus device-free checks `tools/android_static_check.py`
+  (CI tier 1); build/run guide: [android/README.md](android/README.md)
 
 ## Repository layout
 
@@ -244,7 +245,7 @@ All testing, debugging and verification workflows live in
 | `generated/` | Recompiler output — gitignored, **never edited** |
 | `mods/` | Preloaded mod catalog shipped beside the exe — the default-enabled `ffta.enhancement.widescreen` manifest activating the linked `ffta.widescreen` plugin |
 | `gbarecomp/`, `recomp-ui/` | Pinned framework submodules (see `reference/dev-gotchas.md` for pins) |
-| `tools/` | The whole harness: `play.sh`, `check.py` (regression gate), `ws_check.py` (widescreen smoke), `savecheck.py` (save validation), `resolve.py`, `cache_harvest.py`, `cycle.py`, `attract_check.py`, `misspack.py`, `coverage_report.py`, `framediff.py`, `dualrun.py`, `ringscan.py`, `keyprobe.py`, `trace_split.py`, `disarm.py`, … |
+| `tools/` | The whole harness: `play.sh`, `check.py` (regression gate), `ws_check.py` (widescreen smoke), `savecheck.py` (save validation), `resolve.py`, `cache_harvest.py`, `cycle.py`, `attract_check.py`, `android_static_check.py` (device-free Android checks), `misspack.py`, `coverage_report.py`, `framediff.py`, `dualrun.py`, `ringscan.py`, `keyprobe.py`, `trace_split.py`, `disarm.py`, … |
 | `.agents/skills/` | Project-local agent skills — `gbarecomp-recomp-playbook`, a portable healing-loop/audit playbook with task-grouped references |
 | `inputs/` | Deterministic input traces (`<frame>,0x<hex>` active-low, sticky) |
 | `symbols/` | Curated symbol seeds (attributed; consumed via `--symbols`) |

@@ -30,6 +30,7 @@ This repo therefore adds only a thin surface:
 | `CMakeLists.txt` (`if(ANDROID)`) | Target `main` instead of `FFTARecomp`; forced mods; SDL/UI guards |
 | `src/main.cpp` | `mobile_prepare_process` preflight, phone run options, `SDL_main` via a 256 MiB pthread |
 | `tools/validate_android.sh` | Device acceptance gate (assertions + evidence pull) |
+| `tools/android_static_check.py` | Device-free checks: identity pins, payload contract, hygiene, fake-`adb` gate self-test (suite `android-static`) |
 
 Runtime behavior on device (engine `mobile_platform.cpp`): chdir to the
 app-private `files/` root, stdout+stderr → `files/android-runtime.log`,
@@ -124,6 +125,20 @@ adb shell run-as org.gbarecomp.fftarecomp cat files/android-runtime.log
 
 For TCP debugging: `adb forward tcp:19888 tcp:19888` plus `--tcp-observe
 19888` in `files/debug-args.txt`.
+
+### Device-free checks
+
+`tools/android_static_check.py` (also the `android-static` suite in
+`tools/check.py`; CI tier 1 runs it) validates the source-level Android
+contract without a phone, an SDK, or a Gradle build: identity/pin consistency
+across `android/app/build.gradle`, `game_android.toml` and `game.toml`; the
+mods payload (`state.toml` keeps widescreen enabled for fresh installs and
+matches the pinned catalog); no private/binary artifacts tracked and the
+android build outputs gitignored; plus a fake-`adb` self-test of
+`tools/validate_android.sh` — a clean run passes and pulls evidence, while
+SELF-HEAL, missing-log, crash-buffer and setup-still-resumed runs fail the
+gate with the right assertion, and usage errors exit 2. The device gate on a
+real phone stays the authority for runtime behavior.
 
 ## Known behavior
 

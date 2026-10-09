@@ -24,7 +24,9 @@
 # misses), crash.log, and a screenshot. Native stdout does not reach logcat,
 # so app-private files are read binary-safe via `adb exec-out run-as ... cat`;
 # a release (non-debuggable) build fails assertions 3 and 4 with the run-as
-# reason. Requires: bash, adb, coreutils/sed/grep.
+# reason. Requires: bash, adb, coreutils/sed/grep. The gate script itself is
+# self-tested device-free by `tools/android_static_check.py` (fake `adb`; the
+# `android-static` suite in `tools/check.py`, run by CI tier 1).
 #
 # Usage: tools/validate_android.sh [options]      (see --help for details)
 #   tools/validate_android.sh
