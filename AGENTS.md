@@ -110,6 +110,11 @@ local, sha-pinned game.state1/state2 savestates — gitignored by design, exit
 2 when missing/changed):
 `.venv/bin/python tools/ws_check.py` (`--report-only`, `--widths`, `--jobs`).
 
+CI tier 1 (no ROM/BIOS/fixtures needed, runs on GitHub-hosted runners):
+`python3 tools/check.py --only unit-cpp,unit-py,patches` — the fork-safe
+workflow lives at `.github/workflows/ci.yml` (see README § Continuous
+integration).
+
 Run (needs BIOS + ROM paths; both must hash-verify):
 
 ```sh

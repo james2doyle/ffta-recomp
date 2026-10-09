@@ -450,6 +450,27 @@ compared windows).
   (`saves/found_save.mGBA.sav` + `saves/trace_sessionL_1736.csv`). All
   strict-clean as of the last commit.
 
+## Continuous integration
+
+Two tiers, split by what may leave your machine:
+
+- **Tier 1 — `.github/workflows/ci.yml` (fork-safe, no private material).**
+  Runs on GitHub-hosted runners for every push/PR: checks out the pinned
+  submodules, installs the build packages, configures, and runs
+  `tools/check.py --only unit-cpp,unit-py,patches` — the host unit tests
+  (C++/Python) and patch integrity (forward-validated against the pristine
+  submodule, so it works on a fresh clone). It needs no ROM, BIOS, or
+  savestates, and therefore cannot run the game itself.
+- **Tier 2 — the full gate (`attract`, `ws_smoke`, route replays).** Needs
+  `game.gba` + BIOS + the sha-pinned local fixtures (`game.state1/2`,
+  `saves/regress/`), which are game-derived and never committed. Run it on
+  a **self-hosted runner with the material pre-placed**, or a job that
+  fetches a private fixture bundle under a token — gated to
+  `push`/`workflow_dispatch` and **never** exposed to fork-PR workflows
+  (a PR job on a runner that can read the ROM is an exfiltration path).
+  The sha pins (regress save + both states) fail loudly if the runner's
+  fixtures drift.
+
 ## Repository layout
 
 | Path | What |

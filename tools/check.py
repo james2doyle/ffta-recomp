@@ -22,7 +22,11 @@ Usage:
   .venv/bin/python tools/check.py            # everything (~1.5-2 min)
   .venv/bin/python tools/check.py --fast     # unit tests + attract only
   .venv/bin/python tools/check.py --jobs 1   # serial
-  .venv/bin/python tools/check.py --only NAME
+  .venv/bin/python tools/check.py --only NAME[,NAME...]
+
+CI tier 1 runs the no-private-material subset (no ROM/BIOS/savestates
+needed): `--only unit-cpp,unit-py,patches` — see README § Continuous
+integration.
 """
 import argparse
 import concurrent.futures
@@ -158,18 +162,32 @@ CHECKS = {
     "route_K": lambda: strict_route(REG / "sessionK_trace.csv", 29884),
 }
 FAST = ["unit-cpp", "unit-py", "savecheck", "patches", "attract"]
+# Checks that execute the game binary (require it to exist); the others run
+# on a fresh clone without the ROM (CI tier 1: unit-cpp, unit-py, patches).
+NEEDS_EXE = {"attract", "ws_smoke", "user_load", "route_G", "route_K"}
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--fast", action="store_true")
-    ap.add_argument("--only", choices=sorted(CHECKS))
+    ap.add_argument("--only",
+                    help="comma-separated subset, e.g. unit-cpp,unit-py,patches")
     ap.add_argument("--jobs", type=int, default=0,
                     help="concurrent checks (default: auto = min(8, cpus); "
                          "1 = serial)")
     a = ap.parse_args()
-    if not EXE.exists():
-        print(f"check: {EXE} missing - build the game first (see AGENTS.md)")
+    names = []
+    if a.only:
+        names = [n.strip() for n in a.only.split(",") if n.strip()]
+        unknown = [n for n in names if n not in CHECKS]
+        if unknown:
+            print("check: unknown check(s): " + ", ".join(unknown) +
+                  " (known: " + ", ".join(sorted(CHECKS)) + ")")
+            return 1
+    needs_exe = [n for n in names if n in NEEDS_EXE]
+    if needs_exe and not EXE.exists():
+        print(f"check: {EXE} missing - build the game first "
+              f"(needed by: {', '.join(needs_exe)}; see AGENTS.md)")
         return 1
     if FIXTURE_SAVE.exists():
         h = hashlib.sha256(FIXTURE_SAVE.read_bytes()).hexdigest()
@@ -178,7 +196,7 @@ def main():
                   f"{FIXTURE_SHA_PREFIX} - regenerate fixtures deliberately "
                   "before trusting results")
             return 1
-    names = [a.only] if a.only else (FAST if a.fast else list(CHECKS))
+    names = names if a.only else (FAST if a.fast else list(CHECKS))
     jobs = a.jobs if a.jobs > 0 else min(8, os.cpu_count() or 4)
     jobs = max(1, min(jobs, len(names)))
     print(f"check: {len(names)} check(s), jobs={jobs}", flush=True)
