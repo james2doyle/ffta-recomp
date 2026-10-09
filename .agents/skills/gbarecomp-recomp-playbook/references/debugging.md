@@ -34,6 +34,22 @@ data. Do not skip straight to step 3 when the mechanism is unknown — most
 "who wrote this" hunts that stall are mechanism confusion (DMA vs CPU vs
 the capture layer's own bugs).
 
+## Ring walks: falsify the story, then diff the delta
+
+Per-instruction rings can be dumped while the guest is alive
+(`GBARECOMP_INSN_TRACE=1` + the TCP `fp_save <path>` command; no crash or
+watchdog trip needed). Format: 16-byte header `<IIQ>`, then 80-byte
+records `<Q18I` = cycles, pc, cpsr, r0..r12, sp, lr, r15.
+
+- Falsify first: count the event under suspicion across the dump. ("The
+  wait loop never sees its flag" turned into counting flag-reads with the
+  expected value, exit-path entries, and flag set/clear writers — the
+  story inverted in minutes: the loop exited 126×, and the only pre/post
+  behavioral delta was new BIOS SWI activity.)
+- Then diff: take two dumps bracketing the event and compare pc-frequency
+  histograms; a pc population that appears or vanishes (e.g. new SWI
+  paths) is the behavioral delta to chase in the disassembly.
+
 ## Spins, hangs, wedges
 
 - A spin in **statically compiled** code is not a coverage gap; adding
@@ -113,6 +129,15 @@ branch-calls.
   crosses it — gated exactly like the frame-present yield (never inside a
   live IRQ handler). This converts an eventual crash into a logged,
   bounded freeze.
+- **Guard the guard**: that IRQ-handler gate silently disables itself if the
+  handler depth counter ever sticks above zero (observed: a guest return ×
+  vblank-IRQ interleave poisons it — the mainline then runs "inside" a
+  handler forever, and the guard can never fire). When a guard does not
+  fire despite obvious stack growth, print the depth counter at mainline
+  PCs before blaming the guard. A second, critical threshold — fire even
+  while nested, but only within the last fraction of the stack, where no
+  handler could legally complete — keeps the safety net alive in that
+  state.
 - Merge it at the source where the finder supports interior resume
   aliases (an intra-function back-edge is one host frame); when the
   candidate block lies beyond the host's linear walk extent the roll-in

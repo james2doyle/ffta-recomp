@@ -85,6 +85,44 @@ real hours once.
   the window aspect, windowed-only by design; `--fullscreen` = borderless).
   Validation: `tools/ws_check.py`; internals: `reference/widescreen.md`.
 
+## Deep-debug toolkit (gdb, rings, guest watchpoints)
+
+Built during the 2026-10-09 hang walk (BRINGUP § 2026-10-09 later); every
+recipe below is validated there.
+
+- **gdb batch with a script file**: `gdb -batch -ex "file <exe>" -ex
+  "set args …" -x script.gdb` — `-ex`/`-x` run in command-line order, so
+  `file` must come before `-x` (otherwise "No symbol table is loaded").
+  Release builds have no `-g`: use a side build (`cmake -B build-gdb
+  -DCMAKE_BUILD_TYPE=RelWithDebInfo`) for typed access (struct fields,
+  `g_cpu.R[15]`, `'gbarecomp::g_active_bus'`).
+- **Auto-continue logging breakpoints**: gdb python `Breakpoint` subclasses
+  whose `stop()` prints and returns False (rate-limit heavy tags). Used for
+  `runtime_irq`/callback entries with `$rsp` = the per-frame stack-depth
+  curve (chain growth/retention shows up immediately).
+- **Guest-RAM hardware watchpoints**: watch the runner's host mirror of a
+  guest cell — e.g. `'gbarecomp::g_active_bus'->iwram_[0xE10]` — and log
+  writer pc + new value per hit: identifies every writer of a flag
+  (`gpc=0x0800051C` sets it, `gpc=0x08000416` clears it, …) and when a
+  writer stops.
+- **Per-instruction rings, dumped while ALIVE**: `GBARECOMP_INSN_TRACE=1`
+  + TCP `fp_save {path}` (works in `--tcp`; call it between steps — no
+  watchdog trip needed). Format: 16-byte header `<IIQ>`, then 80-byte
+  records `<Q18I` = cycles, pc, cpsr, r0..r12, sp, lr, r15. Count the
+  event under suspicion (e.g. "the spin never exits" dies instantly:
+  flag-read=1 count == exit count), then diff pc histograms between two
+  dumps bracketing the event — a new/vanishing pc population is the
+  behavioral delta (the SWI-family diff pinned the 2026-10-09 hang).
+  `tools/ringscan.py` queries the same files.
+- **Guard-gate signature**: a depth-gated guard that never fires while the
+  stack visibly grows → print `g_irq_nest_depth` at mainline PCs; a stuck
+  ≥1 (poisoned by a guest-return × IRQ interleave) disables the
+  `nest_depth == 0` gate. See BRINGUP § 2026-10-09 later.
+- **Recorded patch generation**: `git -C gbarecomp diff --no-ext-diff
+  --no-color -- <paths> > tools/patches/<name>.patch` — without both flags
+  the output is difft-rendered and/or ANSI-colored and fails `git apply`
+  (`tools/check.py --only patches` catches it).
+
 ## Android device forensics (no root)
 
 Build/run/gate and known device behavior: `android/README.md`.

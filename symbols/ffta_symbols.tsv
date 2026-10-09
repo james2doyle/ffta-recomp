@@ -308,3 +308,11 @@
 0x08144AF0	thumb	m4a_frame_tick
 0x080069F4	thumb	vblank_task_runner
 0x08006A7C	thumb	vblank_queue_init
+
+# Section 18: 2026-10-09 hang walk. wait_for_vblank = DISPSTAT-based busy-wait
+# (push {lr}; first drain the current vblank if bit0 set, then wait for the next
+# vblank start; pop {r0}; bx r0) — the post-suspend flow waits here, not in the
+# 0x08000418 scheduler spin. The last clean IRQ request before the
+# g_irq_nest_depth poisoning came from inside it (0x080033BA): BRINGUP
+# § 2026-10-09 (later entry).
+0x08003398	thumb	wait_for_vblank

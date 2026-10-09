@@ -1096,7 +1096,8 @@ does not exit within the step post-press.
   per spin iteration; the chain stops unwinding after the suspend flow and
   grows ~412 KB/frame (≈6,000 pairs) until the 8 MiB thread stack dies.
 - **Poisoning event (~31 frames post-press):** the last clean IRQ request
-  comes from a DISPSTAT VBlank-wait (`0x080033A0`, `gpc=0x080033BA`); from
+  comes from the game's DISPSTAT `wait_for_vblank` helper
+  (`0x08003398`; `gpc=0x080033BA` inside it); from
   the next frame onward `g_irq_nest_depth` **never returns to 0** (measured:
   the wait-block clear `0x08000416` runs at nd=1, the handler at nd=2). The
   mainline permanently runs "inside" a handler that never re-accounts its
