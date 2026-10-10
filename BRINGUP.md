@@ -2,7 +2,7 @@
 
 Decision log for the static recompilation of Final Fantasy Tactics Advance (US)
 to native PC via [mstan/gbarecomp](https://github.com/mstan/gbarecomp).
-Ground rules live in `ffta-bootstrap-prompt.md` (§Ground rules) and `AGENTS.md`.
+Ground rules live in `AGENTS.md` (§ Ground rules).
 
 Legend: every ROM claim below was verified by disassembly/slicing of `game.gba`
 via capstone (`tools/disarm.py`) or direct byte inspection; addresses are
@@ -100,6 +100,8 @@ ldr r2,[r3]` (0x080000FC–0x08000110): standard masked-IF read at 0x04000200/02
 - SYS mode sp = **0x03007FA0**, IRQ mode sp = **0x03007EC0** (crt0 literals 0xF4/0xF8).
 - BIOS IRQ vector target: **0x03007FFC** ← 0x080000FC (crt0 installs).
 - Indexed IRQ callback table base: **0x03000E50** (crt0 literals 0x244/0x248; used by IRQ dispatcher `bx` path at 0x080001C0). 0x030008D0 (literal 0x24C) — usage TBD.
+- VBlank scheduler queue **0x03000E10**: +0 u16 tick flag (exactly what `vblank_wait_loop` polls — 0x08000418 `ldrh`/`cmp`/`beq` spin, verified 2026-10-09), +2 count, +3 current; task array 0x03002800; runner **0x080069F4**, init **0x08006A7C**; tick set in `vblank_callback` (0x080004B0).
+- m4a sound info: pointer slot **0x03007FF0** → struct **0x020084E0** (ident magic 0x68736D54 at +0; pcm counter +4); per-frame engine tick **0x08144AF0**, the first call of `vblank_callback` (0x080004B4). 2026-10-09 disarm + hang-trace evidence (BRINGUP § 2026-10-09).
 
 ### Phase 0 result
 All Phase 0 checks pass; ROM is a genuine AFXE US retail dump, exact 16 MiB.
@@ -869,6 +871,267 @@ if needed), engine checkout at gbarecomp/platform/android/.
 - **Sequencing**: independent of Phase 5; an early port is a second
   harvesting surface (adb-forwarded TCP debug), but playable depth still
   comes from the Phase 5 audit loop.
+
+### Android port — skeleton to device-verified boot (2026-10-08)
+Implemented on the engine's Android shell (pin `ecc9c55`, which is upstream
+`main`; `platform/android` verified against all remote heads).
+
+- **Game-side surface**: `android/` Gradle project (Gradle 8.11.1 / AGP
+  8.10.1; identity `org.gbarecomp.fftarecomp`, variant
+  `final_fantasy_tactics_advance`, landscape), runtime-only
+  `android/game_android.toml`, CMake `if(ANDROID)` → SHARED target `main`
+  with forced `GBARECOMP_ENABLE_MODS=ON` (links the trusted-plugin
+  lifecycle), SDL2-target guard for the launcher, per-platform default
+  config; `src/main.cpp` mobile hooks (`mobile_prepare_process`, phone run
+  options, `SDL_main` via `mobile_run_with_stack`).
+- **Build**: JDK 21 (Gradle 8.11.1 rejects JDK 27); NDK 27.1.12297006 via
+  sdkmanager (its exit 1 on a root-owned `emulator/package.xml` is
+  harmless — the NDK unzips fine). First build 2m51s; libmain.so ≈ 99 MB;
+  APK 37 MB with private ROM/BIOS embed (never committed; `.gitignore`
+  covers `*.apk`).
+- **Device (Xiaomi Mi 11, Android 14/API 34)**: AUTOSTART boot to gameplay;
+  `cpu_backend=static-recompiled`; zero dispatch misses; flash512 detected;
+  virtual pad default; 256 MiB game thread. `[video] resize_view = true`
+  enables the desktop-validated expanded view: 356x160 filling 3200x1440
+  (~9x); authored margins verified on the intro field (house/fence continue
+  into the margins, no wrap). 256-wide title/UI BGs wrap cosmetically at
+  wide views — same policy behavior desktop validated.
+- **Mods state quirk**: the runtime's startup commit persists raw
+  `enabled=false` for default-enabled, never-touched features (no launcher
+  seeding on mobile), so they switch off from the second launch on.
+  `android/payload/mods/state.toml` now ships `enabled = true` for fresh
+  installs (player-owned thereafter; device state fixed manually).
+  Candidate upstream note.
+- **Gate**: `tools/validate_android.sh` (install → AUTOSTART launch → five
+  assertions → evidence pull to `android/artifacts/last-run/`); PASSED on
+  device. Its fetch handling treats `exec-out`-folded remote `cat:` errors
+  as missing files (caught a false-positive miss frag before the fix).
+- **Deferred**: release signing/packaging, touch-first scheme, perf/size
+  pass, upstream note, AGENTS/README pointers.
+
+### Android device crash — split vblank wait loop exhausted the finite stack (2026-10-08)
+Three native crashes on the Mi 11 port (within ~2–15 min of launch):
+SIGSEGV "stack pointer is not in a rw map", 512+ frames of alternating
+`gf_vblank_wait_loop+596` under `runtime_tick`.
+
+- **Root cause.** The main loop's vblank-flag gate is two generated
+  functions (0x08000418 loop head / 0x08000428 back-edge block, reached only
+  by the head's `beq`). The back-edge compiles to a host call, so a spin
+  whose wake flag (0x03000E10, written by the 0x080004B0 callback) does not
+  arrive nests ~2 host frames per iteration. Present-in-place suppresses the
+  frame-boundary unwind and its depth guard counts only BL pushes, so the
+  growth is unbounded; desktop masks this with an unlimited main-thread
+  stack (Pitfall 2) — the finite 256 MiB mobile thread turns it into a
+  crash. Why the flag stalls on device is the subject of § "Android device
+  hang" below (reproducible via the in-battle suspend-save flow).
+- **Config fix attempted, blocked by the finder.** `[[extra_func]]
+  resume = true` at 0x08000428 does not roll in: alias containment requires
+  the candidate to lie inside the host's *linear* walk extent (0x418..0x422,
+  terminated by `b 0x42A` before the literal pool), and the `beq` target
+  sits beyond it. Reverted. Upstream item: extend mid-function alias
+  roll-in to branch-target blocks in the walk-end..next-real-start gap.
+- **Fix shipped:** `tools/patches/mobile-host-stack-guard.patch` (superseded
+  2026-10-09 by `tools/patches/host-stack-guard-desktop.patch`, which also
+  arms the desktop TCP game thread) — the
+  mobile game thread arms a host-stack budget (stack minus 32 MiB); the
+  per-instruction `runtime_should_yield` probe unwinds through the standard
+  yield path once crossed (gated: never inside a live IRQ handler; same
+  protocol as the vblank yield), logging
+  `runtime: host-stack guard unwind count=… pc=0x…`. Desktop inactive.
+- **Verification:** desktop cycle + check ALL PASS (9/9; patch listed);
+  device gate PASS on the guard build; 10-minute soak monitored. Expected
+  behavior under a recurring stall: bounded spin with guard log lines
+  instead of a crash.
+
+### Android: virtual pad idle auto-hide (2026-10-08)
+- Feature: the touch pad hides after 15 s of screen-wide touch inactivity
+  (user-tuned from 5 s the same day);
+  any touch reveals it and the revealing touch also acts (a first cut
+  consumed the wake gesture — two swallowed taps while driving the menus
+  over adb proved the double-tap friction, so reveal now presses through).
+  Held pad/toggle touches keep it visible so a control never vanishes
+  mid-press.
+- Engine: `tools/patches/touch-pad-idle-hide.patch` —
+  `RunOptions::touch_pad_idle_hide_seconds` (0 = off) flows through
+  `configure_touch` into `host_window`: per-present idle check, a `reveal`
+  gesture category in the finger dispatcher, and draw/hit-test gates via
+  `pad_overlay_shown`/`pad_toggle_shown`. First hide logs
+  `host_window: pad idle-hidden (N s quiet)`.
+- FFTA opts in with 5 s (`src/main.cpp`); inert without a touch pad.
+- Verified: desktop cycle + check ALL PASS (9/9, patch listed); device
+  screencaps: pad visible @3 s (BIOS), hidden @9 s (log line present);
+  after the flip, a single tap on the idle-hidden menu pressed through
+  (opened the Load screen, byte-identical render) with the pad restored.
+  Upstream candidate.
+- Tuned 5 s → 15 s on user request the same evening; re-verified on device
+  (`pad idle-hidden (15 s quiet)` fires; live gameplay naturally exercises
+  reveal-and-act).
+
+### Android device hang — in-battle save → title (2026-10-08, open)
+User-reproducible (three captures): an in-battle suspend save followed by
+the return to title wedges the game. Live forensics (no root — whole-stack
+dump via `run-as` + `/proc/<pid>/mem`, plus the TCP observe channel;
+recipe: `reference/dev-gotchas.md` § Android device forensics):
+
+- **Carrier = the split vblank wait loop.** The 256 MiB game-thread stack
+  holds ~2.1 M nested frames of `gf_vblank_wait_loop` ↔
+  `gf_vblank_wait_loop_cont` (64-byte frames; return into
+  `gf_vblank_wait_loop+0x258`, right after `bl gf_vblank_wait_loop_cont`;
+  each frame carries guest resume PC 0x0800041A) — the cross-function
+  back-edge nesting from the crash section above, growing ~20 MiB/min. The
+  host-stack guard would unwind it at 224 MiB (a bounded freeze, not a
+  crash — working as designed); no guard line had fired when captured.
+- **Trigger = the suspend-save flow.** Every capture shows the flash
+  record mid-write (next group counter, checksum mismatch; the previous
+  group stays valid, so a restart recovers the earlier suspend — save
+  safety verified with `tools/savecheck.py`). The guest then waits on flag
+  0x03000E10, which the vblank callback (0x080004B0 … m4a SoundMain) must
+  set; it never arrives.
+- **No coverage component** in the latest captures (FULLY_STATIC, zero
+  misses; one earlier capture had a single intermittent bridged miss — a
+  red herring).
+- **Prime suspect: device audio.** `PlayerBase::stop() from IPlayer` at
+  ~28/s since the first boot (~96 k lines — the SDL audio device is
+  constantly restarting). The wake callback runs SoundMain before setting
+  the flag (session-6 mechanics). First knob to try:
+  `GBARECOMP_AUDIO_DIRECT=1` (the WWT device fix); IWRAM m4a-blob frames
+  (`gf_tfunc_03003550/03003564`, `gf_afunc_0300364C/030037B4`) sit just
+  above the nesting on the stack.
+- **Mobile miss journaling is wired:** `src/main.cpp` sets
+  `GBARECOMP_MISS_FRAG` under `on_mobile`, so bridged PCs durably rewrite
+  `files/recomp_master_misses_AFXE.toml.frag` — a hung/killed session can
+  no longer lose the proposal (the exit-time report never runs on kill).
+- **Probe kit:** `tools/hangprobe.py <port>` — read-only registers,
+  IF/IE/IME, wake flag, IRQ vector, miss report. Never send
+  `savestate_save` to a stalled observe server: it queues at "the next
+  present" and wedges the single-client server (learned the hard way).
+- **Next:** capture IF/IE/IME + flag on the next reproduction (distinguishes
+  "IRQs blocked" from "callback stalled"); then test the direct-audio knob;
+  upstream note: stack-guard patch + the finder roll-in gap (a
+  branch-target block beyond a host's linear walk extent cannot merge).
+
+**Update (same evening, live-session findings).** Read-only observe probes
+plus a breakpoint test on a fresh reproduction:
+
+- IRQ ring (`irq_cap`): **exactly one vblank IRQ per frame** (src=1;
+  cycle delta = 280,896 = one frame), taken in the wait loop, no storm, no
+  nesting in steady state. IF shows vblank pending mid-vblank as expected.
+- The callback is entered every frame (`set_break_pc 0x080004B0` pins all
+  samples there) **and reaches the flag-write sequence**
+  (`set_break_pc 0x0800050A` pins; disasm 0x4B0..0x522 shows a
+  straight-line `strh #1 → 0x03000E10` at 0x051C) — yet the wait loop
+  reads the flag as 0 (`ldrh r1,[0x03000E10]` sampled live). The flag is
+  either set-then-undone by another reader, or the write does not stick;
+  this contradiction is the crux.
+- The m4a mixer runs real work each callback (hot PCs 0x0300377x..B4 with
+  live sample pointers and sane counters — not a corrupted state).
+- Save record mid-write in every capture; the previous group keeps loading.
+- **Caution:** clearing that break tripped the engine's handler-abandon
+  rail ("handler at depth 2 did not iret after 4M dispatches") and the
+  session derailed (bridged miss 0x03005710 → interpreter Undefined
+  0x030057DC → crash). `set_break_pc` on an IRQ-path PC is a last-act
+  inspection tool; expect the session to die afterward.
+- **Next:** reproduce the same save + flow on desktop (scratch config +
+  the pulled save image) and chase the flag contradiction locally with
+  rings and the oracle.
+
+### 2026-10-09 — Android hang reproduced on desktop: deterministic steppable crash + nesting mechanism
+**Repro (deterministic, ~30 s, headless).** `--tcp` (steppable) + TCP
+`savestate_load game.state3` (loads at f4515; plain `--load-state` is NOT
+applied by the `--tcp` path) → `step`×98 → `set_keyinput 0x03FE`×4 →
+`0x03FF` → the process **SIGSEGVs (rc 139) 26 steps after the press**; the
+crash step starts at pc 0x08006CE4. 600 pre-press steps are clean. This
+closes the Android entry's next-step: the save+flow hang now reproduces on
+desktop without a device.
+**Mechanism (gdb-verified).** Backtrace at the crash: ~284k alternating
+host frames `gf_vblank_wait_loop ↔ gf_vblank_wait_loop_cont`, rsp at the
+bottom of the 8 MiB thread stack, RIP inside `render_scanline_internal`
+(host PPU render called from `runtime_tick` from inside the deep loop) —
+i.e. host-stack exhaustion by the generated split of the 4-instruction
+vblank spin (0x08000418 `ldrh` / 0x0800041C `cmp` / 0x0800041E `beq` /
+0x08000428 `b`): each spin iteration maps onto host **calls** pairing the
+two generated functions (+2 frames/iteration, ≈59 B each — same signature
+as the device's "64-byte frames"). In normal operation the spin exits on
+the first vblank-flag set, so the cascade unwinds every frame and never
+accumulates; **after the A press the steppable path keeps spinning within a
+step and the cascade grows without bound** until the stack (and then the
+render call path) dies. The windowed path's present-in-place hook bypasses
+the per-frame unwind/redispatch, so it does not nest — instead the same
+flow shows an endless title/intro "churn" (screens cycle for 30+ min of
+guest time; input-response yet unverified locally due to window-focus
+issues). Device guard (`tools/patches/host-stack-guard-desktop.patch`) is
+the existing bounded mitigation for exactly this nesting; the desktop
+steppable path has no equivalent.
+**Boundary-state reads (pre and post press, per frame).** flag
+0x03000E10=1, IE=0x2003, IF=0, IME=1, KEYINPUT clean; pc at the wait loop
+at every frame boundary — so the spin-exit failure is within-step, not a
+global IRQ lockout.
+**Anti-red-herrings (re-checked today).** Watchdog "busy-spin" trips fire
+in healthy play too; the m4a "spin" in the dump (`pc=0x03003514`) is the
+engine's normal mixer block (bounded, `subs/bgt`, count=0x83); the m4a
+ident 0x68736D54 in the sound struct is the standard "engine enabled"
+handshake, and the open-bus reads at a garbage pointer are the (already
+present) MC-HP-002 open-bus behavior. None of these is the root cause.
+**Oracle context (mGBA, same save):** suspend→A returns to the title; a
+return-to-title (soft reset SELECT+START+A+B verified) replays the intro
+("It was a day like any other…"), and START during the attract interrupts
+to the title menu — i.e. the intended post-press flow is title→attract
+with live input, which is what the windowed churn should be compared
+against.
+**Artifacts (gitignored):** `logs/savehang/{gdb_tcp3.log,gdb_tcp4.log,
+tcp2.log,tcp3.log,pcflag.csv,churn/,ramsnaps-*}` plus the failed-press
+recipes. Fix candidates: (a) arm the stack-budget guard on desktop
+non-PIP paths; (b) root-fix the split-loop nesting (upstream finder
+roll-in gap, see the Android entry's upstream note); (c) nail why the spin
+does not exit within the step post-press.
+
+### 2026-10-09 (later) — guard ported to desktop; nest-depth poisoning identified
+**Walk results (gdb + per-instruction ring `fp_save`; all local, gitignored):**
+- The spin **does** exit: in the last 8.3M instructions the ring shows 126
+  clean passes (flag read=1 exactly 126×, clear@0x08000416 126×, IRQ set
+  @0x0800051C 126×, exit@0x0800042A 126×). Guest logic = intact.
+- The leak is host-side: the generated split of the vblank spin
+  (`gf_vblank_wait_loop` ↔ `gf_vblank_wait_loop_cont`) compiles to **real
+  nested calls** (objdump-verified: `call` + `ret`, no tail-calls), ~1 pair
+  per spin iteration; the chain stops unwinding after the suspend flow and
+  grows ~412 KB/frame (≈6,000 pairs) until the 8 MiB thread stack dies.
+- **Poisoning event (~31 frames post-press):** the last clean IRQ request
+  comes from the game's DISPSTAT `wait_for_vblank` helper
+  (`0x08003398`; `gpc=0x080033BA` inside it); from
+  the next frame onward `g_irq_nest_depth` **never returns to 0** (measured:
+  the wait-block clear `0x08000416` runs at nd=1, the handler at nd=2). The
+  mainline permanently runs "inside" a handler that never re-accounts its
+  exit (guest `pop {r0}; bx r0` return interleaved with the vblank request).
+  This explains the desktop churn *and* mirrors the device's
+  flag-contradiction/handler findings. It also explains why the mobile
+  guard's `nest_depth == 0` gate never fires once stuck.
+**Fix shipped (safety net):** `tools/patches/host-stack-guard-desktop.patch`
+(supersedes `mobile-host-stack-guard.patch`): the guard is platform-neutral,
+armed on the desktop `--tcp` game thread via `host_stack_guard_arm_current`
+(2 MiB margin), plus a **critical tier** (`host_stack_critically_low`, last
+0.5 MiB) that unwinds even when `g_irq_nest_depth > 0` — the stuck state.
+Validated: the deterministic press repro (SIGSEGV at +26) now survives with
+`runtime: host-stack guard unwind count=… (nested)` lines; the process stays
+alive (bounded; steps become very slow while the poisoned state persists).
+Android arming extended with the same critical tier (untested on device).
+**Still open (the true root):** the nest-depth accounting at the
+return/IRQ interleave in `runtime_irq`/`runtime_exception_return`
+(`g_irq_nest_depth`/`g_irq_iret_depth`), and the upstream split-loop merge
+(roll-in gap) that would remove the recursion entirely. Also: whether the
+windowed churn (PIP path) and the device signatures share this exact
+poisoning once the guard keeps it alive.
+**Regression coverage (same day):** unit tier —
+`tests/unit/test_host_stack_guard.cpp` (folded into the `unit-cpp` CI
+suite): the armed-path checks fail if the guard is desktop-stubbed again
+and pin the two-tier ordering against real thread bounds. End-to-end —
+`tools/hangrepro.py` (`check.py --only hangrepro`, ~90 s): the state3 press
+must stay bounded with `host-stack guard unwind` lines instead of the
+former SIGSEGV (skips without the gitignored state/save). Tighten
+hangrepro's assertion (nest depth must no longer stick) when the accounting
+root fix lands.
+
+
+
 
 ### Playtest session 1 — first-battle path now fully static (2026-10-06)
 The user played the desktop build interactively (letter-only keymap; see the
@@ -2956,3 +3219,880 @@ Cross-references updated: AGENTS.md (reading order, workflow B,
 reference index), `tools/check.py` docstring, `ci.yml` tier comment;
 in-file "see below" pointers now target `tests/README.md` sections.
 Docs-only — no behavior change (`unit-py` green, 11 tests).
+
+### 2026-10-09 — Docs: ANDROID.md → android/README.md; Android pointers refreshed
+
+The Android guide moved from the repo root into the target it documents:
+`git mv ANDROID.md android/README.md` (history preserved). Nothing had
+linked the old path yet, so the move also wired the guide into the doc map;
+`android/README.md` itself notes the move and drops its "AGENTS.md / README
+pointers" deferred item (now done).
+
+State sweep of the docs that still described the port as pending:
+- README: status paragraph now lists **Android playable on device**
+  (engine-shell port 2026-10-08) with a link; "Testing & debugging" gains a
+  device-gate bullet; layout table gains an `android/` row; Roadmap item 3
+  becomes **Android release prep** (packaging/signing, arm64-only, APK
+  content guard, version stamping, touch-first input, perf/size pass,
+  upstream mods-state note).
+- AGENTS.md: "Android port" removed from the remaining list (landed +
+  device-verified), codebase map and reference index point at
+  `android/README.md`.
+- tests/README.md: Android device-gate bullet + a CI note (device-bound,
+  manual — not part of either tier).
+- reference/dev-gotchas.md § Android device forensics: guide pointer.
+
+Docs-only — no code, config, or gate change (`unit-py` re-run green, 11
+tests).
+
+### 2026-10-09 (cont.) — Android device-free checks land; CI tier 1 runs them
+
+Implements the Tier-1 slice of the device-free test survey: new
+`tools/android_static_check.py` — the `android-static` suite in
+`tools/check.py` (also in `--fast`), run by CI tier 1
+(`--only unit-cpp,unit-py,patches,android-static`). Stdlib Python only: no
+SDK, no device, no Gradle build, no private material.
+
+17 checks:
+- identity: applicationId ↔ the gate's PACKAGE; gate activity constants;
+  variant ↔ `[game] short_name` across build.gradle / game.toml /
+  game_android.toml; ROM sha1 (4 sources) + size + filename; BIOS sha1
+  across game.toml / game_android.toml / the engine template default (LLE
+  stays on); save type/size parity.
+- payload: `state.toml` enables `ffta.enhancement.widescreen` (the
+  second-launch persistence fix) and matches the pinned catalog manifest;
+  both mods sources wired; `resize_view = true` stays the Android opt-in.
+- hygiene: no ROM/save/APK/state artifacts tracked; android
+  build/artifacts/local.properties outputs stay gitignored.
+- gate behavior: `tools/validate_android.sh` against a fake `adb` (PATH shim
+  + `FADB_SCENARIO`; shellcheck-clean): clean run GATE PASSED with evidence
+  pulled; SELF-HEAL / missing-log / crash-buffer / setup-still-resumed runs
+  GATE FAILED with the matching assertion; `--help` exits 0, bad usage 2.
+
+Evidence: suite green locally (0.7 s in the gate); the exact CI line
+`--only unit-cpp,unit-py,patches,android-static` ALL PASS; in-memory
+mutation checks (resize_view=false, variant drift) are caught. Docs: AGENTS
+commands table, tests/README verification + CI, android/README § Device-free
+checks (+ thin-surface row), gate-script header, README testing bullet +
+tools list; the playbook's verification reference gains the portable lesson
+(fake-tool gate self-test + config-contract CI tier).
+
+Remaining from the survey (tiers 2–3): Robolectric shell unit tests and the
+APK content guard — both need SDK/Gradle (and the guard a built APK); a
+separate tier when wanted. Both now sit on the `android/README.md` deferred
+list (Robolectric as its own item; the guard under release packaging).
+
+### 2026-10-09 (cont.) — Android APK content guard lands (`android-apk`)
+
+Implements the deferred "APK content guard" (device-free test survey, Tier
+3): `tools/android_apk_check.py` — a static pass over a built APK (unzip +
+aapt2; no phone, no Gradle rebuild). Eight checks: badging identity
+(package/minSdk/targetSdk/launcher vs build.gradle + engine template);
+public/private marker-vs-content consistency (`--expect` optional); payload
+byte-equality against the staging sources with an exact entry-set compare;
+private ROM/BIOS size + SHA-1 against the pins (public must embed neither);
+exactly one libmain.so per ABI with the expected library set + a badging
+cross-check; both activities in sensorLandscape + debuggable matching the
+build type; no packaged debug-args.txt; packaging sanity (zip CRC, duplicate
+entries, stray paths, assets outside payload, oversized non-lib entries —
+the incremental-repackaging junk-blob class).
+
+Wiring: `check.py --only android-apk`, excluded from the default run and
+`--fast` (a desktop-only worktree has no APK); direct use accepts `--apk
+PATH` and `--expect public|private`.
+
+Found + fixed while verifying: the documented private-build command passed
+`-PprivateRom=../game.gba -PprivateBios=../gbarecomp/bios/gba_bios.bin`, but
+the engine template resolves `-Pprivate*` paths against `android/app` — a
+private rebuild failed ("Private BIOS must be the 16 KiB dump").
+`android/README.md` now uses `../../…` (build re-run green).
+
+Evidence: private arm64 APK PASSES (embedded ROM sha1 == pin; 35.5 MiB); a
+fresh PUBLIC build PASSES under `--expect public` (29.8 MiB), and its staged
+payload correctly shed roms/bios — the "distributable build never inherits
+private assets" Sync claim verified on a real repackage; 12 crafted-zip
+negatives all caught (missing/altered/extra payload file, 2 MiB junk blob,
+duplicate entries, public+ROM, empty private, ROM hash mismatch, unexpected
+lib, unexpected ABI, orientation drift, `--expect` mismatch). The private
+arm64 artifact was rebuilt afterwards (gate-ready).
+
+Docs: android/README (thin-surface row, § Device-free checks, build-command
+fix, junk-blob cross-ref, deferred item 1 now packaging-only), tests/README
+(verification + CI notes), AGENTS commands, README tools list; the playbook
+verification reference gains the artifact-guard bullet.
+
+## 2026-10-09 — Suspend→A IRQ abandonment: the phantom nest-depth is closed
+## (state3 press repro)
+
+Follows the hang-walk entry above. The press repro's `g_irq_nest_depth`
+poison is fixed at the drive loop; the stack guard remains the second line
+of defense.
+
+**Evidence chain (deterministic, instrumented):**
+- gdb transition log over the press (breakpoints on the depth increment, the
+  iret site, the decrement sites): healthy frames = `IRQ++` (nd 0→1) →
+  IRET-SIG → next entry at nd=0. At vbl=129 the IRQ fires from the DISPSTAT
+  wait helper (`0x080033BA`, inside `wait_for_vblank`) and **no IRQ-mode
+  exception return (BIOS 0x13C) ever follows** — the handler chain is cut
+  short (its SWI-return cancels churn at `0x0814186E`, the `bl 0x814186c`
+  return site). From vbl=140 every VBlank nests inside the phantom
+  (nd=2; 45,690 entries logged at kill).
+- Host backtrace at the first nested entry: the drive loop is dispatching
+  mainline (`0x08141B74` halfword-copy loop + bx veneer → `ram_dispatch`
+  into IWRAM `0x03007D64/72`).
+- Cancel trace (vbl 126–145): the handler's return ledger falls back to the
+  IRQ floor (depth 6 → floor 3) without the iret; the floor holds, but the
+  drive loop then adopts whatever executes next — forever.
+
+**Fix** (`tools/patches/irq-handler-abandon-close.patch`,
+`gbarecomp/src/armv4t/runtime_arm.cpp`): `runtime_irq`'s drive loop detects
+the abandonment — ledger at the IRQ floor while running outside the BIOS
+(~0x40000 dispatches), or simply ≥4 VBlank boundaries inside the loop (no
+legal GBA handler spans multiple frames) — and closes the IRQ as if the iret
+had fired: completion signal, ledger restore, depth decrement. The entry
+register snapshot is deliberately NOT restored on that path (the mainline has
+advanced past the interrupted instant; clobbering its live registers would
+corrupt the in-flight work).
+
+**Validated:** the repro's transition log shows every IRQ entry at nd=1
+(129/129), one `handler at depth 1 abandoned without an iret (4 vblanks …
+— closing the IRQ` line, and the step that previously wedged for 240 s
+completes in 0.02 s. `check.py --only hangrepro` → 1.2 s PASS (suite updated:
+the press must close the phantom and advance past the old wedge). `cycle.py`
+PASS, attract hash unchanged.
+
+**Residual (open, next session):** after the close the flow advances ~4
+frames into the suspend-return routine (`0x08145470+`) and ends at the
+self-heal coverage boundary — Thumb code `0x08145484` is reached with
+CPSR.T clear → ARM lookup → dispatch miss → bridge Undefined at
+`0x08145488`. The proposal frag `[[extra_func]] 0x08145484 mode = "arm"` must
+NOT be seeded (the code is Thumb; the T-bit loss is fallout of the original
+handler abandonment). The true root remains open: *why* the SWI-return
+cancel chain cuts the handler short (floor respected, handler still lost) —
+the close makes that a correctness bug, not a hang.
+
+**Playtest confirmation (same day, user):** closing the game after the
+suspend flow behaved cleanly — no hang (the pre-fix failure mode), matching
+the instrumented repro. The remaining boundary (coverage-corruption fallout
+after the close) is unchanged and tracked above.
+
+## 2026-10-09 — Split-loop gap roll-in: the vblank wait loop is one host
+## frame now (issue #30 proposed fix 4)
+
+**Root.** The crt0 frame gate at 0x08000418: the finder's linear walk stops
+at the unconditional `b 0x0800042A` @0x08000420 (literal pool
+[0x08000424,0x08000428) follows), so the beq target 0x08000428 — the 2-byte
+back-edge `b 0x08000418` — sat beyond the walk extent and was rooted as its
+own function (`vblank_wait_loop_cont`). Emission lowered the loop's two
+edges as host C calls (`call gf_vblank_wait_loop_cont` on the beq-taken
+path; `call gf_vblank_wait_loop` on the back-edge — objdump-verified
+`call`/`ret` pairs), nesting ~2 host frames per spin iteration. Healthy
+frames unwound every pass; a stalled flag (the suspend-flow era) nested to
+284k frames / stack death.
+
+**Fix (three small parts + a seed):**
+- finder (`function_finder.cpp`): the mid-function alias phase gains a *gap
+  roll-in* — an explicit `resume` candidate beyond every host's clamped
+  extent rolls into a host that directly branches to it when it lies before
+  the next real function start; the host extent grows over the block (and
+  the dead pool bytes between the old end and it).
+- emitter (`emit_function.cpp`): builds the in-body goto-target set
+  (backward targets ∪ alias entries) for the codegen.
+- codegen (nested `external/arm-recomp-core`): a direct branch inside the
+  current function's extent whose target is labelled lowers to
+  `goto L_<addr>` (was backward-only; forward labelled targets fell to C
+  calls).
+- config: `[[extra_func]] 0x08000428 resume = true` (game.toml, with the
+  disarm.py evidence note) — the gating that keeps gap roll-in opt-in.
+
+**Verified:** dispatch entry `{0x08000428u, 1u, 1u, gf_vblank_wait_loop}`
+(resume alias); `vblank_wait_loop_cont` gone (corpus 55103 → 55102); the
+built loop body contains NO generated-function call except the once-per-pass
+exit block (`gf_tfunc_0800042A`) — the per-iteration call pair is gone;
+attract hash byte-identical; `check.py` ALL PASS (11/11; route replays
+FULLY_STATIC); `hangrepro` 1.2 s PASS. The IRQ-abandonment close (d152a46)
+stays as the second line of defense.
+
+**Audit note:** the only other `_cont` split
+(`worldmap_camera_ease_cont`, 0x08038C3E) is a different shape — a
+clamp-truncated block chain whose edges lower via block dispatch, no host
+framing — no action needed. The `vblank_wait_loop_cont` symbol name is kept
+in the TSV for trace readability (the address is still a dispatchable
+resume entry).
+
+**Patches:** consolidated exports are now TWO — `gbarecomp-local.patch`
+(nested gitlink excluded: GNU patch cannot apply a submodule-commit hunk)
+plus the nested repo's first local patch `arm-recomp-core-local.patch`;
+`check.py`'s `patches` check routes by filename prefix and replays both
+against their pins.
+
+**Still open:** the true root of the handler loss (why the SWI-return cancel
+chain cuts the handler short) — unchanged; the press repro still ends at
+the coverage boundary.
+
+## 2026-10-09 — True root of the handler loss: ring-proven corruption chain
+
+Full instruction-ring capture of the press repro, dumped at the exact miss
+(`fp_save` via gdb at `runtime_dispatch_miss`; 8.4M records; recipe below).
+The chain, in execution order:
+
+1. **vbl129.** The IRQ interrupts mainline inside the DISPSTAT wait helper
+   (`0x080033BA`, `wait_for_vblank`). The handler runs; in its tail the
+   suspend-save transition routine (`0x8145486`) calls SWI 0x0B (CpuFastSet,
+   via the veneer at `0x814186C: svc #0xb; bx lr`) to copy 0x40 bytes of
+   saved context from the stack area (`0x3007E94`) to EWRAM.
+2. **The SWI's exception return (BIOS epilogue at `0x188`, SVC mode)
+   resumes at `0x080033BA` — the IRQ-interrupted mainline PC — instead of
+   the veneer continuation `0x814186E`.** The ring shows the fetch sequence
+   `0x188 (SVC) → 0x080033BA (System)`, `LR=0x814548B` untouched. This is
+   the "handler cut short": the SWI return carried the IRQ's saved context,
+   so the save routine was abandoned mid-flight and the interrupted helper
+   resumed.
+3. **The resumed helper's `pop {r0}; bx r0` (`0x8033C2`) reads a zeroed
+   stack slot: `[0x3007E90] = 0x0`** (`r0 := 0`, `SP: 0x3007E90→0x3007E94`).
+   `bx r0` → **PC = 0** — the helper's push/pop pairing belongs to the
+   pre-IRQ invocation; the slot was clobbered during the phantom-era stack
+   churn (the save flow had just copied the region above it).
+4. **PC=0 executes the BIOS reset vector**: `0x00 → 0x68 → 0x84 → 0x88` —
+   the BIOS init path — which switches to ARM: `cpsr=0x…DF (T=0)` at
+   `0x88`. The walk then drifts through BIOS ARM exception code
+   (`0x1C..0x64`, stack dancing across the banked-SP tops
+   `0x3007FF0/0x3007FE8/0x3007FE0`).
+5. **BIOS `0x64` = `subs pc, lr, #4`** (the ARM exception-return
+   instruction) executes in that garbage context with `LR=0x814548B`; the
+   engine lowers it as an exception return, computing
+   `new_pc = (LR − 4) & ~3 = 0x8145484` **in ARM mode** → dispatch miss
+   (`0x8145484` is Thumb-only) → self-heal bridge interprets Thumb bytes as
+   ARM → Undefined → abort. (The 0x…484 boundary death, explained end to
+   end.)
+
+**Root layers, from the bottom:**
+- **R1 (engine, open — the real root):** an SWI executed inside a driven IRQ
+  handler returned to the IRQ-interrupted PC, not to its own continuation.
+  The BIOS epilogue pops its return from the guest stacks; the value was the
+  IRQ's saved context (written by the IRQ entry or by the save flow's
+  context copy). Candidate fix: in `runtime_swi`/exception-return handling,
+  validate an SWI's SVC-context return against the continuation the engine
+  recorded at SWI entry (`return_address+4`) when `g_irq_nest_depth > 0`,
+  and keep the recorded value on mismatch (loud log).
+- **R2 (guest-stack corruption):** `[0x3007E90]=0` — the interrupted
+  helper's saved LR slot clobbered during the phantom era (the unbalanced
+  handler/SWI churn on the shared System stack).
+- **R3 (our close, secondary, fixable now):** the abandon-close can fire
+  mid-cancel-flight (observed: cancels continued after the close dropped
+  `g_call_return_floor` to 0, popping below the interrupted floor). The
+  close should defer while a cancel/return cascade is in flight.
+
+**Recipe (repeatable):** steppable `--tcp` + `savestate_load game.state3`
++ A press; launch with `GBARECOMP_INSN_TRACE=1`; gdb:
+`break runtime_dispatch_miss`, condition `entry_pc==0x08145484`, then
+`call runtime_fp_save_file("/tmp/fp.bin")` at the stop. Parse records
+`<Q18I` 80 B: cycles, pc, cpsr, r0..r12, sp(=16), lr(=17).
+
+**Playtest re-confirmation (same day):** loading `game.state3` alone (no A
+press) reproduces the close and then the boundary abort (SIGABRT at the
+bridge) — the poisoned flow re-executes from the restored context; expect
+this endpoint until the R1 containment fix lands.
+
+**Detail correction (disarm-verified):** the miss target `0x8145484` is not
+a call — it is the *second* instruction of the CpuFastSet argument setup in
+`post_suspend_flow` (`0x8145482 mov r0,sp; 0x8145484 adds r1,r5,#0;
+0x8145486 bl swi0b_thunk`). The corrupted BIOS `subs pc, lr, #4` computed
+`new_pc = (LR−4)&~3 = 0x814548B−4 → 0x8145484`, i.e. the exception return
+landed two bytes inside the setup, and ARM-mode decoding of `adds r1,r5,#0`
+is the "Undefined at 0x8145488" abort. The earlier "interior resume seed"
+reading of this address was a mislabel of the same mechanism.
+
+## 2026-10-09 — Fix: coherent close (delayed-iret resume) for abandoned IRQs — SUPERSEDED (same day)
+
+> The restore described below rewound the guest to the interrupted mainline;
+> the ring then proved the state at close time is the *live flow's own*
+> (coherent) and must be left alone. See "flow-continuation resume" below.
+
+**Action.** `runtime_irq` (runtime_arm.cpp) now performs a *full delayed-iret
+restore* when a handler is closed without a legal iret:
+
+- volatile regs r0–r3/r12 restored in BOTH close modes (the old
+  skip-on-abandon rule is reversed — its premise was falsified, below);
+- abandon-only additionally: banked SP/LR captured **at entry** (the
+  interrupted snapshot; live bank_out/in calls during the phantom era
+  otherwise overwrite the banks), call-ledger `g_call_return_depth` +
+  `g_call_return_floor` restored to the pre-IRQ snapshot,
+  mode/CPSR restored via `bank_out`/`bank_in`, and `R15 = return_address`
+  — the exact target the BIOS wrapper's `subs pc, lr, #4` would restore;
+- both close log lines now carry `(delayed-iret resume pc=… sp=…)`.
+
+**Why.** The ring-proven chain (previous entry): the resumed flow IS the
+interrupted instant (the interrupted block re-runs on the next main-loop
+step) — the earlier "mainline has advanced past the interruption" theory was
+wrong. The phantom era's scratch use of the System stack had zeroed the
+interrupted helper's return slot (`[0x3007E90]=0`); with SP left at the
+phantom's value, the resumed helper popped 0 → PC=0 → BIOS reset vector →
+T=0 ARM walk → BIOS `subs pc,lr,#4` → `0x8145484` dispatch in ARM mode →
+bridge abort. Restoring SP+ledger+mode+pc removes exactly this class
+instead of letting the lookup-clamped guard merely bound it.
+
+**Result (2026-10-09).** `hangrepro`: **survives the press (+40 steps,
+guard unwinds=0, irq closes=1)** — previously SIGSEGV at +26, then the
+`0x8145484` boundary abort; zero `interpreter Undefined` lines. `cycle.py`
+PASS (attract byte-identical). `tools/patches/gbarecomp-local.patch` +
+`irq-handler-abandon-close.patch` re-exported (gitlink excluded — the
+export must use `-- . ':(exclude)external/arm-recomp-core'`); patches replay
+431-file tree matches. Full `check.py`: **ALL PASS (11/11)** — hangrepro,
+attract byte-identical, ws_smoke, route_G/route_K FULLY_STATIC, all units.
+
+**Note.** Entry-snapshot SP (0x3007E78 in the repro) reflects the stack at
+IRQ delivery; the ring's previously observed resume SP (0x3007E90) was the
+phantom's. The harness confirms the resumed mainline is coherent.
+
+## 2026-10-09 — Fix: flow-continuation resume (supersedes the coherent close)
+
+**What the black screen was.** The coherent close restored the *interrupted*
+snapshot at abandon time. But the state at close time is not the interrupted
+context: the flow that kept running under the drive is the guest's own (the
+suspend-save tail), and its registers, stack, banks and call ledger are
+already coherent. Rewinding them abandoned the save: the flow idled forever
+in the main-loop frame gate with the screen blanked (user-visible: black
+screen after A).
+
+**The real remaining break.** After `runtime_irq` returns, the interrupted
+instruction's block resumes and its per-instruction R15 installs trample the
+exception-return target the guest had just computed (`0x814186E` — the save
+flow's continuation after its CpuFastSet SWI). The guest therefore never
+executed its own continuation; instead the trampled flow ran the
+pop-to-garbage path (pre-coherent: accidental reset-ish walk → bridge abort
+at `0x8145484`).
+
+**The fix (runtime_arm.cpp).** On an abandon close: do not touch the guest
+state at all; capture `g_cpu.R[15]` (the live flow's genuine next pc) and
+one-shot redirect the *next* `runtime_dispatch` there
+(`g_abandon_resume_pc`), defeating the trample. Log line:
+`closing the IRQ (flow-continuation resume pc=0x…)`.
+
+**Verified end-to-end (2026-10-09).** `game.state3` + A press:
+close → the save flow's tail executes (pc 0x08141944 observed) → the save
+UI / black phase → **the game's suspend-save reboot: cloud backdrop → "It
+was a day like any other…"** — the oracle's `e2_afterreset` screen
+(`logs/savehang/oracle/replay/f17116.png` shows the oracle later playable);
+the flow then animates continuously (26 distinct screens over 700 steps,
+graceful TCP quit, FULLY_STATIC). Load-without-press (idle) unchanged; no
+close fires. Gates: cycle PASS (attract byte-identical); `check.py` 11/11;
+patches re-exported (`gbarecomp-local.patch`, `irq-handler-abandon-close.patch`).
+
+**Note for the record.** The two fixes between them explain the whole
+symptom family: (1) the abandon close stops the never-returning handler
+from poisoning `g_irq_nest_depth`; (2) the flow-continuation resume makes
+the *guest's own* flow survive the close. The earlier "coherent close" is
+superseded — its snapshot restore was the wrong direction.
+
+## 2026-10-09 — Desktop TCP acceptance passes (free-run via the debug port)
+
+**Tool:** `tools/desktop_accept.py` — two modes, one scorer: a savestate
+load, a real-time 3 s wait, an A press, then a scored observation window
+(press seen, frames advance, >=12 distinct screens, no abort/Undefined,
+process alive; the close route and its resume pc are reported).
+- `--mode tcp`: headless free-run `--tcp` — the run is driven AND observed
+  entirely over the debug port (`savestate_load`, `continue`,
+  `set_keyinput`, `run_status`, `screenshot`). This is the primary
+  acceptance for the suspend-save press on a continuous (desktop-class)
+  run: **three consecutive PASSes** (close route 24k frames/35 screens
+  and 19.5k/26; clean route 24k/37; zero stalls, zero aborts).
+- `--mode window`: `tools/play.sh` + `--tcp-observe` + ydotool — kept for
+  hand-parity; the present-paced windowed loop still hits a residual
+  stall in some close-route runs (see below).
+
+**Engine additions rolled in with the acceptance:**
+- The abandon close restores the **IRQ-enable state** captured at IRQ
+  entry (IE/IME). (Corrected reading, later entry: the gate the stalled
+  flow waits at is the crt0 frame gate on `[0x03000E10]`, which is the
+  save flow's own one-time completion marker (writes 0x0100), *not* an
+  IRQ-ticked flag — IF stays 0 throughout the healthy flow. The restore
+  is kept as coherence hygiene; observed IE/IME 0 -> 0x2003/1.)
+- The resume intercept logs its pair (`abandon-resume intercept
+  want=… got=…`) so the mechanism is visible in every run.
+
+**Residual (open, documented):** the *windowed* present-loop path can
+still stall after a close-route press (no `runtime_dispatch` occurs in
+that pacing before the flow parks in the frame-tick wait, so the resume
+intercept cannot fire; IE-restore alone does not move it). Steppable and
+free-run TCP paths are green; windowed pacing is queued for the next
+session with this note and the capture recipe (watchdog ring + observe
+reads).
+
+### 2026-10-09 (late) — Windowed close-route fixed: the full chain
+
+The present-paced windowed path (`play.sh` + `--tcp-observe`) now passes
+the acceptance too. Each mechanism, all visible in the run log:
+
+1. **ISR vector guard** — the phantom excursion trampled IWRAM
+   `[0x03007FFC]` (observed wild 0x080000FC; healthy 0x03000F10). The
+   abandon close snapshots it at IRQ entry and restores it
+   (`restore ISR vector at close: 0x080000FC->0x03000F10`).
+2. **IRQ-enable restore** — IE/IME 0 -> entry values (`0x2003`/`1`).
+3. **Mode-coherent resume** — `runtime_dispatch` derives the execution
+   mode from `CPSR.T`, not the pc bit; the phantom's ARM excursion left T
+   clear, so the redirect to `0x814186E` resolved as an **ARM** dispatch
+   -> table miss -> self-heal bridge -> interpreter `Undefined` at
+   `0x8141906` -> deliberate abort (also the source of the
+   `mode="arm"` self-heal frag for `0x814186E` — **do not seed**). The
+   intercept now forces `CPSR.T` from the close-time snapshot:
+   `abandon-resume intercept want=0x0814186E got=0x080033B6 (thumb=1)`.
+4. **One-unwind while a resume is pending** — present-in-place runners
+   never unwind on vblank by design, so a wedged post-close flow reached
+   no `runtime_dispatch` at all and the intercept could not act (the
+   long-standing "no-dispatch stall" variant: guest pc churning through
+   the 0x080033xx data region, frames presenting, screen static).
+   `runtime_should_yield` now returns true **once** while
+   `g_abandon_resume_pc` is armed (`g_irq_nest_depth == 0`): the runner
+   redispatches, and the intercept fires. One unwind, one dispatch —
+   frame-boundary resume misses are not reintroduced (the redirect
+   happens at a dispatch boundary, not an interior pc).
+
+**Evidence:** windowed acceptance (`desktop_accept.py --mode window`)
+**PASS** — 39 distinct screens / 4,883 frames, close route, process
+alive; the TCP free-run acceptance (`--mode tcp`) 3x PASS (24k frames/35
+screens close route; 24k/37 clean route; 19.5k/26); `hangrepro` PASS;
+full gate ALL PASS with the new opt-in `desktop-accept` suite
+(`check.py --only desktop-accept`; skips without state3/playtest.sav).
+
+**Residual (documented, not fixed):** a rare windowed-path variant derails
+the press flow into a corrupted computed jump that lands on BIOS `0x0FF8`
+(disarm-verified: a thumb compare-loop, NOT an "ARM routine" as first
+noted), triggering the self-heal bridge; the bridge then ran away and hit
+the interpreter runaway guard — `SELF-HEAL bridge for 0x00000FF8 exceeded
+200000000 instructions without returning to stop_pc=0x08094FCC … Aborting
+rather than spinning silently` (acceptance run 2026-10-09). Evidence it is
+press-path, not idle: a 60 s no-press idle control on the same state is
+clean (zero self-heal; frames advance; screens transition normally), and
+the healthy press flows (steppable + tcp free-run, many runs) never reach
+`0x0FF8`. The dispatch resolves thumb correctly, so this is NOT the
+`0x814186E` mode-coherence issue — it is the same family as the phantom
+resumption (a corrupted pc at an indirect transfer). Next step when
+prioritized: sweep the steppable press phase for a deterministic repro of
+the abort, then ring the transfer that produces `0x0FF8`.
+
+**2026-10-09 evening — the windowed press-path derail: root chain found.**
+The rare windowed failure (2/16 in a focused hunt; `SELF-HEAL bridge` abort)
+is the game's suspend-save **soft-reset flow**, only reachable in runs where
+the post-save completion path executes within the observation window:
+
+1. Save completes → FFTA invokes the BIOS soft reset. The BIOS copies its
+   0x200-byte context block (0xB56-0xB9C region) and jumps to the reset
+   vector; the boot runs (0x68-0x88) and reaches the **cart-boot trampoline**
+   (0x1C-0x64): `stm {r12,lr}` + `mrs spsr/cpsr` + `stm {spsr,cpsr}` at
+   0x20-0x2C, boot checks, then 0x54-0x64 restores the pairs and executes
+   `msr spsr_cf, r12` + `subs pc, lr, #4` to resume at LR-4.
+2. The live LR at that point = `0x08000499` (thumb-tagged; the resume point
+   in the crt0 area). Hardware resumes **thumb at 0x498**.
+3. Our engine resumes **ARM at 0x494** (2 bytes early, mid-instruction):
+   dispatch miss 0x08000494 (recorded `mode="arm"`) → self-heal bridge
+   interprets ARM garbage → interpreter Undefined at 0x4EC → loud abort.
+   The sibling 0x0FF8 occurrence (thumb-into-ARM) is the same family.
+
+**Pinpointed with a 29-record bridge-entry ring dump** (the only moment the
+pre-miss ring still holds generated-code context — the bridge's own
+interpreted records overwrite it within ~1 s; new env-gated instrumentation
+`GBARECOMP_BRIDGE_ENTRY_FP`/`GBARECOMP_BRIDGE_ABORT_FP`, plus an
+unconditional one-line `bridge entry pc/thumb/stop/lr/sp/cpsr` log):
+the trampoline executed in **System mode** (the BIOS SWI dispatcher
+deliberately switches to System at 0x158-0x160 before calling services —
+verified correct vs. the recompiled BIOS source); in that mode the S-bit PC
+write `subs pc, lr, #4` performs no SPSR restore in our engine (and in the
+reference interpreter — "no SPSR in User/System — exception return is
+undefined", external/arm-recomp-core profiles/armv4t_gba/interpreter.cpp),
+so `T` stayed 0 and the dispatch went ARM. Hardware behaves as if the
+System-mode SPSR roundtrip (`mrs spsr`/`msr spsr` + the return) preserves
+the caller's T=1 — which is exactly the published ARM7TDMI System-mode SPSR
+behavior the BIOS's boot trampoline relies on.
+
+**Evidence**: `logs/savehang/bridge_entry_fp.bin` (29 records: load → BIOS
+copy → reset → boot → trampoline → miss), `GBARECOMP_SWI_TRACE` trace
+(banking `0x3F -> 0x93`, `SPSR_svc = 0x3F` — 505/505 LLE, 0 HLE), mode
+histogram (`svc` 84 / `irq` 5,110 / `sys` 8,383,414 — services in System is
+BIOS-correct), the dispatcher decode (`0x150-0x16C`).
+
+**Open**: arbitrate the System-mode SPSR semantics against the oracle
+(mGBA-backed, `gbarecomp/oracle/`): if mGBA restores T here (it must, for
+FFTA to save-and-reboot on it), the fix is to align our ARM7TDMI SPSR model
+for User/System-mode `mrs/msr spsr` + S-bit PC writes (framework-level,
+touches the bank machinery shared with `banked_spsr[ARM_BANK_USER]`), and
+this belongs in the upstream conversation (the issue-30 thread's SWI-return
+discussion is exactly this area). Until then the derail is reachable
+whenever the suspend-save flow runs to completion in-window.
+
+**2026-10-09 late — derail mechanism pinned to a stack-slot slip (evidence).**
+The three captured derail transfers all share the same constant context —
+`lr=0x08000499` (the savestate's LR), `sp≈0x03007EB8-0x7EC0`, `stop=0x08094FCC`
+(the save-flow's ledger frame) — and read IWRAM of the loaded state shows the
+miss targets ARE stack words: `[0x03007EBC]=0x080000F0` verbatim (the
+`pc=0x080000F0` catch), `[0x03007EB4]=0x08000499`, `[0x03007EAC]=0x0800050B`
+(return addrs), `[0x03007EB0]=0x03000FD8`. So the derail = the resumed
+save-completion flow popping an ADJACENT stack slot instead of its return
+address when the load-time IRQ race perturbs the flow — the popped word
+becomes pc → miss (0xF0 IS not a static entry) → bridge → abort (or the
+pc=0 walk through the reset vector and the BIOS 0x1C trampoline, whose
+System-mode SPSR roundtrip is mGBA-validated correct — see
+`reference/gba-bios-boot-and-spsr.md`). The residual (≈12 % of windowed
+runs; the other ~88 % are rescued by the abandon-close + intercept) is the
+same phantom IRQ/SWI-return interplay issue-30 flagged as "the SWI-return
+cancel cascade crosses the IRQ floor boundary" — upstream machinery
+territory. New instrumentation: `GBARECOMP_BREAK_FP` (ring dump at a
+`set_break_pc` park; works on `--tcp-observe`, which lacks fp_save) —
+`logs/savehang/pc0_hunt.py` is the breakpoint hunter.
+
+## 2026-10-09 — Fix: SWI-return continuation ledger (issue #30 R1 containment)
+
+**Root recap.** The phantom-era chain (ring-proven, above): an SWI executed inside
+a driven IRQ handler returned to the IRQ-interrupted PC (`BIOS 0x188 ->
+0x080033BA`) instead of its own recorded continuation (`0x814186E`, the
+`svc; bx lr` veneer's continuation). On hardware this cannot happen — LR_svc is
+a banked register the guest cannot touch; the recomp's shared `R[14]` slot was
+clobbered by the drive-loop's stack churn before the BIOS epilogue consumed it.
+
+**Fix** (`tools/patches/swi-return-ledger.patch`,
+`gbarecomp/src/armv4t/runtime_arm.cpp`):
+- **Ledger.** A stack-ordered continuation ledger: `runtime_swi`'s LLE entry
+  pushes `return_address` (the SWI site + instruction width — what a legal
+  epilogue returns to); every SVC-mode exception return pops + validates.
+- **Validation points.** `runtime_exception_return` (generated epilogues) when
+  `old_mode == 0x13`, and `runtime_note_interpreted_exception_return` (bridged /
+  force-interp epilogues, called by `runtime_arm_default_aborts.cpp` right after
+  the interpreter's internal SPSR restore with `g_cpu` synced) — on mismatch the
+  recorded continuation is kept (loud log line
+  `SWI-return ledger override: SVC return wants pc=… but the SWI at … recorded
+  continuation …`). `R[14]` is deliberately NOT written: the legal post-return
+  LR comes from `bank_in`, and the continuation can be a `bx lr` site — writing
+  it into `R[14]` would self-loop that branch.
+- **Lifecycle.** The ledger is host bookkeeping, not emulated state: cleared at
+  every machine reset / savestate-load origin (`runtime_fp_reset`, which both
+  `reset_recomp_cpu` and `do_savestate_load` call). SoftReset (SWI 00) legally
+  never returns — its stale entry is dropped by the clear. No new serialized
+  state.
+- **BIOS epilogue shape pinned** (disarm on `gba_bios.bin`): the SWI dispatcher
+  at `0x140` pushes `{fp,ip,lr}`, switches to System mode for the service
+  (`0x160 msr cpsr_fc`), restores SVC (`0x174-0x178`), then
+  `0x184 pop {fp,ip,lr}` / `0x188 movs pc, lr` — the epilogue is an
+  SVC-mode `movs pc, lr`, LR_svc sourced from the SVC bank. On hardware the
+  popped LR is always the entry continuation (System-mode services cannot touch
+  the SVC bank) — the ledger invariant is architecturally sound.
+
+**Result (2026-10-09).** Deterministic state3+A repro: zero ledger overrides —
+the save-routine SWIs (`0x814186A`/`0x814186E`, `GBARECOMP_SWI_TRACE`) all
+return cleanly at their recorded continuations today; the ledger is dormant
+containment on this path (the abandon-close + intercept still handle the
+phantom's fallout earlier). `cycle.py` PASS (attract byte-identical);
+full `check.py` **ALL PASS (13/13)** — hangrepro +40 steps alive, desktop-accept
+TCP free-run PASS (close route), routes G/K FULLY_STATIC.
+
+**Harness fixes rolled in with this session:**
+- `tools/hangrepro.py`: default port moved to 19880 — under `check.py --jobs 8`
+  the concurrent `hangrepro` (19878) and `desktop-accept` (19878) raced the bind
+  and both failed. Serially each passed; with distinct ports the full gate
+  passes in parallel.
+- `tools/pc0_hunt.py` + `tools/derail_loop.sh`: hardcoded absolute home-directory
+  repo paths removed (`pathlib` / `dirname`) — the `unit-py` repo-hygiene gate
+  (absolute home paths) went red on them.
+
+**Upstream.** This is the R1 containment for issue #30's suspected-root family
+(ledger-recorded SWI continuation validated at SVC-return) — small,
+self-contained, no guest-visible behavior on a legal return. The
+abandon-close (its consumer) stays FFTA-conditional per the audit
+(`tools/patches/README.md` § Upstream priority).
+
+## 2026-10-09 — CI tier-1 hardening: pristine-checkout conditions (3 fixes)
+
+Asking "will .github/workflows/ci.yml break?" surfaced three breaks — all
+latent, all only visible on a **fresh checkout with pristine submodules at the
+pin** (the runner's condition; locally the submodule dev trees carry the
+uncommitted framework edits, so every local run masked them). Found by a
+faithful fresh-clone simulation (`git clone` + pristine-at-pin submodule
+archives + CI's exact suites), not by reading:
+
+1. **Per-feature patches were dev-based, not pin-based** (`e006928`).
+   `check.py` `patches` validates each file against whatever tree the runner
+   sees: locally the patched dev tree (reverse), on CI the pristine pin
+   (forward). The regenerated `irq-handler-abandon-close.patch` +
+   `swi-return-ledger.patch` carried interleaved context (ledger/trace lines)
+   only present on my dev tree → INVALID on CI. Rebuilt both pin-based; the
+   `swi_ledger_push` call moved from the interleaved post-bank block to just
+   before `runtime_dispatch(0x08)` (pin-stable context, semantics unchanged:
+   push pairs with this SWI's SVC entry).
+2. **`check_patches`' replay byte-compare false-reds on CI** (`ecb5540`).
+   The replay (pin+consolidated → byte-match the working tree) is a
+   local-dev-tree guarantee; a pristine checkout's tree IS the pin, so every
+   patched file "differs". The checker now skips the compare when the
+   submodule is unmodified (`status --porcelain -uno` empty) — the clean
+   apply alone still proves patch↔pin fidelity there.
+3. **`unit-cpp` did not compile on a pristine submodule** (`4623e9c`).
+   `test_host_stack_guard.cpp` targets the guard APIs from the (local-only)
+   `host-stack-guard-desktop.patch` work; the pinned header doesn't declare
+   them → 11 compile errors on CI. CMakeLists now probes the pinned
+   `mobile_platform.h` for `host_stack_guard_arm_current` and defines
+   `HOST_STACK_GUARD_API=1` only where present; the test compiles to a skip
+   line otherwise (prints `APIs unavailable (pristine submodule); skipped`).
+
+**Verification matrix (2026-10-09):**
+
+| Condition | unit-cpp | unit-py | patches | android-static |
+|---|---|---|---|---|
+| Fresh clone, pristine-at-pin submodules (CI) | PASS (guard skip) | PASS | PASS (10× forward-ok + apply-ok) | PASS |
+| Local dev tree (patched submodule) | PASS (full guard test) | PASS | PASS (431-file replay match) | PASS |
+| Local full gate (all 13 suites) | ALL PASS 13/13 | — | — | — |
+
+**Method note:** the local runs cannot see pristine conditions (the dev trees
+carry the edits); the fresh-clone simulation with pristine-at-pin archives is
+the only faithful CI proxy. Keep using it after any patch/test-affecting change.
+
+## 2026-10-09 — Cheap test additions (session's break classes, now guarded)
+
+Three additions from the "quick but meaningful" ask — each maps to a failure
+class that actually bit this session; total added runtime < 1 s:
+
+1. **`patches` pin-forward validation** (tools/check.py): reverse-ok on the
+   local dev tree is NOT the CI condition — a fresh checkout validates each
+   per-feature file forward against the pristine pin. A dev-based export
+   goes INVALID there (today's tier-1 break). The check now also applies
+   every per-feature patch to a `git archive HEAD` tree and fails on
+   mismatch: `reverse-ok (applied), pin-forward-ok`. Sub-second, pure git.
+2. **TSV guards** (tests/python/test_tools.py, unit-py): `ffta_symbols.tsv`
+   (3 fields, hex address, arm|thumb, C identifier) +
+   `ffta_data_symbols.tsv` (4 fields, region, hex size, C identifier),
+   no duplicate names across both, and the patches README table must list
+   exactly the present `*.patch` files. Malformed lines break regen or
+   silently mislabel emitted units — the sweep catches them pre-regen
+   (negative-tested: a planted bad line fails the suite).
+3. **BIOS byte-pin** (test_tools.py): sha1 of `gba_bios.bin` +
+   the exact words at every contract point our engine cites (vectors, IRQ
+   wrapper epilogue `E8BD500F`/`E25EF004`, SWI dispatcher service-switch
+   `E129F00B` + epilogue `E8BD5800`/`E1B0F00E`). This morning's
+   0x138-vs-0x184 citation drift in my own comments is exactly what a
+   replaced BIOS would do silently. LOCAL-ONLY: the dump is BIOS-derived and
+   gitignored by design (`bios/*.bin`), so the test skips on any checkout
+   without it — CI included; it guards the local tree, where the engine edits
+   cite the contract points.
+
+unit-py runs the file wholesale — no registry change needed. Suites:
+unit-py 0.7s, patches 0.6s (was 0.2s); full gate ALL PASS 13/13.
+
+## 2026-10-09 — src/ audit: LZSS guard extracted + tested, setenv guarded, boundary tests
+
+Audited all of src/ (ffta_ram_dispatch.h, main.cpp, game_launcher_boot.*):
+
+- **`ffta_lzss_guard.h` (new):** the LZSS entry guard lived inside an
+  anonymous namespace in main.cpp — correct at runtime, but untestable (not
+  linkable from the unit binary). Extracted verbatim to
+  `src/ffta_lzss_guard.h`; main.cpp registers `ffta::lzss_entry_guard`.
+  Unit tests now cover: plausible length → declined (body runs, PC
+  untouched), implausible → handled (PC ← LR, thumb bit stripped), and the
+  exact 0x100000/0x100001 boundary.
+- **`main.cpp`:** the Android-only `setenv("GBARECOMP_MISS_FRAG", ...)` was
+  guarded by flow (`on_mobile` is only ever true on Android) but compiled
+  on every target — MSVC's libc has no `setenv`. Now `#if defined(__ANDROID__)`
+  inside the `on_mobile` block (same code path, explicitly compiled out of
+  the desktop/Windows targets).
+- **`test_ram_dispatch.cpp`:** added the missing `case2-2early` boundary
+  tests — a two-byte-early entry that does NOT byte-match must fall through,
+  and one that matches while carrying the loop sentinel (r2 == -1) must pass
+  through (never run the body from the top).
+- No other findings: `ram_dispatch`'s ordering and guards are correct and
+  already evidenced in comments; `game_launcher_boot.*` is a trivial seam;
+  `raise_stack_limit()` correctly no-ops where RLIMIT_STACK is absent.
+
+Gates: unit tests PASS (0 failures, new LZSS/boundary lines verified);
+full check.py ALL PASS 13/13.
+
+## 2026-10-09 — Citation correction: the BIOS SWI epilogue is 0x184/0x188, not 0x138/0x13C
+
+The ledger's comments and the patches README cited the SWI epilogue as
+`0x138 pop / 0x13C subs pc,lr,#4`. Disassembly of `gba_bios.bin` proves those
+are the **IRQ wrapper's** return (`BIOS 0x130-0x13C`); the SWI dispatcher
+epilogue is `0x184 pop {fp,ip,lr}` / `0x188 movs pc,lr`, with the service
+running in System mode (`0x160 msr cpsr_fc`) in between. The
+`swi-return-ledger` comments + both exported patch files were corrected
+(`e71a86c`); the BIOS byte-pin test now guards the *correct* words
+(`E129F00B` at 0x160, `E3A0C0D3` at 0x174, `E8BD5800` at 0x184,
+`E1B0F00E` at 0x188) so the citation cannot drift silently again.
+
+## 2026-10-09 — Symbol: swi0c_thunk_tail (0x0814186A)
+
+Sweep of the session's new text for raw-hex citations found one TSV gap:
+`0x0814186A` — the SWI 0x0C veneer's `bx lr` continuation (disarm:
+`0814186a: 7047 bx lr`) — appeared live in the ledger session's SWI trace
+(`swi_imm=0xC ret=0x0814186A`, the save flow's context copy) and is exactly
+what the ledger guards, but had no entry while its 0x0B sibling
+(`swi0b_thunk_tail`, 0x0814186E) did. Added name-only with the evidence
+note (`9d1d044`); verified the seed flows through (`{0x0814186Au, 1u, 0u,
+gf_swi0c_thunk_tail}` in the dispatch table), `cycle.py` PASS (attract
+byte-identical), full gate ALL PASS 13/13.
+
+## 2026-10-09 — Patch re-audit (late): all 10 necessary, ledger promoted, upstream drift
+
+Re-grounded every patch against the pin, the session's fresh evidence, and
+upstream drift (`ecc9c55` 2026-10-03 → ~30 commits since: the web/WASM wave
+PR #16, PR #29 opt-in shared-RAM DMA HLE, PR #31 scanline-HLE default).
+Verdict: **no patch is unnecessary** — the two `runtime_arm.cpp` patches are
+complementary layers over the same ring-proven chain (ledger = containment,
+abandon-close = recovery), not duplicates; hangrepro exercises both.
+Re-ranked in `tools/patches/README.md` (`912f1a3`): `swi-return-ledger`
+promoted above `irq-handler-abandon-close` (the ledger is the principled
+fix; the close mops up what it cannot see — an iret lost before any SWI).
+**Upstream drift finding:** verified none of our issues are subsumed
+upstream (PR #29's `gba_io` rework does not touch `g_mmio_split` recording;
+`9be5351` is WASM reporting; `mod_runtime.cpp` untouched), but the same
+files moved — so **a pin bump is a deliberate milestone**: rebase/re-export
+every patch, re-run the fresh-clone CI simulation, re-verify hangrepro +
+desktop-accept on the new pin before committing it.
+
+Coverage snapshot re-measured the same day via
+`tools/coverage_report.py` (not inferred): walker **55,102/56,332**,
+pool **55,102/55,514** — both denominators moved with the split-loop gap
+roll-in (`vblank_wait_loop_cont` merged into its host as a resume alias);
+corpus 55,102; executed path 100% FULLY_STATIC. `tests/README.md` snapshot
+re-dated and re-measured to match (`ed189bd`).
+
+## 2026-10-09 — tools: disarm.py polish (the canonical evidence tool)
+
+`tools/disarm.py` — cited by AGENTS.md as *the* verification tool ("run
+`tools/disarm.py` and cite the address") — still called itself
+`tools/dis.py` in its usage line, carried dead code (an
+`insn.group(capstone.x86.X86_GRP_JUMP) if False else False` branch that
+could never run), and silently accepted nonsense ranges (`end <= start`,
+short reads past the ROM end). Fixed (`1a9c669`): usage matches the real
+path, both nonsense ranges now fail loudly, examples added. Output for
+valid invocations verified byte-identical against the ROM (phase 0
+crt0/veneer bytes reproduce exactly).
+
+## 2026-10-09 (late) — Device re-verification: current engine ON the phone + scriptable press acceptance
+
+Connected device: Xiaomi M2102K1AC (Poco X3 Pro), Android 14/API 34,
+arm64. Fresh build first — the last APK (08:39) predated every 2026-10-09
+engine fix (ledger 21:39, abandon-close/roll-in earlier); **rebuild before
+any device claim**.
+
+1. **Fresh APK** (1m40s, arm64-v8a, private ROM embed): content guard 8/8.
+   Note: 64.2 MiB vs the 08:39 build's 35.5 MiB — heavier corpus, not the
+   junk-blob class (guard's oversize check passed; libmain.so exempt by
+   design).
+2. **`tools/validate_android.sh` GATE PASSED 5/5** on the fresh build:
+   process alive (pid 17250), GbaGameActivity resumed, log reports
+   `cpu_backend=static-recompiled`, zero SELF-HEAL lines, crash buffer
+   clean. The stale 981-byte miss frag on-device was **yesterday's
+   21:20 session** (mtime), not this run — and today's run wrote no new
+   misses.
+3. **The stale frag audited and discarded (no seed):** its single proposal
+   was `0x03005710 arm`, a PC inside an unmapped IWRAM island. Live bytes
+   via observe `read_iwram`: `80 0d 00 00 | 30 37 50 ef …` — a ROM-pointer
+   table (disarm of the pointed-to 0x08A5BFD2 region: a repeating pointer
+   array, `35 30 84 35 34 84 …` sequential pointers), **not ARM code**.
+   A dispatch into data, bridged ×1 by the interpreter — honest behavior;
+   no corpus entry warranted (ground rule 4: no seed without code
+   evidence). Coverage JSON absent on device = clean-run absence, fine.
+4. **`tools/android_press_test.py` (new): the scriptable press acceptance.**
+   The manual protocol's A-press was thumb-on-glass only; the observe TCP
+   carries everything needed (`set_keyinput` press injection, `run_status`
+   frames via `ppu.frame_count()`, queued `savestate_load`, screenshot).
+   The tool: push+stage `game.state3` → load over observe → assert frames
+   advance → press A (bit0 low 0.25 s) → assert post-press advancement →
+   scan the pulled app log for ledger/self-heal/guard anomalies → crash
+   buffer. Two tool bugs found by first run (counters unwired on the
+   windowed-observe context — run_status carries frames; savestate path
+   resolves from the chdir'd `files/` cwd, so `saves/` not `files/saves/`).
+
+   **PASS on device:** load (frame 4515) → pre-press 4574→4694 → press →
+   post-press 4694→4832, **one legal abandon-close** (the suspend→A chain,
+   closed coherently — the exact flow that pre-fix SIGSEGV'd the desktop),
+   zero anomalies, crash clean. The historical worst bug class now has a
+   scriptable, evidence-producing device acceptance.
+
+
+## 2026-10-09 (late) — Device lifecycle gate + touch-realism findings
+
+**1. `tools/android_lifecycle_test.py` (new): the OS suspend/kill/relaunch
+lifecycle gate — ALL 15 PASS on the Poco X3 Pro.** The engine's mobile-only
+contract, end to end: session live → KEYCODE_HOME background (save flushed +
+suspend state + `.suspend.pending` marker written, log line asserted) →
+`am force-stop` (the real OS kill — marker SURVIVES, battery save present) →
+relaunch via AUTOSTART (`suspend_resumed path=… frame=<exact>` logged,
+marker cleared) → observe reconnects (fresh socket) + frames advance → zero
+ledger/self-heal/guard anomalies → crash buffer clean. Three tool-side bugs
+fixed along the way (binary adb read for the flash save; marker-clear race
+poll; fresh-socket reconnect after the kill). Bonus finding en route: a
+**stale marker from a real background kill resumed unprompted** at the exact
+frame (`frame=12768`) on the very next launch — the contract doing its job
+before we even tested it.
+
+**2. Touch realism: adb-synthesized taps are OS-filtered on this ROM.**
+Driving the REAL pipeline (OS touch → SDL_FINGERDOWN → `pad_buttons_at` →
+`host_keyinput` → guest KEYINPUT) via `adb shell input tap`: zero TouchHub
+journal events, zero KEYINPUT motion during rapid-poll, zero pixel response
+in-app — AND zero effect at the launcher/drawer level, with **zero lines on
+the touchscreen's evdev node (`/dev/input/event4`, getevent-capped) during
+`input tap`** — while `input swipe` demonstrably works (shade opened). The
+phone's ROM drops adb-synthesized tap touches (MIUI/HyperOS-class
+restriction; swipes pass, taps filtered). Not an engine or app defect:
+the engine's pad path is reachable by physical fingers (and by TCP touch
+commands — `touch_back` journaled a gesture on the same session), and the
+press/lifecycle gates validate input *effect* via the observe TCP instead.
+`tools/android_touch_test.py` is committed as the instrumented check for
+when a tap-permissive device (or the emulator, or a physical finger) is
+available: it reads the live pad layout from the boot log, taps the A
+button, and asserts KEYINPUT + journal + gesture. Its failure mode on THIS
+phone documents the restriction honestly (the launcher-level checks are in
+the BRINGUP evidence above).
+
+Architecture note (verified in source while here): the TCP touch-script
+engine (`touch_tap`/`touch_drag`/…, touch_input.cpp `drain()`) only pumps for
+games that install an `input_frame` policy (runtime.cpp:2404+); FFTA's pad is
+fed by real SDL fingers (host_window.cpp:2810+ → `pad_buttons_at`), so
+TCP-injected scripts queue but never drain in our game. The press tests'
+`set_keyinput` bypass is the correct observe-surface for KEYINPUT-level
+assertions.
+
+## 2026-10-09 (late) — build.py audit: nested-patch routing bug (found empirically, fixed)
+
+Audited `build.py` end to end. One genuine bug, found by running
+`step_patches()` against the current tree rather than reading:
+
+**`step_patches` applied EVERY patch at the `gbarecomp/` root** — but
+`arm-recomp-core-local.patch` targets the *nested*
+`gbarecomp/external/arm-recomp-core` repo (the tools/patches/README.md
+filename-prefix routing convention that `check.py` implements). On this
+dev tree the step DIED mid-bootstrap ("patch does not apply:
+arm-recomp-core-local.patch" — reverse fails at the wrong root, forward
+fails with No such file or directory), and on a fresh clone the same
+forward-apply fails. Introduced when the nested consolidated patch
+landed; the idempotence claim was true only for the gbarecomp-root
+patches. Fix: route each file by its `arm-recomp-core` prefix to the
+nested root — verified both ways (dev tree: "all 10 already in place",
+correctly routed; fresh-clone sim of pristine pins: all 10 forward-ok).
+
+Everything else checked clean: dumps (size+SHA-1), venv (both branches
+converge on the final `import capstone` verification), BIOS freshness
+(mtime), regen staleness (mtime sweep of the four inputs), host build,
+smoke (GBARECOMP_* env stripped + strict), `--force`/`--no-smoke`/`--jobs`
+plumbing, Fail.msg/hint, `submodule_drift`'s `+`/`-` counting. Full
+end-to-end idempotent run: DONE in 12.2s, smoke FULLY_STATIC.
+
+## 2026-10-09 (late) — build_apk.py: the Android bootstrap (until the phone UI can load a ROM)
+
+The public app imports the ROM/BIOS through the phone's SAF picker on
+first run; until the game shell grows that UI, the practical path is the
+private test build (ROM+BIOS embedded). `build_apk.py` wraps the whole
+pipeline in build.py's step pattern: **preflight** (JDK 17-26 for Gradle
+8.11.1, ANDROID_HOME/SDK auto-discovery + NDK presence, the engine SDL
+submodule — initialized on demand —, dumps size+SHA-1, and a fresh
+`generated/` corpus, since an Android build consumes it but cannot
+produce it) → **gradle** (`:app:assembleDebug -PgbaAbis -PgbaNativeJobs
+-PprivateRom -PprivateBios`) → **content guard**
+(`tools/android_apk_check.py --expect private` — payload byte-match +
+embedded ROM/BIOS hash pins) → **install + device gate** (`adb install -r`
++ `tools/validate_android.sh --no-install`; default on when exactly one
+device is ready). Flags: `--abi` (arm64 default, x86_64 for emulator),
+`--jobs`, `--no-install`, `--no-gate`, `--skip-check`.
+
+Verified end to end on the connected phone: preflight ok (JDK 21, SDK,
+SDL, corpus), gradle BUILD SUCCESSFUL, content guard 8/8 (private,
+arm64-v8a, 64.2 MiB), install + **GATE PASSED**. One tooling bug caught
+by the run itself (missing `time` import → NameError) and a draft closure
+plumbing cleanup before the first green run. README § Setup +
+§ Repository layout and android/README § Build now point at it.

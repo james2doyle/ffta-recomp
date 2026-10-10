@@ -106,6 +106,21 @@ compile_commands.json
 *.map
 
 # -----------------------------------------------------------------------------
+# Android (Gradle / NDK / signing) — APKs/AABs never enter history
+# (a private test APK can embed ROM/BIOS bytes; the engine names those
+# ...-PRIVATE-rom-included.apk so they cannot be mistaken for releases)
+# -----------------------------------------------------------------------------
+android/.gradle/
+android/local.properties
+.cxx/
+android/artifacts/
+android/signing.local.properties
+*.apk
+*.aab
+*.jks
+*.keystore
+
+# -----------------------------------------------------------------------------
 # Frame-diff harness captures (ROM-derived — keep out of history)
 # Adjust paths to wherever the harness writes frames/video.
 # -----------------------------------------------------------------------------
@@ -151,5 +166,8 @@ selfheal*.json
 # -----------------------------------------------------------------------------
 # Intentionally tracked — do NOT add rules for these:
 #   game.toml, src/, inputs/, mods/, BRINGUP.md, AGENTS.md,
-#   ffta-bootstrap-prompt.md, and the gbarecomp / recomp-ui submodules
+#   and the gbarecomp / recomp-ui submodules
 # -----------------------------------------------------------------------------
+hang_trace.csv
+hang_fp_tail.csv
+hang_dump.log

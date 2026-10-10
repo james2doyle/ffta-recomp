@@ -6,6 +6,7 @@
 // Run:  cmake --build build --target ffta_unit_tests && ./build/ffta_unit_tests
 //   or: ctest --test-dir build --output-on-failure
 #include "ffta_ram_dispatch.h"
+#include "ffta_lzss_guard.h"
 
 #include <cstdio>
 #include <cstring>
@@ -238,6 +239,50 @@ int main() {
     plant_pair(0x03007D48u, 0x08141AACu, 0x04u, 0x33);
     CHECK(ram_dispatch(0x03007D48u, 1) == 1);
     CHECK(g_getter_calls == 1);
+
+    // ── case2-2early boundary: a fresh entry two bytes EARLY that does NOT
+    // byte-match the routine (RAM plant at pc+2 corrupted) must fall
+    // through, and one that matches with the loop sentinel in r2 must
+    // pass through (never run the body from the top) — the guard's two
+    // distinct early-entry failure modes.
+    reset_state();
+    plant_pair(0x03007D74u, 0x08141AF0u, 0x24u, 0x11);
+    g_cpu.R[2] = 0x1000u;
+    g_iwram[(0x03007D74u - IWRAM_BASE) + 0u] ^= 0xFFu;  // break the match at +2
+    CHECK(ram_dispatch(0x03007D72u, 1) == 0);
+    CHECK(g_copy_calls == 0);
+    reset_state();
+    plant_pair(0x03007D74u, 0x08141AF0u, 0x24u, 0x11);
+    g_cpu.R[2] = 0xFFFFFFFFu;  // sentinel: even a byte-matching plant passes
+    CHECK(ram_dispatch(0x03007D72u, 1) == 0);
+    CHECK(g_copy_calls == 0);
+
+    // ── LZSS entry guard (src/ffta_lzss_guard.h) ─────────────────────
+    // The 0x0800543C decoder's BE length header at r1: implausible
+    // (> 0x100000) -> handled, PC returns to LR (thumb bit stripped);
+    // plausible -> declined (body runs). src/dst pointers read through the
+    // stub bus: plant the length word inside IWRAM.
+    reset_state();
+    g_cpu.R[0] = 0x02000CB0u;                     // dst
+    g_cpu.R[1] = 0x03002000u;                     // src (BE length @ +0)
+    g_cpu.R[14] = 0x08000499u;                    // thumb return
+    bus_poke(0x03002000u, (const uint8_t*)"\x00\x00\xF0\x00", 4);  // 0xF000
+    CHECK(ffta::lzss_entry_guard(0x0800543Cu, 1, &g_cpu) == 0);     // plausible
+    CHECK(g_cpu.R[15] == 0u);                                       // untouched
+    bus_poke(0x03002000u, (const uint8_t*)"\xFF\x00\xCE\x7F", 4);  // ~4G
+    CHECK(ffta::lzss_entry_guard(0x0800543Cu, 1, &g_cpu) == 1);     // skip
+    CHECK(g_cpu.R[15] == (0x08000499u & ~1u));                       // -> LR
+    // The exact boundary: 0x100000 is the last plausible length.
+    bus_poke(0x03002000u, (const uint8_t*)"\x00\x10\x00\x00", 4);  // 0x100000
+    CHECK(ffta::lzss_entry_guard(0x0800543Cu, 1, &g_cpu) == 0);
+    bus_poke(0x03002000u, (const uint8_t*)"\x00\x10\x00\x01", 4);  // +1
+    CHECK(ffta::lzss_entry_guard(0x0800543Cu, 1, &g_cpu) == 1);
+
+    // ── host-stack guard (mobile_platform) ──────────────────────────
+    {
+        extern int run_host_stack_guard_tests();
+        g_failures += run_host_stack_guard_tests();
+    }
 
     std::printf("%s (%d failure%s)\n", g_failures ? "FAIL" : "PASS",
                 g_failures, g_failures == 1 ? "" : "s");

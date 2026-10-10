@@ -1,0 +1,292 @@
+diff --git a/src/runtime/mobile_platform.cpp b/src/runtime/mobile_platform.cpp
+index 176a73b..45b82d9 100644
+--- a/src/runtime/mobile_platform.cpp
++++ b/src/runtime/mobile_platform.cpp
+@@ -1,10 +1,19 @@
+ // mobile_platform.cpp — see mobile_platform.h.
+ 
++#if defined(__linux__) && !defined(_GNU_SOURCE)
++#define _GNU_SOURCE  // pthread_getattr_np for the desktop stack guard
++#endif
++
+ #include "mobile_platform.h"
+ 
++#include <cstdint>
+ #include <cstdio>
+ #include <cstdlib>
+ 
++#if defined(__linux__)
++#include <pthread.h>
++#endif
++
+ #if defined(__ANDROID__)
+ #include <pthread.h>
+ #include <unistd.h>
+@@ -15,17 +24,44 @@
+ 
+ namespace gbarecomp {
+ 
++// Host-stack budget guard state (see mobile_stack_over_budget). File-local;
++// armed per thread by run_stacked (mobile) or
++// host_stack_guard_arm_current (desktop finite-stack threads).
++static std::uintptr_t g_stack_guard_lo = 0;
++// Critical tier: fires even inside a live IRQ handler (which normally gates the
++// guard off) when the stack is so low that the handler cannot possibly complete
++// anyway. Covers the stuck-nest-depth state (g_irq_nest_depth never returns to
++// 0 after a guest-return/IRQ interleave), where the primary gate would
++// otherwise leave the nesting unbounded.
++static std::uintptr_t g_stack_guard_crit_lo = 0;
++
+ #if defined(__ANDROID__)
+ namespace {
+ struct StackedCall {
+     int (*entry)(int, char**) = nullptr;
+     int argc = 0;
+     char** argv = nullptr;
++    std::size_t stack_bytes = 0;
+     int result = 1;
+ };
+ void* run_stacked(void* arg) {
+     auto* call = static_cast<StackedCall*>(arg);
++    // Arm this thread's budget: keep kGuardMargin of headroom for the
++    // runtime's own transient frames between two instruction-boundary
++    // checks, then unwind through the standard yield path.
++    constexpr std::size_t kGuardMargin = 32u * 1024u * 1024u;
++    const std::size_t budget = call->stack_bytes > kGuardMargin
++        ? call->stack_bytes - kGuardMargin
++        : call->stack_bytes / 2u;
++    const std::uintptr_t base = reinterpret_cast<std::uintptr_t>(&call);
++    g_stack_guard_lo = base - budget;
++    // Critical tier: allow unwinding even inside a live IRQ handler when the
++    // stack is within ~0.5 MiB of the bottom (a stuck nest depth otherwise
++    // disables the primary gate; see host_stack_critically_low).
++    const std::uintptr_t bottom = base - call->stack_bytes;
++    g_stack_guard_crit_lo = bottom + 512u * 1024u;
+     call->result = call->entry(call->argc, call->argv);
++    g_stack_guard_lo = 0;
+     return nullptr;
+ }
+ }  // namespace
+@@ -38,6 +74,7 @@ int mobile_run_with_stack(int (*entry)(int, char**), int argc, char** argv,
+     call.entry = entry;
+     call.argc = argc;
+     call.argv = argv;
++    call.stack_bytes = stack_bytes;
+     pthread_attr_t attr;
+     pthread_attr_init(&attr);
+     // Reserved address space only; pages are committed as the stack grows.
+@@ -60,6 +97,43 @@ int mobile_run_with_stack(int (*entry)(int, char**), int argc, char** argv,
+ #endif
+ }
+ 
++bool mobile_stack_over_budget(const void* probe) {
++    if (g_stack_guard_lo == 0) return false;
++    return reinterpret_cast<std::uintptr_t>(probe) < g_stack_guard_lo;
++}
++
++bool host_stack_critically_low(const void* probe) {
++    if (g_stack_guard_crit_lo == 0) return false;
++    return reinterpret_cast<std::uintptr_t>(probe) < g_stack_guard_crit_lo;
++}
++
++// Desktop (and any pthread) arming: arm the guard for the CALLING thread
++// from its real stack bounds, unwinding once the probe comes within
++// `reserve_bytes` of the stack bottom. Used for the finite-stack TCP game
++// thread, where the split vblank-wait loop's per-iteration host calls can
++// nest past the default 8 MiB (see runtime_bus_bridge.cpp guard block).
++void host_stack_guard_arm_current(std::size_t reserve_bytes) {
++#if defined(__linux__)
++    pthread_attr_t attr;
++    void*  base = nullptr;
++    std::size_t size = 0;
++    if (pthread_getattr_np(pthread_self(), &attr) == 0) {
++        if (pthread_attr_getstack(&attr, &base, &size) == 0 && base != nullptr) {
++            const std::uintptr_t lo = reinterpret_cast<std::uintptr_t>(base);
++            const std::size_t margin =
++                reserve_bytes < size ? reserve_bytes : size / 2u;
++            g_stack_guard_lo = lo + margin;
++            const std::size_t crit =
++                (size / 16u) < 512u * 1024u ? size / 16u : 512u * 1024u;
++            g_stack_guard_crit_lo = lo + crit;
++        }
++        pthread_attr_destroy(&attr);
++    }
++#else
++    (void)reserve_bytes;
++#endif
++}
++
+ bool mobile_prepare_process(std::vector<std::string>& args,
+                             const MobileProcessOptions& options) {
+ #if defined(__ANDROID__)
+diff --git a/src/runtime/mobile_platform.h b/src/runtime/mobile_platform.h
+index a737a49..8b7a0bc 100644
+--- a/src/runtime/mobile_platform.h
++++ b/src/runtime/mobile_platform.h
+@@ -43,6 +43,25 @@ constexpr std::size_t kMobileGameStackBytes = 256u * 1024u * 1024u;
+ int mobile_run_with_stack(int (*entry)(int, char**), int argc, char** argv,
+                           std::size_t stack_bytes = kMobileGameStackBytes);
+ 
++// Host-stack budget guard for a finite stack: the mobile game thread or the
++// desktop TCP game thread. Recompiled guest branches (and some loop back-edges)
++// map onto host C calls; a spin that outlives its expected wake — e.g. a
++// busy-wait split across two generated functions — can nest host frames
++// without bound. The runtime probes this at instruction boundaries and unwinds
++// through the standard yield path before the thread stack is exhausted. False
++// when no budget is armed (threads with generous stacks, or the desktop main
++// path) or the probe is still above the limit.
++bool mobile_stack_over_budget(const void* probe);
++
++// Critical tier of the same guard: true when the probe is within the last
++// ~0.5 MiB of the stack, where even a live IRQ handler cannot complete; the
++// runtime may unwind in that state despite g_irq_nest_depth > 0.
++bool host_stack_critically_low(const void* probe);
++
++// Arm the guard for the calling thread from its real pthread stack bounds
++// (Linux). No-op on unsupported platforms.
++void host_stack_guard_arm_current(std::size_t reserve_bytes);
++
+ // True when built for a mobile platform (compile-time).
+ constexpr bool mobile_platform() {
+ #if defined(__ANDROID__)
+diff --git a/src/runtime/runtime.cpp b/src/runtime/runtime.cpp
+index b560791..7fb0c8b 100644
+--- a/src/runtime/runtime.cpp
++++ b/src/runtime/runtime.cpp
+@@ -34,6 +34,7 @@
+ #include "touch_input.h"
+ #include "runtime_arm.h"
+ #include "runtime_bus_bridge.h"
++#include "mobile_platform.h"
+ #include "save_config.h"
+ #include "self_heal.h"
+ #include "overlay_loader.h"
+@@ -2449,6 +2450,11 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+         bool ctl_step_ok   = true;
+ 
+         std::thread game_thread([&]() {
++            // Finite-stack guard: the split vblank-wait loop nests host frames
++            // per spin iteration; a post-event flow that stops unwinding it
++            // would exhaust this thread's default 8 MiB stack. Unwind through
++            // the standard yield path once within 2 MiB of the bottom.
++            gbarecomp::host_stack_guard_arm_current(2u * 1024u * 1024u);
+             for (;;) {
+                 int st;
+                 {
+@@ -2588,8 +2594,10 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+         if (game_thread.joinable()) game_thread.join();
+         bool save_ok = flush_save();
+         write_session_diagnostics(opts, "exit", ppu.frame_count());
+-        gbarecomp::overlay_loader_shutdown();  // join worker + drain before banner
++        // Flush diagnostics BEFORE the worker join: the join can block behind
++        // in-flight heals, and an unclean kill during it must not lose the frag.
+         emit_exit_diagnostics();
++        gbarecomp::overlay_loader_shutdown();
+         runtime_shutdown();
+         return (ok && save_ok) ? 0 : 1;
+     }
+@@ -2865,7 +2873,8 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+                                   opts.assist_fast_forward_multiplier_default);
+             win.configure_touch(opts.input_frame != nullptr,
+                                 opts.touch_gesture_claims,
+-                                opts.touch_pad_default, args.touch_emulation);
++                                opts.touch_pad_default, args.touch_emulation,
++                                opts.touch_pad_idle_hide_seconds);
+             win.set_touch_config_dir(exe_dir.c_str());
+         }
+         win.set_host_overlay(opts.host_overlay);
+@@ -4260,8 +4269,10 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+         }
+     }
+ 
+-    gbarecomp::overlay_loader_shutdown();  // join worker + drain before banner
++    // Flush diagnostics BEFORE the worker join: the join can block behind
++    // in-flight heals, and an unclean kill during it must not lose the frag.
+     emit_exit_diagnostics();
++    gbarecomp::overlay_loader_shutdown();
+     runtime_shutdown();
+     return save_ok ? 0 : 1;
+ }
+diff --git a/src/runtime/runtime_bus_bridge.cpp b/src/runtime/runtime_bus_bridge.cpp
+index 044fc13..2501670 100644
+--- a/src/runtime/runtime_bus_bridge.cpp
++++ b/src/runtime/runtime_bus_bridge.cpp
+@@ -8,6 +8,7 @@
+ #include "../armv4t/runtime_arm.h"
+ #include "../armv4t/runtime_context.h"
+ #include "runtime_bus_bridge.h"
++#include "mobile_platform.h"
+ #include "multiplayer_slice.h"
+ #include "../armv4t/arm_ir.h"
+ #include "../armv4t/symbol_lookup.h"
+@@ -988,7 +989,43 @@ void runtime_set_vblank_input_hook(std::function<void()> h) {
+     g_vblank_input_hook = std::move(h);
+ }
+ 
++extern "C" bool runtime_abandon_resume_pending(void);
++
+ extern "C" bool runtime_should_yield(void) {
++    // Host-stack budget guard: branch/dispatch chains that fail to unwind
++    // (e.g. a busy-wait split across generated functions whose wake flag
++    // never arrives) nest host frames without bound on finite-stack threads
++    // (mobile game thread; desktop TCP game thread — armed via
++    // host_stack_guard_arm_current). Unwind at the same instruction-boundary
++    // protocol as the vblank yield, gated the same way (never inside a live
++    // IRQ handler, whose dispatch must complete), before the stack is
++    // exhausted. Inert while no budget is armed.
++    {
++        char probe;
++        const bool in_handler = g_irq_nest_depth != 0u;
++        const bool fire =
++            (in_handler ? gbarecomp::host_stack_critically_low(&probe)
++                        : gbarecomp::mobile_stack_over_budget(&probe));
++        if (fire) {
++            static unsigned long long guard_unwinds = 0;
++            ++guard_unwinds;
++            if (guard_unwinds <= 4u ||
++                (guard_unwinds & (guard_unwinds - 1u)) == 0u) {
++                std::fprintf(stderr,
++                    "runtime: host-stack guard unwind count=%llu pc=0x%08X"
++                    "%s\n",
++                    guard_unwinds, g_cpu.R[15],
++                    in_handler ? " (nested)" : "");
++            }
++            return true;
++        }
++    }
++    // Abandon-close continuation: the first instruction boundary after the
++    // close unwinds (even under present-in-place, which otherwise never
++    // returns true) so the runner redispatches and runtime_dispatch's
++    // one-shot intercept can redirect to the coherent resume pc.
++    if (g_irq_nest_depth == 0u && runtime_abandon_resume_pending())
++        return true;
+     if (g_session_execution) {
+         if (gbarecomp::runtime_dispatch_suspended()) return true;
+         auto* bus = gbarecomp::g_active_bus;
+@@ -1090,6 +1127,7 @@ extern "C" bool runtime_should_yield(void) {
+         }
+     }
+ 
++
+     // ── Always-on hang watchdog ──────────────────────────────────────
+     // A healthy GBA game HALTs (VBlankIntrWait) ~60x/sec; the MC-HP-002
+     // freeze is a busy-spin in the M4A mixer that NEVER halts (the PPU
+@@ -1133,6 +1171,18 @@ extern "C" bool runtime_should_yield(void) {
+     }
+ 
+     if (g_runtime_break_pc != 0u && g_cpu.R[15] == g_runtime_break_pc) {
++        // Debug breakpoint hit — unwind to the exec loop. Env-gated forensic
++        // hook: dump the instruction ring at the park. The last record is
++        // the instruction that TRANSFERRED to the break pc (with its full
++        // register set), so a breakpoint-caught anomaly is recoverable on
++        // surfaces without an fp_save command (e.g. --tcp-observe).
++        const char* fp = std::getenv("GBARECOMP_BREAK_FP");
++        if (fp != nullptr && *fp != '\0') {
++            const std::uint32_t n = runtime_fp_save_file(fp);
++            std::fprintf(stderr,
++                "runtime_break: pc=0x%08X — instruction ring dumped to %s "
++                "(%u records)\n", g_cpu.R[15], fp, n);
++        }
+         return true;  // debug breakpoint hit — unwind to the exec loop
+     }
+     return halted;

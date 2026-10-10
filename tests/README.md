@@ -9,9 +9,34 @@ the repo-local `.venv/`.
 
 - **C++ (`src/` custom code, no ROM/BIOS):**
   `cmake --build build --target ffta_unit_tests && ctest --test-dir build -R ram_dispatch`
+  — `ffta_ram_dispatch` (RAM-code canonicalizer) + the host-stack-guard
+  test, which **compiles only where the pinned submodule declares the guard
+  APIs** (`HOST_STACK_GUARD_API`; absent on a pristine checkout, it prints a
+  skip — the APIs live in `tools/patches/host-stack-guard-desktop.patch`).
+  Also unit-covered since the 2026-10-09 src audit: the **LZSS entry guard**
+  (`ffta::lzss_entry_guard`, `src/ffta_lzss_guard.h`) — plausible length →
+  declined, implausible → return-to-LR with the thumb bit stripped, and the
+  exact `0x100000` boundary both sides — plus the `ram_dispatch`
+  mid-copy-resume regressions (sentinel `r2 == -1` from any address,
+  including a byte-matching re-plant, must pass through; two-byte-early
+  entries only run on a byte-match) and the copy-count clamp semantics.
 - **Python tooling:** `.venv/bin/python tests/python/test_tools.py`
   (needs capstone — the `.venv`; run by `tools/check.py --only unit-py`).
-- `tools/check.py` runs both, plus the patches check, attract gate,
+  Covers the pure healing/audit logic (trace_split, cache_harvest,
+  misspack prologue-scan) plus cheap structural guards:
+  - **TSV shape** — `symbols/*.tsv` field counts, hex addresses, region
+    vocab, C-identifier names, no duplicate names (a malformed line breaks
+    regen or mislabels an emitted unit; negative-tested).
+  - **Patches README parity** — the table must list exactly the present
+    `*.patch` files.
+  - **`gba_bios.bin` byte-pin** — sha1 + the exact words at every contract
+    point the engine cites (vectors, IRQ wrapper epilogue, SWI dispatcher
+    service-switch + epilogue). **Local-only:** the dump is BIOS-derived and
+    never in git (`gbarecomp/.gitignore bios/*.bin`); the test skips on any
+    checkout without it (CI included).
+- `tools/check.py` runs both, plus the patches check (every per-feature
+  patch must also **forward-apply on the pristine pin** — the CI condition;
+  dev-based exports go INVALID there), the attract gate,
   widescreen smoke and strict route replays (below).
 
 ---
@@ -82,6 +107,7 @@ single long-lived watcher per session.
 |---|---|
 | `.venv/bin/python tools/keyprobe.py PORT` | live KEYINPUT monitor (active-low) — verifies host keys reach the guest. Click the window once (focus) first. |
 | `.venv/bin/python tools/livewatch.py PORT` | frame-stall watchdog — snapshots registers, state hash and an IWRAM stack window to `/tmp/hang_*.json` the moment the frame counter stops advancing |
+| `.venv/bin/python tools/hangprobe.py PORT` | read-only hang probe — registers + IF/IE/IME + FFTA wake flag + IRQ vector + miss report; safe on stalled sessions (never send `savestate_save` there — it wedges the single-client server) |
 | `.venv/bin/python tools/quit.py PORT` | clean remote close (archives + flushes) |
 | raw TCP reads | memory/register reads for ad-hoc questions — see `gbarecomp/TCP.md`; observe mode has no stepping |
 
@@ -96,7 +122,10 @@ For deeper captures (no code changes): `GBARECOMP_INSN_TRACE=1` +
   names the pc/state. Close with `quit.py`, then reproduce offline:
   `tools/spinhunt.py <trace> <save> <frames>` bisects strict replays; the
   frag/cache shows what to seed. (Crash classes: the table in the next
-  section.)
+  section.) On an Android device, probe read-only first
+  (`tools/hangprobe.py`) — a savestate request wedges the observe server on
+  a stalled guest, and the session's `/proc` is evidence (recipe:
+  `reference/dev-gotchas.md` § Android device forensics).
 - **A missing-coverage stretch.** Just play — every miss is journaled; then
   run the healing loop below (harvest → misspack → merge → resolve →
   cycle).
@@ -118,6 +147,16 @@ For deeper captures (no code changes): `GBARECOMP_INSN_TRACE=1` +
 - `logs/` and `saves/` are gitignored — never force-add session captures.
 - After a session, gate the tree before calling it good:
   `.venv/bin/python tools/check.py` (see Verification & regression).
+
+## Desktop acceptance (TCP-observed suspend-save press)
+
+`.venv/bin/python tools/desktop_accept.py --mode tcp` — headless free-run
+`--tcp` acceptance for the state3 suspend-save press: savestate load, 3 s
+wait, A press, scored observation (press seen, frames advance, screen
+animation, no abort; the close/resume mechanisms reported). Needs the
+local `game.state3` + `saves/playtest.sav`; evidence in
+`logs/desktop_accept/`. `--mode window` runs the same scoring on
+`play.sh` + `--tcp-observe` (ydotool input).
 
 ## The playtest → healing loop
 
@@ -234,7 +273,8 @@ GBARECOMP_INPUT_REPLAY=logs/playthrough.csv ./build/FFTARecomp ...` — expect
   free for GUI testing; runs in parallel (`--jobs`); 6 cases x 320/384/448
   in seconds.
 - **Full gate:** `.venv/bin/python tools/check.py` — host unit tests
-  (C++ + Python), patch validity, the attract gate, the widescreen smoke,
+  (C++ + Python), patch validity, the device-free Android checks, the
+  attract gate, the widescreen smoke,
   and strict route
   replays (user
   save-load, sessions G/K) against frozen fixtures in `saves/regress/`
@@ -244,7 +284,8 @@ GBARECOMP_INPUT_REPLAY=logs/playthrough.csv ./build/FFTARecomp ...` — expect
   subset. `tools/savecheck.py` validates raw/RTN5 saves offline.
   The `saves/regress/` fixtures are local-only (never redistributed), so a
   fresh clone has nothing to replay: use
-  `--only unit-cpp,unit-py,patches` (the CI subset — no dumps needed) or
+  `--only unit-cpp,unit-py,patches,android-static` (the CI subset — no dumps
+  needed) or
   `--only attract` (dumps but no fixtures) until you have regenerated routes
   by playing + resolving; `--fast` also needs the fixture for its
   `savecheck` step.
@@ -252,19 +293,50 @@ GBARECOMP_INPUT_REPLAY=logs/playthrough.csv ./build/FFTARecomp ...` — expect
   (ground truth), walker's static reach, and pointer-pool reach (a proxy —
   not a goal; FFTA needs FULLY_STATIC on executed paths, not 100 % of a
   proxy). `--json` for machine-readable output.
+- **Android device gate:** `tools/validate_android.sh` — installs the newest
+  debug APK, launches through AUTOSTART, asserts process/activity/runtime-log/
+  crash health, and pulls evidence into `android/artifacts/last-run/`. Build,
+  run and known device behavior: `android/README.md`; on-device forensics:
+  `reference/dev-gotchas.md` § Android device forensics.
+- **Android, device-free:** `tools/android_static_check.py` (suite
+  `android-static`; CI tier 1) — identity/pin consistency across
+  `android/app/build.gradle` / `game_android.toml` / `game.toml`, the mods
+  payload contract (`state.toml` keeps widescreen enabled), tracked-file
+  hygiene, and a fake-`adb` self-test of the device gate script (clean run
+  passes; SELF-HEAL / missing-log / crash / setup-still-resumed runs fail).
+  No SDK or device needed; guide: `android/README.md`.
+- **Android APK content guard:** `tools/android_apk_check.py` (opt-in:
+  `check.py --only android-apk`; needs a built APK) — the packaged payload
+  must byte-match the staging sources, private embeds are hash-checked
+  against the pins, public embeds must be absent, `libmain.so` once per ABI,
+  manifest facts, and duplicate / stray / oversized zip entries. Run after
+  `./gradlew :app:assembleDebug` (android/README.md § Build).
+- **Suspend→A press regression (phantom IRQ close):** `tools/hangrepro.py`
+  (opt-in: `check.py --only hangrepro`) — deterministic steppable repro of
+  the 2026-10-09 hang (`savestate_load game.state3` → A). Since the
+  irq-handler-abandon-close fix the abandoned IRQ must be closed
+  (`closing the IRQ` in the log) and the flow advances past the old wedge
+  (typically ending at the coverage boundary — a separate, tracked state);
+  the former SIGSEGV-at-~+26 / guard-bounded hang must not return; the
+  loop's host-frame recursion itself is gone (split-loop gap roll-in,
+  2026-10-09). Skips
+  when the gitignored `game.state3` / `saves/playtest.sav` are absent.
+  BRINGUP § 2026-10-09.
 
-Current snapshot (2026-10-08, strict 1200-frame run; refresh with
+Current snapshot (2026-10-09, strict 1200-frame run; refresh with
 `.venv/bin/python tools/coverage_report.py`):
 
 | Lens | Mapped / total | % |
 |---|---|---|
 | **Executed path** (strict 1200-frame run) | everything that ran | **100 % — FULLY_STATIC, zero interpreter fallback** |
-| **Walker's static reach** (whole-ROM scan trial) | **55,103 / 56,333** emitted units | **≈ 97.8 %** |
-| **Pointer-pool reach** (speculative-harvest trial) | **55,103 / 55,515** | **≈ 99.3 %** |
+| **Walker's static reach** (whole-ROM scan trial) | **55,102 / 56,332** emitted units | **≈ 97.8 %** |
+| **Pointer-pool reach** (speculative-harvest trial) | **55,102 / 55,514** | **≈ 99.3 %** |
 
 Rows 2–3 are proxies with different denominators (no ground-truth function
 inventory exists); a route is done when its replay is FULLY_STATIC. Corpus:
-55,103 emitted units (interior split units + IWRAM code-copy included); the
+55,102 emitted units (interior split units + IWRAM code-copy included;
+55,103 before the 2026-10-09 split-loop gap roll-in merged
+`vblank_wait_loop_cont` into its host as a resume alias); the
 speculative-harvest trial kept 2,204 pointer candidates out of 105,815
 PC-relative literals (`false` in `game.toml` by policy).
 
@@ -299,11 +371,16 @@ Two tiers, split by what may leave your machine:
 
 - **Tier 1 — `.github/workflows/ci.yml` (fork-safe, no private material).**
   Runs on GitHub-hosted runners for every push/PR: checks out the pinned
-  submodules, installs the build packages, configures, and runs
-  `tools/check.py --only unit-cpp,unit-py,patches` — the host unit tests
-  (C++/Python) and patch integrity (forward-validated against the pristine
-  submodule, so it works on a fresh clone). It needs no ROM, BIOS, or
-  savestates, and therefore cannot run the game itself.
+  submodules (**pristine at the pin** — local framework edits live only in
+  working trees, never pushed), installs the build packages, configures, and
+  runs `tools/check.py --only unit-cpp,unit-py,patches,android-static` —
+  the host unit tests (C++/Python), patch integrity (per-feature patches
+  forward-validated against the **pristine pin**, so it works on a fresh
+  clone), and the device-free Android checks (identity pins, payload
+  contract, tracked-file hygiene, a fake-`adb` self-test of the device gate
+  script; no SDK needed). It needs no ROM, BIOS, or savestates, and
+  therefore cannot run the game itself (the BIOS byte-pin and stack-guard
+  tests skip there).
 - **Tier 2 — the full gate (`attract`, `ws_smoke`, route replays).** Needs
   `game.gba` + BIOS + the sha-pinned local fixtures (`saves/ws_fixtures/`,
   `saves/regress/`), which are game-derived and never committed. Run it on
@@ -313,4 +390,9 @@ Two tiers, split by what may leave your machine:
   (a PR job on a runner that can read the ROM is an exfiltration path).
   The sha pins (regress save + the ws fixtures) fail loudly if the
   runner's fixtures drift.
+- The **Android device gate** (`tools/validate_android.sh`) is device-bound
+  and manual — no phone in CI — so it is not part of either tier. The
+  **APK content guard** is device-free but needs a Gradle build (SDK/NDK),
+  so it stays opt-in (`--only android-apk`) until a suitable runner exists
+  (build, run, guard: `android/README.md`).
 

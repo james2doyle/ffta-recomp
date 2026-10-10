@@ -198,5 +198,130 @@ class RepoHygieneTests(unittest.TestCase):
             self.fail("absolute home paths in tracked files:\n" + r.stdout)
 
 
+class TsvGuardTests(unittest.TestCase):
+    """symbols/*..tsv must stay machine-parseable: a malformed line or a
+    non-identifier name breaks gba_recompile --symbols at regen time (or,
+    worse, silently mislabels an emitted unit). Cheap structural sweep."""
+
+    def _tsv_rows(self, path):
+        rows = []
+        for i, line in enumerate(path.read_text().splitlines(), 1):
+            if not line or line.startswith("#"):
+                continue
+            rows.append((i, line.split("\t")))
+        return rows
+
+    def test_ffta_symbols_tsv_shape(self):
+        path = REPO / "symbols" / "ffta_symbols.tsv"
+        self.assertTrue(path.exists())
+        for i, f in self._tsv_rows(path):
+            self.assertEqual(len(f), 3, f"symbols line {i}: 3 fields")
+            self.assertRegex(f[0], r"^0x[0-9A-Fa-f]{8}$",
+                             f"symbols line {i}: address")
+            self.assertIn(f[1].lower(), ("arm", "thumb"),
+                          f"symbols line {i}: mode")
+            self.assertRegex(f[2], r"^[A-Za-z_][A-Za-z_0-9]*$",
+                             f"symbols line {i}: C identifier name")
+            self.assertGreater(len(f[2]), 2, f"symbols line {i}: name")
+
+    def test_ffta_data_symbols_tsv_shape(self):
+        path = REPO / "symbols" / "ffta_data_symbols.tsv"
+        self.assertTrue(path.exists())
+        for i, f in self._tsv_rows(path):
+            self.assertEqual(len(f), 4, f"data symbols line {i}: 4 fields")
+            self.assertRegex(f[0], r"^0x[0-9A-Fa-f]{8}$",
+                             f"data symbols line {i}: address")
+            self.assertIn(f[1].lower(), ("ewram", "iwram", "rom", "pal", "oam",
+                                         "vram", "sram", "bio", "irq"),
+                          f"data symbols line {i}: region")
+            self.assertRegex(f[2], r"^0x[0-9A-Fa-f]+$",
+                             f"data symbols line {i}: size")
+            self.assertRegex(f[3], r"^[A-Za-z_][A-Za-z_0-9]*$",
+                             f"data symbols line {i}: C identifier name")
+
+    def test_no_duplicate_symbol_names(self):
+        seen = {}
+        for name in ("ffta_symbols", "ffta_data_symbols"):
+            path = REPO / "symbols" / f"{name}.tsv"
+            for i, f in self._tsv_rows(path):
+                sym, addr = f[-1], f[0]
+                if sym in seen and seen[sym][0] != addr:
+                    self.fail(f"duplicate name {sym} ({seen[sym][0]} vs "
+                              f"{addr}, {name} line {i})")
+                seen[sym] = (addr, name)
+
+    def test_patches_readme_rows_match_files(self):
+        readme = (REPO / "tools" / "patches" / "README.md").read_text()
+        listed = set()
+        for line in readme.splitlines():
+            if line.startswith("| `") and ".patch" in line:
+                listed.add(line.split("`")[1])
+        present = {p.name for p in (REPO / "tools" / "patches").glob("*.patch")}
+        self.assertTrue(present, "no *.patch files?")
+        self.assertEqual(present, listed,
+                         f"README rows vs patch files drift: "
+                         f"{sorted(present ^ listed)}")
+
+
+class BiosBytePinTests(unittest.TestCase):
+    """gba_bios.bin must stay byte-stable at the contract points our engine
+    code cites. These exact words are pinned by armv4t runtime comments/logic
+    (vector targets, the IRQ wrapper epilogue, the SWI dispatcher's
+    System-mode service switch and epilogue — BRINGUP 2026-10-09); a
+    replaced or patched BIOS silently invalidates them. The dump is
+    ROM/BIOS-derived and never in git (gbarecomp/.gitignore bios/*.bin; the
+    user supplies it locally) — the test is LOCAL-ONLY and skips on any
+    checkout without it (CI included)."""
+
+    BIOS = REPO / "gbarecomp" / "bios" / "gba_bios.bin"
+
+    @classmethod
+    def setUpClass(cls):
+        if not cls.BIOS.exists():
+            raise unittest.SkipTest(
+                "gba_bios.bin absent (gitignored by design, never in git; "
+                "local-only test)")
+
+    def _u32(self, off):
+        with self.BIOS.open("rb") as f:
+            f.seek(off)
+            return struct.unpack("<I", f.read(4))[0]
+
+    def test_sha1_pin(self):
+        import hashlib
+        self.assertEqual(
+            hashlib.sha1(self.BIOS.read_bytes()).hexdigest(),
+            "300c20df6731a33952ded8c436f7f186d25d3492",
+            "gba_bios.bin replaced/patched — every engine BIOS citation is "
+            "now suspect")
+
+    def test_vectors(self):
+        # Exception vector table: B (0xEA...) targets computed from each slot.
+        # 0x1C is the shared Undefined/Abort/FIQ handler's entry (not a B).
+        cases = {0x00: 0x68, 0x08: 0x140, 0x18: 0x128, 0x1C: None}
+        for off, target in cases.items():
+            if target is not None:
+                w = self._u32(off)
+                self.assertEqual(w >> 24, 0xEA,
+                                 f"vector at {off:#05x} not a B")
+                self.assertEqual(off + 8 + ((w & 0xFFFFFF) << 2), target,
+                                 f"vector at {off:#05x} target")
+
+    def test_irq_wrapper_epilogue(self):
+        # IRQ wrapper (0x128..): pop {r0-r3,ip,lr} then subs pc,lr,#4.
+        self.assertEqual(self._u32(0x138), 0xE8BD500F, "IRQ pop")
+        self.assertEqual(self._u32(0x13C), 0xE25EF004, "IRQ subs pc,lr,#4")
+
+    def test_swi_dispatcher_service_switch_and_epilogue(self):
+        # SWI dispatcher (0x140): switch to System mode for the service
+        # (msr cpsr_fc), restore SVC, pop {fp,ip,lr}, movs pc,lr.
+        self.assertEqual(self._u32(0x160), 0xE129F00B, "msr cpsr_fc,fp")
+        self.assertEqual(self._u32(0x174), 0xE3A0C0D3, "mov ip,#0xd3")
+        self.assertEqual(self._u32(0x184), 0xE8BD5800, "SWI pop")
+        self.assertEqual(self._u32(0x188), 0xE1B0F00E, "SWI movs pc,lr")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
+
+

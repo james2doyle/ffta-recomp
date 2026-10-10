@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """One-command regression gate for the FFTA recomp worktree.
 
-Runs: host unit tests (C++ + Python) -> patch validity -> attract golden
-gate -> widescreen smoke (margin census / center-crop / stale guard, needs
-the local game.state1/state2 fixtures) -> strict route replays (user
-save-load repro, session G, session K) against the frozen fixtures in
-saves/regress/.
+Runs: host unit tests (C++ + Python) -> patch validity -> device-free
+Android checks -> attract golden gate -> widescreen smoke (margin census /
+center-crop / stale guard, needs the local game.state1/state2 fixtures) ->
+strict route replays (user save-load repro, session G, session K) against
+the frozen fixtures in saves/regress/.
 
 The checks are independent processes, so they run concurrently by default
 (--jobs; auto = min(8, cpus)). Each game run gets isolated outputs — its own
@@ -20,13 +20,17 @@ silently redefining the baseline.
 
 Usage:
   .venv/bin/python tools/check.py            # everything (~1.5-2 min)
-  .venv/bin/python tools/check.py --fast     # unit tests + attract only
+  .venv/bin/python tools/check.py --fast     # unit tests + android checks + attract
   .venv/bin/python tools/check.py --jobs 1   # serial
   .venv/bin/python tools/check.py --only NAME[,NAME...]
 
 CI tier 1 runs the no-private-material subset (no ROM/BIOS/savestates
-needed): `--only unit-cpp,unit-py,patches` — see tests/README.md § Continuous
-integration.
+needed): `--only unit-cpp,unit-py,patches,android-static` — see
+tests/README.md § Continuous integration.
+
+Opt-in suite (not in the default run): `android-apk` — the content guard for
+a built APK (`tools/android_apk_check.py`); it needs an Android build, so
+select it explicitly with `--only android-apk`.
 """
 import argparse
 import concurrent.futures
@@ -128,9 +132,11 @@ def check_savecheck():
 
 
 def check_patches():
-    """tools/patches/*.patch must be real diffs matching the pinned submodule:
-    apply-able forward to a pristine gbarecomp, or reversible from the patched
-    dev tree. Catches mangled/empty exports (2026-10-08 regression)."""
+    """tools/patches/*.patch must be real diffs matching the pinned submodules:
+    apply-able forward to a pristine tree, or reversible from the patched dev
+    tree. Catches mangled/empty exports (2026-10-08 regression). Patches named
+    arm-recomp-core-* target the nested external/arm-recomp-core repo; all
+    others target gbarecomp itself."""
     details = []
     ok = True
     names = sorted(p.name for p in (REPO / "tools" / "patches").glob("*.patch"))
@@ -142,18 +148,199 @@ def check_patches():
             ok = False
             details.append(f"{name}: missing")
             continue
-        fwd = run(["git", "-C", "gbarecomp", "apply", "--check", str(p)])
+        root = ("gbarecomp/external/arm-recomp-core"
+                if name.startswith("arm-recomp-core") else "gbarecomp")
+        fwd = run(["git", "-C", root, "apply", "--check", str(p)])
         if fwd.returncode == 0:
             details.append(f"{name}: forward-ok")
             continue
-        rev = run(["git", "-C", "gbarecomp", "apply", "--check",
+        rev = run(["git", "-C", root, "apply", "--check",
                    "--reverse", str(p)])
         if rev.returncode == 0:
-            details.append(f"{name}: reverse-ok (applied)")
+            # Reverse-ok on a local dev tree is NOT enough for CI: a fresh
+            # checkout validates the SAME file forward against the pristine
+            # pin, and a dev-based export (context interleave from other
+            # local features) goes INVALID there (2026-10-09: both
+            # regenerated reference diffs broke tier-1 this way). A pristine
+            # submodule has no local edits, so forward-apply there is the
+            # cheap equivalent of the pin-based export — enforce it.
+            pin_ok = None
+            with tempfile.TemporaryDirectory(prefix="gbpin.") as td:
+                pr = subprocess.run(
+                    ["bash", "-c",
+                     f"git -C {root} archive HEAD | tar -x -C {td}"],
+                    cwd=str(REPO), capture_output=True, text=True)
+                if pr.returncode == 0:
+                    pf = subprocess.run(
+                        ["git", "-C", td, "apply", "--check", str(p)],
+                        capture_output=True, text=True)
+                    if pf.returncode != 0:
+                        ok = False
+                        details.append(
+                            f"{name}: INVALID on pristine pin "
+                            f"(CI condition; rebase pin-based)")
+                    else:
+                        pin_ok = True
+            details.append(f"{name}: reverse-ok (applied)"
+                           + (", pin-forward-ok" if pin_ok else ""))
         else:
             ok = False
             details.append(f"{name}: INVALID")
+    # Replay integrity: pin + the consolidated patch must byte-match the dev
+    # tree. This catches submodule drift (unrecorded edits) and any mangling
+    # the per-file forward/reverse checks would miss. The per-feature files
+    # are reference diffs and deliberately are NOT stacked here (their
+    # contexts interleave after historical re-exports; the consolidated
+    # patch is the canonical re-apply unit). Same for the nested
+    # arm-recomp-core repo with its own consolidated patch.
+    for root, cons_name, label in (
+            ("gbarecomp", "gbarecomp-local.patch", "gbarecomp-local"),
+            ("gbarecomp/external/arm-recomp-core",
+             "arm-recomp-core-local.patch", "arm-recomp-core-local")):
+        cons = REPO / "tools" / "patches" / cons_name
+        if not cons.exists():
+            continue
+        with tempfile.TemporaryDirectory(prefix="gbpatch.") as td:
+            arch = subprocess.run(
+                ["bash", "-c", f"git -C {root} archive HEAD | tar -x -C {td}"],
+                cwd=str(REPO), capture_output=True, text=True)
+            app = subprocess.run(
+                ["patch", "-p1", "-s", "-f", "--no-backup-if-mismatch",
+                 "-i", str(cons)], cwd=td, capture_output=True, text=True)
+            if arch.returncode != 0 or app.returncode != 0:
+                ok = False
+                details.append(f"{label} replay: apply FAILED")
+            else:
+                # The byte-compare below is a LOCAL-dev-tree guarantee: pin+
+                # patch must equal the submodule tree that carries the
+                # uncommitted framework edits. A pristine checkout (CI) has
+                # no local edits — its tree IS the pin, so the clean apply
+                # above already proved patch<->pin fidelity and the compare
+                # would false-red on every patched file. Skip it there.
+                # Tracked modifications only (-uno): untracked build junk
+                # must not force the compare.
+                pristine = not run(
+                    ["git", "-C", root, "status", "--porcelain", "-uno"]
+                ).stdout.strip()
+                if pristine:
+                    details.append(
+                        f"{label} replay: apply-ok (pristine submodule)")
+                    continue
+                tracked = run(["git", "-C", root, "ls-files"]).stdout.split()
+                bad = []
+                for f in tracked:
+                    dev = REPO / root / f
+                    if not dev.is_file():
+                        continue  # gitlinks and directories
+                    rep = pathlib.Path(td) / f
+                    if not rep.exists() or rep.read_bytes() != dev.read_bytes():
+                        bad.append(f)
+                if bad:
+                    ok = False
+                    details.append(
+                        f"{label} replay: {len(bad)} file(s) differ "
+                        f"(e.g. {', '.join(bad[:3])})")
+                else:
+                    details.append(
+                        f"{label} replay: {len(tracked)}-file tree matches")
     return ok, " ".join(details)
+
+
+def _acceptance_lock():
+    """Cross-process lock so concurrent check runs never race two acceptance
+    games (they share evidence paths and would collide regardless of port)."""
+    import fcntl
+    lock_dir = REPO / "logs" / "desktop_accept"
+    lock_dir.mkdir(parents=True, exist_ok=True)
+    f = open(lock_dir / ".lock", "w")
+    try:
+        fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        f.close()
+        return None
+    return f
+
+
+def check_desktop_accept():
+    """Opt-in TCP-observed free-run acceptance of the suspend-save press
+    (tools/desktop_accept.py --mode tcp). Skips without game.state3 /
+    saves/playtest.sav, or while another acceptance holds the lock."""
+    if not (REPO / "game.state3").exists() or not (REPO / "saves" / "playtest.sav").exists():
+        return True, "skipped (needs game.state3 + saves/playtest.sav)"
+    lock = _acceptance_lock()
+    if lock is None:
+        return True, "skipped (another acceptance running)"
+    try:
+        r = run([sys.executable, "tools/desktop_accept.py", "--mode", "tcp",
+                 "--port", "19878", "--work", "logs/desktop_accept/tcp",
+                 "--observe", "60"], timeout=300)
+    finally:
+        lock.close()
+    if r.returncode == 77:
+        return True, "skipped (prerequisites missing)"
+    if r.returncode == 0:
+        return True, "PASS: desktop acceptance (tcp free-run)"
+    return False, f"FAIL: desktop acceptance rc={r.returncode}"
+
+
+def check_desktop_accept_window():
+    """Opt-in WINDOWED acceptance (present-in-place path): play.sh +
+    --tcp-observe + ydotool press, scored identically. This is the path
+    where the abandon-resume one-unwind hook and mode coherence matter
+    (present-in-place never unwinds on VBlank by design). Skips (rc 77)
+    without a display / ydotool / state3 / playtest.sav."""
+    if not (REPO / "game.state3").exists() or not (REPO / "saves" / "playtest.sav").exists():
+        return True, "skipped (needs game.state3 + saves/playtest.sav)"
+    if not (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")):
+        return True, "skipped (needs a display)"
+    if shutil.which("ydotool") is None:
+        return True, "skipped (needs ydotool)"
+    lock = _acceptance_lock()
+    if lock is None:
+        return True, "skipped (another acceptance running)"
+    try:
+        r = run([sys.executable, "tools/desktop_accept.py", "--mode", "window",
+                 "--port", "19879", "--work", "logs/desktop_accept/window",
+                 "--observe", "60"], timeout=300)
+    finally:
+        lock.close()
+    if r.returncode == 77:
+        return True, "skipped (prerequisites missing)"
+    if r.returncode == 0:
+        return True, "PASS: desktop acceptance (windowed present-in-place)"
+    return False, f"FAIL: windowed desktop acceptance rc={r.returncode}"
+
+
+def check_hangrepro():
+    """Opt-in deterministic press repro (tools/hangrepro.py): the state3
+    suspend->A hang must stay bounded (pre-guard it SIGSEGV'd at ~+26 steps;
+    now the process survives with host-stack guard unwinds). Needs the
+    gitignored game.state3 + saves/playtest.sav; reports skipped otherwise."""
+    r = run([sys.executable, "tools/hangrepro.py"], timeout=600)
+    line = (r.stdout.strip().splitlines() or [""])[-1]
+    if r.returncode == 77:
+        return True, "skipped (no game.state3 / saves/playtest.sav)"
+    return r.returncode == 0, line or f"exit {r.returncode}"
+
+
+def check_android_static():
+    """Device-free Android checks (tools/android_static_check.py): identity
+    pin consistency, the mods payload contract, tracked-file hygiene, and a
+    fake-adb self-test of the device gate script. Needs only the checkout —
+    no SDK, no device, no private material."""
+    r = run([sys.executable, "tools/android_static_check.py"], timeout=300)
+    line = (r.stdout.strip().splitlines() or [""])[-1]
+    return r.returncode == 0, line or f"exit {r.returncode}"
+
+
+def check_android_apk():
+    """Content guard for a built APK (tools/android_apk_check.py): payload
+    vs staging sources, private-embed pins, per-ABI libs, manifest facts,
+    duplicate/stray/oversize zip entries. Opt-in — it needs a built APK
+    (--only android-apk; build first: android/README.md § Build)."""
+    r = run([sys.executable, "tools/android_apk_check.py"], timeout=600)
+    line = (r.stdout.strip().splitlines() or [""])[-1]
+    return r.returncode == 0, line or f"exit {r.returncode}"
 
 
 CHECKS = {
@@ -161,13 +348,22 @@ CHECKS = {
     "unit-py": check_unit_py,
     "savecheck": check_savecheck,
     "patches": check_patches,
+    "android-static": check_android_static,
+    "hangrepro": check_hangrepro,
+    "desktop-accept": check_desktop_accept,
+    "desktop-accept-window": check_desktop_accept_window,
+    "android-apk": check_android_apk,
     "attract": check_attract,
     "ws_smoke": check_ws_smoke,
     "user_load": lambda: strict_route(REG / "user_load_trace.csv", 1600),
     "route_G": lambda: strict_route(REG / "sessionG_trace.csv", 19400),
     "route_K": lambda: strict_route(REG / "sessionK_trace.csv", 29884),
 }
-FAST = ["unit-cpp", "unit-py", "savecheck", "patches", "attract"]
+FAST = ["unit-cpp", "unit-py", "savecheck", "patches", "android-static",
+        "attract"]
+# Opt-in suites, left out of the default run (they need local artifacts a
+# desktop-only worktree may not have); --only NAME runs them explicitly.
+OPTIONAL = {"android-apk"}
 # Checks that execute the game binary (require it to exist); the others run
 # on a fresh clone without the ROM (CI tier 1: unit-cpp, unit-py, patches).
 NEEDS_EXE = {"attract", "ws_smoke", "user_load", "route_G", "route_K"}
@@ -177,7 +373,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--fast", action="store_true")
     ap.add_argument("--only",
-                    help="comma-separated subset, e.g. unit-cpp,unit-py,patches")
+                    help="comma-separated subset, e.g. "
+                         "unit-cpp,unit-py,patches,android-static")
     ap.add_argument("--jobs", type=int, default=0,
                     help="concurrent checks (default: auto = min(8, cpus); "
                          "1 = serial)")
@@ -202,7 +399,8 @@ def main():
                   f"{FIXTURE_SHA_PREFIX} - regenerate fixtures deliberately "
                   "before trusting results")
             return 1
-    names = names if a.only else (FAST if a.fast else list(CHECKS))
+    names = names if a.only else (
+        FAST if a.fast else [n for n in CHECKS if n not in OPTIONAL])
     jobs = a.jobs if a.jobs > 0 else min(8, os.cpu_count() or 4)
     jobs = max(1, min(jobs, len(names)))
     print(f"check: {len(names)} check(s), jobs={jobs}", flush=True)

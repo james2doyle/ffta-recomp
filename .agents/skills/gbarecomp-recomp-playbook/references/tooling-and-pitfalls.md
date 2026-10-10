@@ -66,6 +66,12 @@ Run this after every play session; it is the whole loop in order.
   greps tracked files for absolute home-path patterns.
 - Letting the playtest loop run for hours without closing a batch: smaller
   sessions converge faster and make bisecting trivial.
+- Nested submodules in the patch workflow: exporting the outer repo's
+  consolidated diff picks up an inner repo's dirty gitlink
+  (`Subproject commit …-dirty`) and GNU patch cannot apply that hunk —
+  exclude the nested path from the outer export, keep a separate
+  consolidated patch per nested repo, and route patch validation to the
+  right repo by filename prefix.
 
 ## Decision log and docs discipline
 
@@ -182,6 +188,35 @@ stack window while the game is frozen). Consult the frozen registers *before*
 killing anything: this converts "it hung again" into a pc + stack + caller
 chain without any replay. The frame counter is the hang signal; the pc is
 the diagnosis.
+
+- **Verify input landing, always.** Injected keys are silently eaten when
+  the game window doesn't have focus; read the KEYINPUT register
+  (active-low, `read_io 0x04000130`) *during* the hold to prove the press
+  reached the machine. "The game ignored input" conclusions are invalid
+  without a catch-verified down-read.
+- **Wayland sessions:** X11 injection tools (xdotool) cannot reach a
+  native Wayland game window — and may not even enumerate it — so use
+  kernel-level injection (ydotool). X11 window management is unreliable
+  there too; prefer app-side input (the runner's own `set_keyinput`) when
+  the debug port is available.
+
+### Device (mobile) live sessions
+
+- Extra runtime args arrive via an app-private `debug-args.txt` (create
+  with `adb run-as`); `--tcp-observe PORT` + `adb forward` gives the same
+  read-only surface as desktop.
+- Live-journal dispatch misses to the app files directory (env-gated frag
+  path): a hung or killed session never runs exit-time reports, so the
+  live journal is the only harvest.
+- No-root forensics: `run-as` same-uid `/proc` reads (thread-stack labels,
+  `syscall`, `/proc/<pid>/mem` dumps) symbolized against the unstripped
+  build; `debuggerd` is root-gated on production builds. Leave a wedged
+  session alive while harvesting; restart only after captures.
+- Never send a queued savestate request while the guest is stalled — it
+  waits for the next present and wedges the single-client observe server.
+- Touch overlays: an auto-hidden pad must let the revealing touch act —
+  consuming the wake gesture forces a double tap and reads as input lag in
+  menu-heavy games (learned on FFTA's pad idle-hide, 2026-10-08).
 
 ### Game-owned engine hooks: lifecycle and build flags
 

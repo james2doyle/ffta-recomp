@@ -203,6 +203,26 @@
 # ffta-decomp docs + our disassembly; interiors documented in reference/event-vm.md.
 0x0801F098	thumb	decompressor_u16len
 0x08141868	thumb	swi0c_thunk
+# SWI veneer table 0x8141860+ (svc #N; bx lr pairs). 0x814186C = SWI 0x0B
+# (CpuFastSet): the hot veneer in the 2026-10-09 press-flow chain (ring
+# evidence: BRINGUP § true root — the suspend flow copies 0x40 B of stack
+# context to EWRAM through it).
+0x0814186C	thumb	swi0b_thunk
+# The veneer's second halfword (`bx lr`); a separate walker unit and the
+# flow-continuation resume target of the 2026-10-09 abandon-close chain
+# (`abandon-resume intercept want=0x0814186E`): the delayed iret restores
+# this pc so the veneer returns into the suspend flow.
+0x0814186E	thumb	swi0b_thunk_tail
+# swi0c_thunk's `bx lr` tail (disarm: 0814186a: 7047 bx lr), the recorded
+# continuation the SWI-return ledger guards on the save flow's 0x0C context
+# copy (live trace: `swi_imm=0xC ret=0x0814186A`, 2026-10-09 ledger run) —
+# name-only, naming parity with the 0x0B sibling above.
+0x0814186A	thumb	swi0c_thunk_tail
+# Post-suspend return flow (press repro): prologue push {r4-r6,lr} @0x81453F8;
+# writes 0x8f/0/8 setup values; bl swi0b_thunk @0x8145486 copies 0x40 B of
+# live stack context (r0=sp) to EWRAM — the routine the corrupted BIOS
+# `subs pc, lr, #4` re-entered mid-argument-setup (BRINGUP § true root).
+0x081453F8	thumb	post_suspend_flow
 0x08123860	thumb	evt_healing_case
 0x08123B68	thumb	evt_death_case
 0x08123898	thumb	mission_script_trigger
@@ -241,7 +261,17 @@
 0x080000C0	arm	crt0
 0x080004B0	thumb	vblank_callback
 0x08000418	thumb	vblank_wait_loop
+# 0x08000428: rolled into vblank_wait_loop as a resume alias 2026-10-09
+# (gap roll-in, issue #30 fix 4) — the name is kept for trace readability;
+# the address is a dispatchable resume entry of the 0x08000418 host.
 0x08000428	thumb	vblank_wait_loop_cont
+0x0800042A	thumb	vblank_wait_exit
+# Target of the crt0 gate exits (`b 0x080042E` @0x404 / @0x42E fall-through):
+# the per-frame loop head of the crt0 scheduler — the cycle 0x364 -> ... ->
+# 0x3F0 gate -> 0x42E -> 0x364 drives ffta's frame pacing (BRINGUP
+# § 2026-10-09: the save-completion gate lives inside this loop).
+0x08000364	thumb	crt0_frame_loop
+0x08000460	thumb	frame_step
 0x081451B4	thumb	m4a_soundmain_wrapper
 0x08144510	thumb	m4a_mixer_core
 0x081443B0	thumb	memcmp
@@ -296,3 +326,23 @@
 # [gMsgWorkBuffer]+0x40 with IRQs off and returns (clearing)
 # [gMsgWorkBuffer]+4. See BRINGUP § batch ah.
 0x03002B70	arm	irq_buffer_swap
+
+# Section 17: vblank scheduler + m4a frame-service additions (2026-10-09;
+# hang reproduction — BRINGUP § 2026-10-09). m4a_frame_tick = the first call
+# of vblank_callback (0x080004B4, lr 0x080004B9) and drives the per-frame
+# m4a service before the callback's other work; writes gSoundInfo+4 (pcm
+# counter) at pc 0x08144B02 (hang-trace evidence). vblank_task_runner /
+# vblank_queue_init = the 0x03000E10 vblank scheduler queue's runner and
+# init from the handoff-cluster audit (BRINGUP § handoff cluster); the
+# queue's +0 u16 tick flag is what vblank_wait_loop (0x08000418) polls.
+0x08144AF0	thumb	m4a_frame_tick
+0x080069F4	thumb	vblank_task_runner
+0x08006A7C	thumb	vblank_queue_init
+
+# Section 18: 2026-10-09 hang walk. wait_for_vblank = DISPSTAT-based busy-wait
+# (push {lr}; first drain the current vblank if bit0 set, then wait for the next
+# vblank start; pop {r0}; bx r0) — the post-suspend flow waits here, not in the
+# 0x08000418 scheduler spin. The last clean IRQ request before the
+# g_irq_nest_depth poisoning came from inside it (0x080033BA): BRINGUP
+# § 2026-10-09 (later entry).
+0x08003398	thumb	wait_for_vblank

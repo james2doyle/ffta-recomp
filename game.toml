@@ -90,6 +90,23 @@ mode = "thumb"
 name = "main"
 note = "Thumb entry via bx r1 at 0x080000EC from literal 0x08000255 @ 0x08000240; prologue push {r7,lr} verified"
 
+# ── 2026-10-09: split vblank wait loop — gap roll-in (Android hang) ────
+# The crt0 frame gate at 0x08000418 was split into two generated functions:
+# the linear walk of 0x08000418 ends at the `b 0x0800042A` @0x08000420
+# (literal pool [0x08000424,0x08000428) follows), so the beq target
+# 0x08000428 (the 2-byte back-edge `b 0x08000418`) sat beyond the walk
+# extent and was rooted as `vblank_wait_loop_cont`. Emission then lowered
+# the loop's back-edge pair as host C calls (call+ret per iteration),
+# nesting host frames on every spin — the Android stack-exhaustion hang
+# and the desktop press-repro crash (BRINGUP § 2026-10-08/09). `resume`
+# flags the block as an alias candidate; the finder's gap roll-in rolls it
+# into the host and the emitter lowers both edges to native gotos.
+[[extra_func]]
+addr = 0x08000428
+mode = "thumb"
+resume = true
+note = "back-edge block of the vblank wait loop: beq target @0x0800041E is `b 0x08000418`; beyond the host walk extent (b 0x42A @0x08000420 before pool 0x08000424-28) — gap roll-in keeps the loop in one host frame (was: cont function, call+ret per spin iteration)"
+
 # ── Phase 4 audit seeds (runtime miss-driven, 2026-10-06) ─────────────
 # Audit entry #1 — miss 0x080004D8 (interior resume/call target; the
 # finder never rooted the containing function). Evidence: function

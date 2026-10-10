@@ -17,7 +17,19 @@ real hours once.
   validation harness uses the framework's own oracle:
   `reference/oracle-harness.md`.
 - `tools/disarm.py` halts silently at the first undecodable halfword — use
-  narrow windows anchored on known boundaries.
+  narrow windows anchored on known boundaries, and always state the mode
+  (`arm`/`thumb`): wrong-mode output reads as plausible garbage.
+- Data-vs-code traps: pointer tables masquerade as code (cross-check the
+  other mode; validate against known structure). For runtime-relocated
+  IWRAM blobs, dump via `read_iwram` during a live session and disassemble
+  with capstone at the known base — partial dumps of unknown base are
+  useless.
+- **Input injection: `ydotool` only.** This session is Wayland and the
+  game window is native — `xdotool` cannot see or reach it (user directive:
+  never use it). Verify a press actually lands by reading KEYINPUT
+  (`read_io 0x04000130`, active-low) while the key is held; silent focus
+  loss eats injected keys, and "the game ignored input" is not a valid
+  conclusion without that check.
 
 ## Run modes and tracing
 
@@ -31,6 +43,13 @@ real hours once.
 - `--tcp` mode does NOT process `--load-state` (silently skipped — no
   `savestate_loaded` line). Load over TCP with `savestate_load {path}`
   (GBAS container; refuses wrong SHA-1/version).
+- Desktop repro of the Android save-hang (2026-10-09): `--tcp` +
+  `savestate_load game.state3` → `step`×98 → `set_keyinput 0x03FE` ×4 →
+  `0x03FF` → deterministic SIGSEGV ~26 steps later. gdb bt: ~284k nested
+  `gf_vblank_wait_loop` ↔ `gf_vblank_wait_loop_cont` frames = host-stack
+  exhaustion (~60 B/frame); pre-press 600 steps clean. Drive it alongside
+  `gdb -batch -ex run -ex bt --args …` for the tombstone. Mechanism + fix
+  candidates: `BRINGUP.md` § 2026-10-09.
 - Tracing without code changes: `GBARECOMP_MISS_IWRAM_DUMP` (state at first
   IWRAM miss), `GBARECOMP_IWRAM_DUMP` (exit state), `GBARECOMP_WRAM_TRACE`
   +`_LO/_HI` (per-frame write diff), `GBARECOMP_INSN_TRACE=1` +
@@ -65,6 +84,153 @@ real hours once.
   is the widescreen *view* (FFTA opts in, up to 448; `--resize-view` follows
   the window aspect, windowed-only by design; `--fullscreen` = borderless).
   Validation: `tools/ws_check.py`; internals: `reference/widescreen.md`.
+
+## Deep-debug toolkit (gdb, rings, guest watchpoints)
+
+Built during the 2026-10-09 hang walk (BRINGUP § 2026-10-09 later); every
+recipe below is validated there.
+
+- **gdb batch with a script file**: `gdb -batch -ex "file <exe>" -ex
+  "set args …" -x script.gdb` — `-ex`/`-x` run in command-line order, so
+  `file` must come before `-x` (otherwise "No symbol table is loaded").
+  Release builds have no `-g`: use a side build (`cmake -B build-gdb
+  -DCMAKE_BUILD_TYPE=RelWithDebInfo`) for typed access (struct fields,
+  `g_cpu.R[15]`, `'gbarecomp::g_active_bus'`).
+- **Auto-continue logging breakpoints**: gdb python `Breakpoint` subclasses
+  whose `stop()` prints and returns False (rate-limit heavy tags). Used for
+  `runtime_irq`/callback entries with `$rsp` = the per-frame stack-depth
+  curve (chain growth/retention shows up immediately).
+- **Guest-RAM hardware watchpoints**: watch the runner's host mirror of a
+  guest cell — e.g. `'gbarecomp::g_active_bus'->iwram_[0xE10]` — and log
+  writer pc + new value per hit: identifies every writer of a flag
+  (`gpc=0x0800051C` sets it, `gpc=0x08000416` clears it, …) and when a
+  writer stops.
+- **Per-instruction rings, dumped while ALIVE**: `GBARECOMP_INSN_TRACE=1`
+  + TCP `fp_save {path}` (works in `--tcp`; call it between steps — no
+  watchdog trip needed). Format: 16-byte header `<IIQ>`, then 80-byte
+  records `<Q18I` = cycles, pc, cpsr, r0..r12, sp, lr, r15. Count the
+  event under suspicion (e.g. "the spin never exits" dies instantly:
+  flag-read=1 count == exit count), then diff pc histograms between two
+  dumps bracketing the event — a new/vanishing pc population is the
+  behavioral delta (the SWI-family diff pinned the 2026-10-09 hang).
+  `tools/ringscan.py` queries the same files.
+- **Guard-gate signature**: a depth-gated guard that never fires while the
+  stack visibly grows → print `g_irq_nest_depth` at mainline PCs; a stuck
+  ≥1 (poisoned by a guest-return × IRQ interleave) disables the
+  `nest_depth == 0` gate. See BRINGUP § 2026-10-09 later.
+- **BIOS addresses you will see in rings** (standard GBA BIOS; roles here
+  chain-verified 2026-10-09): `0x00` reset vector → `0x68` init; `0x84/0x88`
+  init path that switches to ARM; `0x18` IRQ vector; `0x64`/`0x13C`
+  `subs pc, lr, #4` exception-return sites (ARM `-4` compensation is wrong
+  for a THUMB LR — watch for off-by-2/4 returns); `0x170..0x188` SWI entry /
+  epilogue; `0xB56..0xB9C` CpuFastSet-style copy loop region.
+- **The ring is ground truth over bookkeeping logs**: the 2026-10-09 chain
+  showed an `exc-ret new_pc=0x814186E` log line while the actual fetch
+  sequence resumed at `0x8033BA` — computed/logged values can disagree with
+  what the CPU really executed; confirm every hand-off in the per-instruction
+  ring before drawing conclusions.
+- **Present-in-place never unwinds on vblank** (windowed runner): a wedged
+  guest can stay inside one dispatch forever (frames still present, screen
+  frozen, no new `runtime_dispatch`). Diagnostic: pc sampling churns in a
+  data region; the fix pattern for a runtime redirect is the one-shot
+  unwind hook `runtime_abandon_resume_pending()` consulted by
+  `runtime_should_yield` (2026-10-09, BRINGUP § windowed close-route).
+- **Observe vs full TCP surfaces differ in command availability**: the
+  `--tcp-observe` surface accepts `set_break_pc`/`set_keyinput`/reads but
+  NOT `fp_save` ("callback not wired") and no step; the full `--tcp` surface
+  has everything but the windowed derail (stack-slot slip family) did NOT
+  reproduce there (0/16) — run repro hunts in the mode that catches it
+  (`--tcp-observe`). Ring dumps on observe come from the ENGINE-side hooks:
+  `GBARECOMP_BRIDGE_ENTRY_FP`, `GBARECOMP_BRIDGE_ABORT_FP`, and
+  `GBARECOMP_BREAK_FP` (dump when a `set_break_pc` park fires — the last
+  record is the instruction that TRANSFERRED to the break pc, with full
+  registers).
+- **Garbage-pc triage trick that worked**: when a dispatch miss/abort shows
+  a nonsense target (0x080000F0, 0x00000FF8, mid-function addresses), read
+  the loaded state's RAM and search for the value — the derail targets were
+  verbatim STACK WORDS near SP (e.g. `[0x03007EBC]=0x080000F0`), i.e. a
+  return popped an adjacent slot. Check `read_iwram` around SP before
+  theorizing about code.
+- **The BIOS cart-boot trampoline (0x1C-0x64) and System-mode SPSR**: the
+  soft-reset path runs the BIOS SWI dispatcher in SVC, but the dispatcher
+  itself switches to **System** (`msr cpsr_cf, (spsr & 0x80) | 0x1F`, at
+  0x158-0x160) before calling services — services (CpuSet/CpuFastSet/soft
+  reset) legitimately run in System. The post-reboot resume uses
+  `mrs spsr`/`msr spsr` + `subs pc, lr, #4` from System mode and depends on
+  the ARM7TDMI System-mode SPSR storage behavior; our engine (and the
+  reference interpreter) treat SPSR access in User/System as
+  undefined/no-restore, so the resumed dispatch keeps the wrong T (ARM into
+  a thumb address — miss → bridge → Undefined abort, cf. 0x08000494/0x0FF8).
+- **IWRAM addresses worth knowing in stall triage**: `[0x03007FFC]` =
+  the ISR vector (healthy: `0x03000F10`, the game's IWRAM IRQ dispatcher;
+  the 2026-10-09 phantom trampled it to `0x080000FC`); `[0x03000E10]` =
+  the save flow's completion marker the crt0 frame gate (`gf_vblank_wait_loop`)
+  waits on (nonzero exits; the healthy flow writes `0x0100`). NEITHER is
+  IRQ-ticked — a stalled flow waiting on `0x03000E10` means the save flow
+  never completed, not that IRQs are off.
+- **`runtime_dispatch` derives thumb/arm from `CPSR.T`, not the pc bit**
+  — redirecting a pc while the CPU carries a stale mode resolves the
+  target in the wrong mode (table miss -> bridge -> Undefined). Always
+  make the mode coherent with the redirect.
+- **Ring dump at any breakpoint**: launch with `GBARECOMP_INSN_TRACE=1`
+  (the fingerprint ring must be armed) and, at a gdb stop, call
+  `runtime_fp_save_file("/tmp/fp.bin")` — the whole per-instruction ring
+  (8.4M records; `<Q18I`: cycles, pc, cpsr, r0-r12, sp, lr) dumps without
+  needing a clean process exit. This caught the 2026-10-09 handler-loss
+  chain end to end (BRINGUP § true root).
+- **Recorded patch generation**: `git -C gbarecomp diff --no-ext-diff
+  --no-color -- <paths> > tools/patches/<name>.patch` — without both flags
+  the output is difft-rendered and/or ANSI-colored and fails `git apply`
+  (`tools/check.py --only patches` catches it). When exporting the OUTER
+  repo's consolidated patch, exclude a dirty nested submodule's gitlink
+  (`-- . ':(exclude)external/arm-recomp-core'`): GNU patch cannot apply a
+  `Subproject commit …-dirty` hunk.
+
+## Android device forensics (no root)
+
+Build/run/gate and known device behavior: `android/README.md`.
+
+Stock Android 14: `debuggerd -b <pid>` is root-gated even for debuggable
+apps, `/proc/<pid>/task/<tid>/stack` is unreadable, and SIGTERM is not a
+close mechanism — but `run-as <pkg>` (debug build) gives full same-uid
+access, which is enough:
+
+- Thread stacks are labeled in `/proc/<pid>/maps` as
+  `[anon:stack_and_tls:<tid>]`; the recompiled game thread's is the
+  ~256 MiB one. `ps -AT` lists tid/name/state (state is the 9th column).
+- Same-uid reads that work via `run-as`: `maps`, `stat` (utime+stime
+  deltas ≈ CPU rate; one-shot `top` percentages mislead), `syscall`
+  ("running" = userspace spin; otherwise the blocked syscall + args incl.
+  sp), and `/proc/<pid>/mem` (`dd bs=4096 skip=<addr/4096>` seeks).
+- Pull dumps out via the app dir: `adb shell run-as <pkg> dd
+  if=/proc/<pid>/mem of=files/x.bin bs=4096 skip=N count=M`, then
+  `adb exec-out run-as <pkg> cat files/x.bin > /tmp/x.bin` (delete the
+  device copy afterward).
+- Symbolize stack pointers with the NDK's `llvm-symbolizer`/`llvm-nm`
+  against the UNSTRIPPED build output
+  (`android/app/build/intermediates/cxx/Release/*/obj/arm64-v8a/libmain.so`;
+  the in-APK lib is stripped). The lib's runtime base is its first `r-xp`
+  map: `vaddr = runtime_addr - base`. A repeated return address across a
+  deep stack names the recursing call site directly.
+- Device sessions read extra runtime args from `files/debug-args.txt`
+  (create with `run-as`; e.g. `--tcp-observe 19888` +
+  `adb forward tcp:19888 tcp:19888`). Observe servers are single-client;
+  `savestate_save` queues for "the next present", so on a stalled guest it
+  never completes and WEDGES the server — probe read-only
+  (`tools/hangprobe.py`) instead.
+- Miss proposals on device: live journaling needs `GBARECOMP_MISS_FRAG`
+  (FFTA sets it in `src/main.cpp` `on_mobile`); the exit-time report never
+  runs on a hung/killed session.
+- `set_break_pc` (observe) unwinds dispatches when a guest PC is reached —
+  powerful for "does this code ever run", but on an IRQ-path PC it can
+  trip the engine's handler-abandon rail (4 M dispatches) and the session
+  derails into a crash afterward. Use it as the last probe, on a session
+  you don't need to keep.
+- Save transplant: `am force-stop` first, then `run-as <pkg> mkdir -p
+  files/saves`, `adb push` to `/data/local/tmp`, `run-as cp` into place,
+  md5-compare, relaunch. Validate the image first with
+  `tools/savecheck.py`. The game keeps redundant record groups — an
+  interrupted write is ignored in favor of the previous valid group.
 
 ## BIOS recompile, build, stack
 
@@ -103,10 +269,19 @@ real hours once.
 - Pins (2026-10-06): gbarecomp @ `ecc9c55` (newest main, chosen
   deliberately), recomp-ui @ `cac2b8f`; nested: arm-recomp-core @ 15fc7b7,
   rbengine @ 2a03e7, recomp-net @ c58f125.
-- `tools/patches/*.patch` are working-tree edits to `gbarecomp/` —
-  re-apply after submodule updates; `tools/check.py --only patches`
-  validates all of them (forward against the pristine pin, reverse when
-  applied).
+- `tools/patches/*.patch` are working-tree edits to `gbarecomp/`. Re-apply
+  after submodule updates with the **consolidated** patches — there are two
+  since 2026-10-09: `gbarecomp-local.patch` (one pristine→dev diff of
+  gbarecomp; exports with the nested gitlink excluded) and
+  `arm-recomp-core-local.patch` (the nested `external/arm-recomp-core`
+  repo's first local patch); the per-feature files are reference diffs
+  only — their contexts interleave and do not stack in any order (verified
+  2026-10-09). `tools/check.py --only patches` validates all of them
+  (forward against the pristine pin, reverse when applied; `arm-recomp-core-*`
+  files are routed to the nested repo by that filename prefix) and
+  **replays pin + each consolidated patch, requiring a byte-match with the
+  corresponding dev tree** — it fails on drift or a stale consolidated
+  patch. Re-export commands: `tools/patches/README.md`.
 
 ## Run examples
 

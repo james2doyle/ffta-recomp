@@ -96,7 +96,9 @@ cmake --build build --target FFTARecomp --parallel 8
 |---|---|
 | Fresh-clone bootstrap | `python3 build.py` (idempotent; `--force`, `--no-smoke`, `--jobs N`) |
 | Full regression gate | `.venv/bin/python tools/check.py` (`--fast`; `--jobs N`; `--only a,b`) |
-| CI subset (no dumps needed) | `--only unit-cpp,unit-py,patches` — `.github/workflows/ci.yml` |
+| CI subset (no dumps needed) | `--only unit-cpp,unit-py,patches,android-static` — `.github/workflows/ci.yml` |
+| Android static checks (device-free) | `tools/android_static_check.py` — suite `android-static` in `tools/check.py` |
+| Android APK content guard | `tools/android_apk_check.py [--apk …] [--expect public/private]` — opt-in `check.py --only android-apk` |
 | Widescreen smoke | `.venv/bin/python tools/ws_check.py` (fixtures `saves/ws_fixtures/`) |
 | Playtest (windowed, instrumented) | `tools/play.sh [--scale N \| --resize-view \| --tcp-observe PORT]` |
 | Attract golden gate | `.venv/bin/python tools/attract_check.py` (`--repin` only for deliberate changes) |
@@ -112,21 +114,25 @@ cmake --build build --target FFTARecomp --parallel 8
 |---|---|
 | `game.toml` | Per-game config: identity pin + all audit seeds (evidence in `note`s) |
 | `src/` | Host code: `main.cpp` (hooks/plugins), `ffta_ram_dispatch.h`, launcher boot |
+| `android/` | Android target: Gradle project, runtime TOML, payload defaults, device gate — guide `android/README.md` |
 | `generated/` | Recompiler output — gitignored, never edited |
 | `tools/` | The harness — key ones listed in the table above; full list: README § Repository layout |
 | `.agents/skills/` | `gbarecomp-recomp-playbook` — portable playtest/healing/audit playbook (SKILL.md routes its references) |
 | `mods/` `inputs/` `symbols/` `reference/` | Widescreen catalog; input traces; symbol seeds; study notes |
 | `gbarecomp/`, `recomp-ui/` | Pinned submodules — do not update casually (pins + local patches: `reference/dev-gotchas.md`) |
 
-## Status (2026-10-08)
+## Status (2026-10-09)
 
 All phases complete; **every executed path strict-FULLY_STATIC**; corpus
-**55,103 emitted units** (walker 97.8 % / pool 99.3 % proxies — a route is
+**55,102 emitted units** (walker 97.8 % / pool 99.3 % proxies — a route is
 done when its replay is FULLY_STATIC, not when a proxy moves); attract hash
-stable since pinning; widescreen W1–W3 complete; save/summon hangs fixed.
-Remaining: offline-push re-trial (gated on an interior-split policy),
-f6000+ contact sheet, upstream note on the bridge stop-contract, Android
-port — README § Roadmap. History, evidence, crash playbooks: `BRINGUP.md`.
+stable since pinning; widescreen W1–W3 complete; save/summon hangs fixed; suspend-flow
+phantom closed (IRQ abandon-close + split-loop gap roll-in — issue #30 fixes);
+**Android port** landed and device-verified 2026-10-08 (guide
+`android/README.md`). Remaining: offline-push re-trial (gated on an
+interior-split policy), f6000+ contact sheet, upstream note on the bridge
+stop-contract, Android release prep. History, evidence,
+crash playbooks: `BRINGUP.md`.
 
 ## Reference index (load what the task needs)
 
@@ -135,10 +141,12 @@ port — README § Roadmap. History, evidence, crash playbooks: `BRINGUP.md`.
 | Decisions, priors, corrections, crash playbooks | `BRINGUP.md` |
 | Setup, run, layout, roadmap | `README.md` |
 | Playtest/debug cookbook, healing loop, gates, coverage, CI, unit tests | `tests/README.md` |
+| Android target: build, run, device gate, known behavior | `android/README.md` |
 | Harness traps: run modes, capture envs, close handling, RAM-dispatch, saves, submodule pins, framework patches | `reference/dev-gotchas.md` |
 | Oracle + frame-diff protocol (park phase, sync rules, builds) | `reference/oracle-harness.md` |
 | Widescreen internals + validation | `reference/widescreen.md` |
 | Event VM + scripts | `reference/event-vm.md` |
 | Community source summaries (decomp, engine hacks, FAQs, notes) | `reference/{ffta-decomp,fergusson-mechanics,bcrobert-notes,jokyr-hack-guide,ffta-gamefaqs-code-guides}.md` |
+| BIOS boot/SoftReset/System-SPSR semantics (validated vs GBATEK + mGBA source) | `reference/gba-bios-boot-and-spsr.md` |
 | Framework truth + config schema | `gbarecomp/PRINCIPLES.md`, `DEBUG.md`, `CLAUDE.md`, `docs/TOML_SCHEMA.md` |
 | Portable gbarecomp practice (loop, triage, verification) | `.agents/skills/gbarecomp-recomp-playbook/` |

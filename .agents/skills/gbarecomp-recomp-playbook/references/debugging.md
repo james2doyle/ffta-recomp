@@ -34,6 +34,74 @@ data. Do not skip straight to step 3 when the mechanism is unknown — most
 "who wrote this" hunts that stall are mechanism confusion (DMA vs CPU vs
 the capture layer's own bugs).
 
+## Redirects: keep the CPU mode coherent with the target
+
+`runtime_dispatch`-family redispatching derives thumb/arm from the live
+CPSR.T (not from the pc's low bit). A runtime side (resume helpers,
+unwind paths, close handlers) that redirects a pc while the CPU carries a
+stale mode will resolve the target in the wrong mode: table miss → self-
+heal bridge → interpreter `Undefined` → loud abort, plus a misleading
+`mode="arm"`/`mode="thumb"` miss proposal that must not be seeded. Snapshot
+the expected mode at the point the flow was interrupted and force it on
+the redirect.
+
+## Present-in-place runners never unwind on vblank
+
+When the host presents frames from inside the guest's yield hook
+(present-in-place), a wedged guest can remain inside a single dispatch
+forever — frames keep presenting, the screen stays frozen, and no new
+`runtime_dispatch` occurs (so dispatch-boundary healing never runs).
+Diagnose by pc sampling (churn inside a data region or gate loop) plus the
+watchdog dump; the fix pattern for a pending runtime-side redirect is a
+one-shot unwind: expose a `pending_resume()` predicate and have the yield
+hook return true once while it is armed, so the runner redispatches and
+the redirect can act.
+
+## Catching corrupted transfers
+
+- A `set_break_pc` park is a capture point: the ring dumped at the park
+  (`GBARECOMP_BREAK_FP` pattern) ends with the instruction that transferred
+  to the break pc, registers included — usable on surfaces without an
+  fp_save command. Pair it with an engine-side entry dump
+  (`..._BRIDGE_ENTRY_FP`) because the bridge's own interpreted records
+  overwrite the ring within ~1 s of a miss.
+- When a pc looks like garbage, search guest RAM for the exact value before
+  theorizing: corrupted return targets are often verbatim stack words
+  (a return popped an adjacent slot). `read_iwram` around SP is the cheap
+  check.
+- Before attributing a failure to BIOS/CPU semantics, validate the semantics
+  in the accuracy reference (mGBA source is readable): the whole
+  System-mode-SPSR / boot-trampoline story here turned out to match the
+  reference exactly, and the real bug was engine-side corruption. Web docs
+  (GBATEK, annotated disassemblies) plus emulator source settle these
+  questions; cite them in a reference note rather than guessing.
+
+## Ring walks: falsify the story, then diff the delta
+
+The per-instruction ring is ground truth over every bookkeeping log: a
+computed/printed "return target" can disagree with the PC the CPU actually
+fetched next. When a control transfer looks wrong, dump the ring **at the
+failure site** (a debugger call to the ring-save function works mid-run;
+exit-time dumps are lost on aborts) and read the fetch sequence around the
+hand-off — the real target is whichever PC the next record fetches. An
+exception return that pops a guest-stack value can legitimately land inside
+a *different* function's argument setup, several bytes off any known
+boundary; disarm the landing site before theorizing.
+
+Per-instruction rings can be dumped while the guest is alive
+(`GBARECOMP_INSN_TRACE=1` + the TCP `fp_save <path>` command; no crash or
+watchdog trip needed). Format: 16-byte header `<IIQ>`, then 80-byte
+records `<Q18I` = cycles, pc, cpsr, r0..r12, sp, lr, r15.
+
+- Falsify first: count the event under suspicion across the dump. ("The
+  wait loop never sees its flag" turned into counting flag-reads with the
+  expected value, exit-path entries, and flag set/clear writers — the
+  story inverted in minutes: the loop exited 126×, and the only pre/post
+  behavioral delta was new BIOS SWI activity.)
+- Then diff: take two dumps bracketing the event and compare pc-frequency
+  histograms; a pc population that appears or vanishes (e.g. new SWI
+  paths) is the behavioral delta to chase in the disassembly.
+
 ## Spins, hangs, wedges
 
 - A spin in **statically compiled** code is not a coverage gap; adding
@@ -53,8 +121,21 @@ the capture layer's own bugs).
   pathologically slow frame look identical at 60 seconds.
 - When a specific input triggers it, bisect the frames budget to the exact
   first wedged frame. That window is gold for the first-divergence hunt.
+- Bound-check a hot loop before calling it a spin: read its exit condition
+  and counters (a block looping with a count register that decrements
+  normally is healthy engine work — mixers/copiers look spin-like under
+  low-rate sampling; dumping PC samples alone misidentifies them).
+- Trip/watchdog heuristics fire on healthy busy-waits too (games that poll
+  their vblank flag instead of halting; frames/vblank counters advance
+  during any spin because the PPU ticks per instruction). A trip is a
+  pointer, not proof — the discriminator is whether the loop's exit
+  condition ever becomes true.
 - If the spin sits in an HLE/shadow-serviced area (audio mixer, timing
   model), suspect host-side model desync before guest logic.
+- On devices, an audio output that restarts constantly (repeated platform
+  log lines) destabilizes timing and is a prime suspect for wait-loop
+  stalls — test the engine's direct-audio mode before deep-diving the
+  guest.
 
 ## Memory growth triage (climbing RSS during a hang)
 
@@ -79,6 +160,92 @@ the capture layer's own bugs).
   growth). It is downstream of whatever corrupted the guest state: fix the
   root; meanwhile kill stalled sessions (memory frees on exit) and gate
   probes with write-triggered abort hooks that stop runaways within seconds.
+
+## Split-function busy-waits nest host frames (finite-stack trap)
+
+A spin whose back-edge crosses a generated-function boundary compiles to a
+host call per iteration; while the wait's wake condition is unmet, those
+frames accumulate and only unwind when the loop finally exits. Desktop runs
+with an effectively unlimited main-thread stack, so this presents as RSS
+creep; a finite mobile thread stack turns the same wait into a SIGSEGV
+(deep tombstone: one return address repeated hundreds of times). The
+frame-boundary unwind that would bound it may be suppressed by
+present-in-place, whose depth guard counts only call-pushes, not
+branch-calls.
+
+- Read a stack dump: a repeated return address + nearest-symbol lookup
+  names the recursing call site; growth rate over time tells you whether
+  anything bounds it.
+- Bound it at runtime: give the game thread a stack budget and unwind
+  through the ordinary instruction-boundary yield path once a probe
+  crosses it — gated exactly like the frame-present yield (never inside a
+  live IRQ handler). This converts an eventual crash into a logged,
+  bounded freeze.
+- **Guard the guard**: that IRQ-handler gate silently disables itself if the
+  handler depth counter ever sticks above zero (observed: a guest return ×
+  vblank-IRQ interleave poisons it — the mainline then runs "inside" a
+  handler forever, and the guard can never fire). When a guard does not
+  fire despite obvious stack growth, print the depth counter at mainline
+  PCs before blaming the guard. A second, critical threshold — fire even
+  while nested, but only within the last fraction of the stack, where no
+  handler could legally complete — keeps the safety net alive in that
+  state.
+- **Merge it at the source (the durable fix).** Flag the boundary block as
+  an interior-resume candidate and extend the finder's alias roll-in to
+  cover branch-target blocks that sit beyond a host's linear walk extent
+  (e.g. a 2-byte back-edge behind the literal pool): roll the block into a
+  host that directly branches to it, grow the host extent over it, and
+  make the codegen lower a forward branch to any *labelled* in-body target
+  to `goto` (not only backward targets — a forward conditional edge is the
+  one a split loop actually takes). Verified shape: the dispatch table
+  gains a resume entry for the block address at the host, the split unit
+  disappears (corpus count −1), and the loop body contains no
+  generated-function call except its exit block. Test the fix by
+  objdump: `call`/`ret` pairs between the two halves must become internal
+  `jmp`s. Without the roll-in, the candidate stays its own function and the
+  per-iteration call pair returns.
+- The nesting is a *carrier*: a wait that outlives its expected wake is a
+  behavioral stall. Find why the wake never arrives (interrupt-mask state,
+  callback stalls) before treating the spin itself as the bug.
+- **Turn the nesting into a crash to get a backtrace.** The unwind-and-
+  redispatch paths (steppable `--tcp`, frame-driven runs) nest too, and the
+  worker thread's finite stack makes it SIGSEGV in seconds — far easier to
+  root-cause than an RSS-creeping hang. Recipe: connect, `savestate_load`
+  the state (plain `--load-state` is not applied by `--tcp`), drive the
+  trigger with `set_keyinput`, `step` until it dies; run the process under
+  `gdb -batch -ex run -ex bt --args <exe> … --tcp <port>` and drive it from
+  a second process. Confirm exhaustion: `grep -c '^#'` ≈ thread-stack
+  bytes ÷ ~60 B/frame; rsp lands at the thread-stack bottom; the repeated
+  frame pair names the recursing split.
+- Gate the repro: N clean pre-trigger steps + a crash at a fixed distance
+  after the trigger means the *trigger* starts the unbounded spin — that
+  window (tens of frames) is the first-divergence hunting ground.
+- Same convergence, three faces: windowed present-in-place = nesting
+  masked into a behavioral churn; unwind-and-redispatch = crash; finite
+  mobile stack + guard = bounded freeze. Pick the face that instruments
+  best — usually the crash.
+
+## On-device hangs without root (Android)
+
+`debuggerd` is root-gated on production builds even for debug apps. Use
+`run-as` same-uid access instead: `/proc/<pid>/maps` (thread stacks are
+labeled `[anon:stack_and_tls:<tid>]`), `syscall` ("running" = userspace
+spin), `/proc/<pid>/mem` via `dd` for stack dumps, `stat` utime/stime for
+a real CPU rate. Symbolize dumped pointers against the *unstripped* build
+with the NDK's llvm tools. A deep-stack dump plus the repeated return
+address identifies the spinning call site; the frames above it name the
+flow that entered it. Full recipe: this project's
+`reference/dev-gotchas.md` § Android device forensics.
+
+## The observe server: single client, and the savestate trap
+
+The `--tcp-observe` surface serves one client at a time; a long-lived
+watcher holds the slot, so disconnect it before other probes. Critically:
+`savestate_save` is serviced by the runner at the *next present* — on a
+stalled guest that never presents, the request never completes and wedges
+the single-client server. On a suspected stall, probe read-only first
+(registers, interrupt-enable and flag reads, miss report); never lead with
+savestate. Keep a one-shot read-only probe script per project.
 
 ## Relocated-code re-entry (planted stubs)
 

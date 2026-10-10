@@ -4,31 +4,7 @@
 
 This is not an emulator. The game's ARM/Thumb code is statically translated to
 host C++ (AOT), compiled, and executed natively — with a **self-healing
-coverage** loop that bridges any not-yet-translated code at runtime, records
-it, and feeds it back into the offline corpus so the next build is fully
-static. It is intended to be *honest*: every run reports exactly how much ran
-as statically recompiled code (`self_heal_coverage=FULLY_STATIC ...` or the
-precise miss count).
-
-**Current status (2026-10-08):** boots (BIOS LLE), plays the attract loop,
-title, new game, intro, battles, and now complete **Totema and magic summons**
-(the save-menu/summon stalls were fixed via the LZSS-decoder entry guard +
-RAM-copy fixups — BRINGUP § "Summon crash") — with **every executed path
-FULLY_STATIC** (zero interpreted instructions) at last verification.
-Interactive playtest sessions are integrated through the audit + event
-batches (**a**–**ai**): corpus **55,103 emitted units**, walker's static
-reach ≈ 97.8 %, pointer-pool lens ≈ 99.3 % (proxies — a route is done when
-FULLY_STATIC on its replay). The **offline coverage push**'s goal (pool
-reach) was reached deliberately via strict-push verified seeds (event-crawl
-batches **af/ag**) with the attract hash byte-exact — the blind speculative
-path itself stays off (interior-split hazard; re-trial gated, § Roadmap).
-The attract regression gate hash has been stable since pinning.
-**Widescreen is complete** (W1–W3): up to 448 px via `--resize-view` /
-`--view-width`, ring scenes authoring their margins from the game's own
-field, the world map pillarboxed, transitions verified — gated by the
-`tools/ws_check.py` smoke matrix. Remaining: the gated offline-push
-re-trial, the long-run attract contact sheet, the upstream note, and the
-Android port — § Roadmap.
+coverage** loop so the next build is fully static.
 
 > **You must own the game and BIOS.** Both are user-supplied, hash-verified at
 > launch, and **never committed** (no ROM-derived bytes in git history, ever —
@@ -46,10 +22,7 @@ Android port — § Roadmap.
 
 ## Requirements
 
-- Linux x86-64 (developed on Arch; other unixes untested)
 - CMake ≥ 3.20 + Ninja, GCC or Clang (C++17), SDL2 (dev), git
-  - Arch: `sudo pacman -S --needed cmake ninja gcc sdl2 git uv`
-  - Debian/Ubuntu: `sudo apt install cmake ninja-build g++ libsdl2-dev git python3-venv`
 - Python 3.10+ with `capstone`, installed into a repo-local `.venv/`
   (`build.py` sets this up; `uv` recommended, plain `python3 -m venv` works
   too)
@@ -72,14 +45,12 @@ python3 build.py
 `build.py` runs, in order: submodules → dump validation → `.venv/`
 (pinned capstone) → framework patches → framework tools → BIOS recompile →
 static corpus → `build/FFTARecomp` → strict 2400-frame smoke (expect
-`FULLY_STATIC`). Everything is validated before any long build: both dumps
-must exist at the right size with the expected SHA-1, submodules are
-checked against their pins, each framework patch is apply-checked, and the
-build steps verify their outputs — missing or corrupt files stop with an
-actionable message instead of a build error. Re-running is cheap — every
-step detects whether it is already done; flags: `--force` (redo BIOS +
-corpus), `--no-smoke`, `--jobs N`. The first run takes a few minutes (two
+`FULLY_STATIC`). The first run takes a few minutes (two
 builds plus the corpus).
+
+For the Android target, `python3 build_apk.py` wraps the whole private-build
+pipeline (preflight → Gradle with ROM+BIOS embedded → APK content guard →
+install + device gate) — guide: [android/README.md](android/README.md).
 
 <details>
 <summary>Manual route (what build.py automates — reference + troubleshooting)</summary>
@@ -106,14 +77,22 @@ uv venv .venv && uv pip install --python .venv capstone
 ```
 
 **4. Apply the local framework patches** (recommended — the tooling below
-assumes them; diffs kept on top of the pinned submodule):
+assumes them; the two **consolidated** `*-local.patch` files are the
+canonical re-apply units — per-feature files are reference diffs whose
+contexts interleave, so apply them only onto a pristine submodule, before
+the consolidated ones, and only if you need the attribution history):
+
 ```sh
 cd gbarecomp
-for p in ../tools/patches/*.patch; do git apply "$p"; done
+git apply ../tools/patches/gbarecomp-local.patch
+cd external/arm-recomp-core && git apply ../../../tools/patches/arm-recomp-core-local.patch && cd ../..
 cd ..
 ```
-`tools/check.py --only patches` guards their validity (forward against a
-pristine submodule + reverse against the patched tree).
+
+`tools/check.py --only patches` guards their validity — each file must be
+apply-able forward against the pristine pin (the CI condition) and
+reverse against the patched tree, and the replay must byte-match the dev
+tree (`tools/patches/README.md`).
 
 **5. Build the framework tools** (one-time; re-run only after submodule
 changes):
@@ -200,6 +179,17 @@ cd gbarecomp && bash oracle/setup-mgba.sh \
   && cmake --build build --target gbarecomp_oracle --parallel 8
 ```
 
+## Status
+
+All bring-up phases are complete; **every executed path replays
+strict-FULLY_STATIC** (zero interpreter fallback), and the attract
+regression hash has been stable since pinning. Widescreen (W1–W3, up to
+448 px) and the **Android port** are landed and device-verified
+([android/README.md](android/README.md)) — the current engine passed the
+on-device boot, press-acceptance and suspend/kill/resume lifecycle gates
+2026-10-09. Open items and gating decisions live in `AGENTS.md` § Status;
+the dated decision log, evidence and crash playbooks are `BRINGUP.md`.
+
 ## Run it
 
 ```sh
@@ -227,25 +217,29 @@ All testing, debugging and verification workflows live in
   attract, widescreen smoke, strict route replays)
 - **CI** — `.github/workflows/ci.yml` (fork-safe tier 1) and the full-gate
   tier split
+- **Android** — device gate `tools/validate_android.sh` (install → launch →
+  assertions → evidence) plus device-free checks `tools/android_static_check.py`
+  (CI tier 1); build/run guide: [android/README.md](android/README.md)
 
 ## Repository layout
 
 | Path | What |
 |---|---|
 | `build.py` | Fresh-clone bootstrap — submodules → dumps → venv → patches → tools → BIOS → corpus → build → smoke (see Setup) |
+| `build_apk.py` | Android bootstrap — preflight → private Gradle build (ROM+BIOS embedded) → APK content guard → install + device gate (android/README.md § Build) |
 | `game.toml` | Per-game config: identity pin + all audit seeds (evidence in `note`s) |
 | `src/` | Host integration: `main.cpp`, launcher boot, stack setup |
+| `android/` | Android target: Gradle project + engine-shell wiring, runtime TOML, payload defaults, device gate — guide `android/README.md` |
 | `tests/` | Host unit tests + the testing guide — playtesting, healing loop, gates, CI (`tests/README.md`) |
 | `generated/` | Recompiler output — gitignored, **never edited** |
 | `mods/` | Preloaded mod catalog shipped beside the exe — the default-enabled `ffta.enhancement.widescreen` manifest activating the linked `ffta.widescreen` plugin |
 | `gbarecomp/`, `recomp-ui/` | Pinned framework submodules (see `reference/dev-gotchas.md` for pins) |
-| `tools/` | The whole harness: `play.sh`, `check.py` (regression gate), `ws_check.py` (widescreen smoke), `savecheck.py` (save validation), `resolve.py`, `cache_harvest.py`, `cycle.py`, `attract_check.py`, `misspack.py`, `coverage_report.py`, `framediff.py`, `dualrun.py`, `ringscan.py`, `keyprobe.py`, `trace_split.py`, `disarm.py`, … |
+| `tools/` | The whole harness: `play.sh`, `check.py` (regression gate), `ws_check.py` (widescreen smoke), `savecheck.py` (save validation), `resolve.py`, `cache_harvest.py`, `cycle.py`, `attract_check.py`, `android_static_check.py` (device-free Android checks), `android_apk_check.py` (APK content guard), `misspack.py`, `coverage_report.py`, `framediff.py`, `dualrun.py`, `ringscan.py`, `keyprobe.py`, `trace_split.py`, `disarm.py`, … |
 | `.agents/skills/` | Project-local agent skills — `gbarecomp-recomp-playbook`, a portable healing-loop/audit playbook with task-grouped references |
 | `inputs/` | Deterministic input traces (`<frame>,0x<hex>` active-low, sticky) |
 | `symbols/` | Curated symbol seeds (attributed; consumed via `--symbols`) |
 | `BRINGUP.md` | Decision log — the project's memory; read it |
 | `AGENTS.md` | Rules of engagement for agents; read it before changing anything |
-| `ffta-bootstrap-prompt.md` | Historical origin document (the original brief) |
 
 ## Contributing
 
@@ -327,27 +321,3 @@ Noncommercial 1.0.0** (`LICENSE`) — free to use, share, and modify for
 noncommercial purposes. Third-party components keep their own terms (the
 `gbarecomp` framework: PolyForm NC; `recomp-ui`: MIT;
 `reference/datacrystal/`: GFDL 1.2) — see `THIRD_PARTY_ATTRIBUTION.md`.
-
-## Roadmap
-
-**Open / next**
-
-1. **Offline coverage push — re-trial gated.** The speculative literal
-   harvest reaches +4,912 units, but it split the guarded LZSS decoder at an
-   interior entry (`0x08005544`): the save-menu route resumes into the
-   unguarded interior, bypasses the entry check, and runs away (f17,794;
-   31.8 GB RSS) — reverted, flag stays off. Condition (a), a **route-level
-   golden gate**, is now satisfied: the save-menu class replays as
-   first-class checks in `tools/check.py` (route_G/K). Condition (b), an
-   **interior-split policy** so speculative interior roots cannot bypass
-   entry guards (guard extension and/or seed exclusion), is still to design
-   and is the re-trial trigger.
-2. **Long-run attract contact sheet (f6000+)** and the **upstream note**
-   covering the bridge stop-contract + relocated-stub resume classes (a
-   gbarecomp issue).
-3. **Android port** (research done; the app shell ships inside gbarecomp).
-   Device builds run with self-heal disabled — the static coverage this
-   loop builds is its prerequisite.
-4. Optional: a mod layer from the community notes' verified hack sites
-   (QoL/difficulty/test-speed); share the reverse-engineered save-record
-   format when the wiki scene is reachable.
