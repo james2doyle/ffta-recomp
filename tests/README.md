@@ -13,6 +13,13 @@ the repo-local `.venv/`.
   test, which **compiles only where the pinned submodule declares the guard
   APIs** (`HOST_STACK_GUARD_API`; absent on a pristine checkout, it prints a
   skip — the APIs live in `tools/patches/host-stack-guard-desktop.patch`).
+  Also unit-covered since the 2026-10-09 src audit: the **LZSS entry guard**
+  (`ffta::lzss_entry_guard`, `src/ffta_lzss_guard.h`) — plausible length →
+  declined, implausible → return-to-LR with the thumb bit stripped, and the
+  exact `0x100000` boundary both sides — plus the `ram_dispatch`
+  mid-copy-resume regressions (sentinel `r2 == -1` from any address,
+  including a byte-matching re-plant, must pass through; two-byte-early
+  entries only run on a byte-match) and the copy-count clamp semantics.
 - **Python tooling:** `.venv/bin/python tests/python/test_tools.py`
   (needs capstone — the `.venv`; run by `tools/check.py --only unit-py`).
   Covers the pure healing/audit logic (trace_split, cache_harvest,
@@ -316,18 +323,20 @@ GBARECOMP_INPUT_REPLAY=logs/playthrough.csv ./build/FFTARecomp ...` — expect
   when the gitignored `game.state3` / `saves/playtest.sav` are absent.
   BRINGUP § 2026-10-09.
 
-Current snapshot (2026-10-08, strict 1200-frame run; refresh with
+Current snapshot (2026-10-09, strict 1200-frame run; refresh with
 `.venv/bin/python tools/coverage_report.py`):
 
 | Lens | Mapped / total | % |
 |---|---|---|
 | **Executed path** (strict 1200-frame run) | everything that ran | **100 % — FULLY_STATIC, zero interpreter fallback** |
-| **Walker's static reach** (whole-ROM scan trial) | **55,102 / 56,333** emitted units | **≈ 97.8 %** |
-| **Pointer-pool reach** (speculative-harvest trial) | **55,102 / 55,515** | **≈ 99.3 %** |
+| **Walker's static reach** (whole-ROM scan trial) | **55,102 / 56,332** emitted units | **≈ 97.8 %** |
+| **Pointer-pool reach** (speculative-harvest trial) | **55,102 / 55,514** | **≈ 99.3 %** |
 
 Rows 2–3 are proxies with different denominators (no ground-truth function
 inventory exists); a route is done when its replay is FULLY_STATIC. Corpus:
-55,102 emitted units (interior split units + IWRAM code-copy included); the
+55,102 emitted units (interior split units + IWRAM code-copy included;
+55,103 before the 2026-10-09 split-loop gap roll-in merged
+`vblank_wait_loop_cont` into its host as a resume alias); the
 speculative-harvest trial kept 2,204 pointer candidates out of 105,815
 PC-relative literals (`false` in `game.toml` by policy).
 
