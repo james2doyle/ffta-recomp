@@ -1,0 +1,129 @@
+--- a/src/armv4t/runtime_arm.cpp
++++ b/src/armv4t/runtime_arm.cpp
+@@ -406,9 +406,71 @@
+     if (g_fp_count < kFpSize) ++g_fp_count;
+ }
+ 
++// ── SWI-return continuation ledger (issue #30 R1 containment) ────────
++// An SWI executed inside a driven IRQ handler must return to the
++// continuation the engine recorded at its SVC entry (return_address, i.e.
++// the SWI site + instruction width) — LR_svc, a banked register the guest
++// cannot legally touch. But the recomp's shared R[14] slot can be clobbered
++// by the drive loop's phantom-era stack churn before the BIOS epilogue
++// (0x138 pop / 0x13C subs pc,lr,#4 — disarm-verified) consumes it, so the
++// exception return lands at the IRQ-interrupted PC instead (ring-proven:
++// BIOS 0x188 -> 0x080033BA while the veneer continuation 0x814186E was
++// live; BRINGUP § true root). Stack-ordered ledger: push at runtime_swi's
++// LLE entry, pop+validate at every SVC-mode exception return (generated
++// and interpreted). A legal return matches; a mismatch keeps the recorded
++// continuation, loudly. SoftReset (SWI 00) never returns — its stale entry
++// is cleared at the next machine-reset / load origin (runtime_fp_reset).
++namespace {
++struct SwiReturnSlot {
++    uint32_t continuation;  // return_address recorded at SVC entry
++    uint32_t return_pc;    // the SWI instruction's site (R[15] at entry)
++};
++constexpr unsigned kSwiLedgerCap = 64u;
++SwiReturnSlot g_swi_ledger[kSwiLedgerCap];
++unsigned       g_swi_ledger_depth = 0;
++}  // namespace
++
++// Pop the top ledger entry and validate `new_pc` against its recorded
++// continuation. Returns the pc the SVC-mode exception return must take
++// (the recorded continuation on mismatch, else new_pc unchanged). True
++// when an override fired. R[14] is deliberately NOT touched: the legal
++// post-return LR comes from bank_in (the caller's restored LR), and the
++// recorded continuation can be a `bx lr` site — writing it into R[14]
++// would self-loop that branch. The ledger guards the PC target only.
++static bool swi_ledger_validate(uint32_t new_pc, uint32_t* out_pc) {
++    *out_pc = new_pc;
++    if (g_swi_ledger_depth == 0) return false;
++    const SwiReturnSlot slot = g_swi_ledger[--g_swi_ledger_depth];
++    if ((new_pc & ~1u) == (slot.continuation & ~1u)) return false;
++    std::fprintf(stderr,
++        "runtime_arm: SWI-return ledger override: SVC return wants "
++        "pc=0x%08X but the SWI at 0x%08X recorded continuation "
++        "0x%08X — keeping the recorded continuation (issue #30 R1)\n",
++        new_pc, slot.return_pc, slot.continuation);
++    *out_pc = slot.continuation & ~1u;
++    return true;
++}
++
++static void swi_ledger_push(uint32_t continuation, uint32_t return_pc) {
++    if (g_swi_ledger_depth >= kSwiLedgerCap) {
++        // Overflow only reachable via nested SoftReset-style non-returns;
++        // drop the oldest (a legal return never consults beyond its own
++        // entry, so only stale entries are lost).
++        std::memmove(&g_swi_ledger[0], &g_swi_ledger[1],
++                     (kSwiLedgerCap - 1u) * sizeof(SwiReturnSlot));
++        --g_swi_ledger_depth;
++    }
++    g_swi_ledger[g_swi_ledger_depth++] = {continuation, return_pc};
++}
++
+ extern "C" void runtime_fp_reset(void) {
+     g_fp_write = 0;
+     g_fp_count = 0;
++    // The SWI-return ledger is host bookkeeping, not emulated state: clear it
++    // at every machine reset / savestate-load origin (SoftReset's never-returned
++    // SWI would otherwise leave a stale entry that could override a legal
++    // post-reboot SVC return).
++    g_swi_ledger_depth = 0;
+ }
+ 
+ extern "C" uint32_t runtime_fp_count(void) { return g_fp_count; }
+@@ -1253,6 +1315,21 @@
+     unsigned new_bank = mode_to_bank(spsr);
+     bank_in(new_bank, spsr);
+ 
++    // SWI-return continuation validation (issue #30 R1): a return FROM
++    // Supervisor mode is a BIOS SWI epilogue (0x138 pop / 0x13C
++    // subs pc,lr,#4 — disarm-verified) that must land at the
++    // continuation recorded at the SWI's SVC entry. Inside a driven
++    // IRQ handler the shared R[14] can be clobbered before the
++    // epilogue consumes it (ring-proven 2026-10-09: BIOS 0x188 ->
++    // 0x080033BA, the IRQ-interrupted mainline, instead of the
++    // recorded veneer continuation 0x814186E — the phantom-era
++    // stack churn). Keep the recorded continuation on mismatch.
++    if (old_mode == 0x13u) {
++        uint32_t ledger_pc = 0;
++        if (swi_ledger_validate(new_pc, &ledger_pc)) {
++            new_pc = ledger_pc;
++        }
++    }
+     g_cpu.R[15] = new_pc;
+ 
+     // Returning FROM IRQ mode (0x12) is the iret that ends a hardware IRQ.
+@@ -1287,6 +1364,19 @@
+     // of calling runtime_exception_return(). Preserve the runtime IRQ driver's
+     // completion signal when an interpreted instruction returns from IRQ mode.
+     if (old_mode == 0x12u) g_irq_iret_depth = g_irq_nest_depth;
++    // Same validation for a bridged SWI epilogue (runtime_bridge_interpret
++    // calls this right after the interpreter's internal exception return,
++    // with g_cpu synced): a return FROM Supervisor mode must land at the
++    // continuation recorded at the SWI's SVC entry. On mismatch keep the
++    // recorded continuation (issue #30 R1) — the interpreter's R[15] is the
++    // clobber-derived target; the caller (runtime_arm_default_aborts.cpp)
++    // reloads g_cpu into the interp CPUState immediately after this call.
++    if (old_mode == 0x13u) {
++        uint32_t ledger_pc = 0;
++        if (swi_ledger_validate(g_cpu.R[15], &ledger_pc)) {
++            g_cpu.R[15] = ledger_pc;
++        }
++    }
+ }
+ 
+ extern "C" void runtime_restore_cpsr_from_spsr(void) {
+@@ -1388,6 +1478,12 @@
+     g_cpu.banked_spsr[new_bank] = saved_cpsr;
+     g_cpu.R[14]                 = return_address;  // LR_svc
+     g_cpu.R[15]                 = 0x00000008u;
++    // Record the SVC-return continuation for the exception-return
++    // validation below (swi_ledger_*). return_address is the SWI site +
++    // instruction width — what a legal epilogue returns to.
++    const bool swi_from_thumb = (saved_cpsr & CPSR_T_BIT) != 0;
++    swi_ledger_push(return_address,
++                    return_address - (swi_from_thumb ? 2u : 4u));
+     if (std::getenv("GBARECOMP_SWI_TRACE"))
+         std::fprintf(stderr,
+             "runtime_swi: LLE bank swi_imm=0x%X ret=0x%08X "

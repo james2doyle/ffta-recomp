@@ -8,9 +8,9 @@ BEFORE executing, so fp_save captures a ring whose last record is the
 transferring instruction (full r0-r15 + cpsr). Saves evidence under
 logs/desktop_accept/pc0/iterN/ and stops on the first hit.
 """
-import json, os, shutil, signal, socket, subprocess, time
+import json, os, pathlib, shutil, signal, socket, subprocess, time
 
-REPO = "/home/james/Git/ffta-recompiled"
+REPO = str(pathlib.Path(__file__).resolve().parent.parent)
 STATE = f"{REPO}/game.state3"
 CARD_SRC = f"{REPO}/saves/playtest.sav"
 

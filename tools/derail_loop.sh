@@ -7,7 +7,7 @@
 # Evidence: logs/desktop_accept/loop<N>/{run.log,summary.json,screens/}
 #           /tmp/bridge_abort_fp.bin (the fp ring at the abort)
 set -u
-cd /home/james/Git/ffta-recompiled
+cd "$(dirname "$0")/.."
 MAX_ITERS="${1:-12}"
 for i in $(seq 1 "$MAX_ITERS"); do
   W="logs/desktop_accept/loop$i"

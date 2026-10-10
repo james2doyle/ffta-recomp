@@ -27,7 +27,9 @@ import sys
 import time
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
-PORT = int(os.environ.get("HANGREPRO_PORT", "19878"))
+# Default port 19880, distinct from check.py's desktop-accept (19878/19879) so
+# a parallel --jobs run cannot race two acceptances onto one port.
+PORT = int(os.environ.get("HANGREPRO_PORT", "19880"))
 STATE = REPO / "game.state3"
 FLASH = REPO / "saves" / "playtest.sav"
 WORK = REPO / "logs" / "hangrepro"

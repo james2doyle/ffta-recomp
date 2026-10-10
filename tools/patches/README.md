@@ -41,6 +41,7 @@ patch to re-apply; use these files to see what each change was for.
 | `host-stack-guard-desktop.patch` | `gbarecomp/src/runtime/{mobile_platform.h,mobile_platform.cpp,runtime_bus_bridge.cpp,runtime.cpp}` | **Yes** (parts; medium) | Host-stack budget guard: a wedged split vblank-wait loop nests host frames per spin and exhausts the 8 MiB desktop TCP game thread stack. Guard unwinds via the yield path within 2 MiB of the bottom; critical tier fires even in a stuck IRQ-nest state. Also moves `emit_exit_diagnostics()` before the worker join (lost-frags on unclean kill). The abandon-resume one-unwind hook is project-specific but small. |
 | `irq-handler-abandon-close.patch` | `gbarecomp/src/armv4t/runtime_arm.cpp` | **Conditional** (high) | `runtime_irq`'s drive loop closes an IRQ whose handler never iret'd (ledger at the IRQ floor, or ≥4 VBlank boundaries in the loop) instead of adopting whatever runs next — fixes the stuck `g_irq_nest_depth` phantom. Close is coherent: restores IE/IME and the IWRAM ISR vector `[0x03007FFC]`, then arms a one-shot flow-continuation resume (`g_abandon_resume_pc`) redirecting the first post-close dispatch with mode coherence from `CPSR.T`. The abandon-detect + close principle is general; the flow-continuation resume is FFTA-specific and complex — upstream may want a simpler version without the resume redirect. |
 | `touch-pad-idle-hide.patch` | `gbarecomp/src/runtime/{runtime.h,runtime.cpp,host_window.h,host_window.cpp}` | **Feature** (low) | Virtual pad idle auto-hide (`RunOptions::touch_pad_idle_hide_seconds`): the pad hides after N s of touch inactivity; any touch reveals it and then acts. UX enhancement for touch devices, not a correctness fix. |
+| `swi-return-ledger.patch` | `gbarecomp/src/armv4t/runtime_arm.cpp` | **Yes** (high; the issue #30 R1 root containment) | SWI-return continuation ledger: `runtime_swi`'s LLE entry records the SVC-return continuation (`return_address` — the SWI site + instruction width); every SVC-mode exception return (`runtime_exception_return` + the interpreted note) validates `new_pc` against the ledger top and keeps the recorded continuation on mismatch (loud log). Ring-proven root (2026-10-09): the BIOS SWI epilogue (`0x138 pop` / `0x13C subs pc,lr,#4`, disarm-verified) returned to the IRQ-interrupted PC (`0x080033BA`) instead of the recorded veneer continuation (`0x814186E`) when the shared R[14] slot was clobbered mid-drive — on hardware LR_svc is banked and untouchable, so this pins the recomp divergence, not guest behavior. Ledger cleared at every machine-reset / savestate-load origin (`runtime_fp_reset`); SoftReset's never-returned SWI leaves only a harmless stale entry. |
 
 ## Upstream priority (audit 2026-10-09)
 
@@ -53,7 +54,8 @@ Recommended order for proposing to gbarecomp:
 5. `host-stack-guard-desktop` — robustness for finite-stack threads (strip the project-specific resume hook if upstream prefers).
 6. `oracle-save-autoload` — small usability fix.
 7. `irq-handler-abandon-close` — high value but complex; consider upstreaming only the abandon-detect + close without the resume redirect.
-8. `touch-pad-idle-hide` — feature request; not a correctness issue.
+8. `swi-return-ledger` — the R1 containment for the same issue-#30 family (see #7); small, self-contained, no guest-visible behavior on a legal return.
+9. `touch-pad-idle-hide` — feature request; not a correctness issue.
 
 Export after further submodule edits (regenerates the canonical patch; the
 replay check above goes red until you do):

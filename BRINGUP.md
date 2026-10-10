@@ -3739,3 +3739,62 @@ cancel cascade crosses the IRQ floor boundary" — upstream machinery
 territory. New instrumentation: `GBARECOMP_BREAK_FP` (ring dump at a
 `set_break_pc` park; works on `--tcp-observe`, which lacks fp_save) —
 `logs/savehang/pc0_hunt.py` is the breakpoint hunter.
+
+## 2026-10-09 — Fix: SWI-return continuation ledger (issue #30 R1 containment)
+
+**Root recap.** The phantom-era chain (ring-proven, above): an SWI executed inside
+a driven IRQ handler returned to the IRQ-interrupted PC (`BIOS 0x188 ->
+0x080033BA`) instead of its own recorded continuation (`0x814186E`, the
+`svc; bx lr` veneer's continuation). On hardware this cannot happen — LR_svc is
+a banked register the guest cannot touch; the recomp's shared `R[14]` slot was
+clobbered by the drive-loop's stack churn before the BIOS epilogue consumed it.
+
+**Fix** (`tools/patches/swi-return-ledger.patch`,
+`gbarecomp/src/armv4t/runtime_arm.cpp`):
+- **Ledger.** A stack-ordered continuation ledger: `runtime_swi`'s LLE entry
+  pushes `return_address` (the SWI site + instruction width — what a legal
+  epilogue returns to); every SVC-mode exception return pops + validates.
+- **Validation points.** `runtime_exception_return` (generated epilogues) when
+  `old_mode == 0x13`, and `runtime_note_interpreted_exception_return` (bridged /
+  force-interp epilogues, called by `runtime_arm_default_aborts.cpp` right after
+  the interpreter's internal SPSR restore with `g_cpu` synced) — on mismatch the
+  recorded continuation is kept (loud log line
+  `SWI-return ledger override: SVC return wants pc=… but the SWI at … recorded
+  continuation …`). `R[14]` is deliberately NOT written: the legal post-return
+  LR comes from `bank_in`, and the continuation can be a `bx lr` site — writing
+  it into `R[14]` would self-loop that branch.
+- **Lifecycle.** The ledger is host bookkeeping, not emulated state: cleared at
+  every machine reset / savestate-load origin (`runtime_fp_reset`, which both
+  `reset_recomp_cpu` and `do_savestate_load` call). SoftReset (SWI 00) legally
+  never returns — its stale entry is dropped by the clear. No new serialized
+  state.
+- **BIOS epilogue shape pinned** (disarm on `gba_bios.bin`): the SWI dispatcher
+  at `0x140` pushes `{fp,ip,lr}`, switches to System mode for the service
+  (`0x160 msr cpsr_fc`), restores SVC (`0x174-0x178`), then
+  `0x184 pop {fp,ip,lr}` / `0x188 movs pc, lr` — the epilogue is an
+  SVC-mode `movs pc, lr`, LR_svc sourced from the SVC bank. On hardware the
+  popped LR is always the entry continuation (System-mode services cannot touch
+  the SVC bank) — the ledger invariant is architecturally sound.
+
+**Result (2026-10-09).** Deterministic state3+A repro: zero ledger overrides —
+the save-routine SWIs (`0x814186A`/`0x814186E`, `GBARECOMP_SWI_TRACE`) all
+return cleanly at their recorded continuations today; the ledger is dormant
+containment on this path (the abandon-close + intercept still handle the
+phantom's fallout earlier). `cycle.py` PASS (attract byte-identical);
+full `check.py` **ALL PASS (13/13)** — hangrepro +40 steps alive, desktop-accept
+TCP free-run PASS (close route), routes G/K FULLY_STATIC.
+
+**Harness fixes rolled in with this session:**
+- `tools/hangrepro.py`: default port moved to 19880 — under `check.py --jobs 8`
+  the concurrent `hangrepro` (19878) and `desktop-accept` (19878) raced the bind
+  and both failed. Serially each passed; with distinct ports the full gate
+  passes in parallel.
+- `tools/pc0_hunt.py` + `tools/derail_loop.sh`: hardcoded `/home/james` repo
+  paths removed (`pathlib` / `dirname`) — the `unit-py` repo-hygiene gate
+  (absolute home paths) went red on them.
+
+**Upstream.** This is the R1 containment for issue #30's suspected-root family
+(ledger-recorded SWI continuation validated at SVC-return) — small,
+self-contained, no guest-visible behavior on a legal return. The
+abandon-close (its consumer) stays FFTA-conditional per the audit
+(`tools/patches/README.md` § Upstream priority).
