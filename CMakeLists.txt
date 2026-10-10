@@ -133,6 +133,21 @@ endif()
 option(FFTA_BUILD_TESTS "Build host unit tests for src/ custom code" ON)
 if(FFTA_BUILD_TESTS AND NOT ANDROID)
     enable_testing()
+    # The host-stack-guard test targets the guard APIs from the
+    # host-stack-guard-desktop.patch work (applied on the pinned gbarecomp
+    # submodule locally, absent on a pristine checkout — CI). Probe the
+    # pinned header and compile the test only where the APIs exist.
+    include(CheckSymbolExists)
+    set(HSG_HEADER "${GBARECOMP_ROOT}/src/runtime/mobile_platform.h")
+    file(READ "${HSG_HEADER}" _hsg_header_text)
+    if(_hsg_header_text MATCHES "host_stack_guard_arm_current")
+        set(HOST_STACK_GUARD_API ON)
+        message(STATUS "host-stack-guard APIs present: testing")
+    else()
+        set(HOST_STACK_GUARD_API OFF)
+        message(STATUS "host-stack-guard APIs absent (pristine submodule): "
+                       "guard test compiles to a skip")
+    endif()
     add_executable(ffta_unit_tests
         tests/unit/test_ram_dispatch.cpp
         tests/unit/test_host_stack_guard.cpp
@@ -143,5 +158,8 @@ if(FFTA_BUILD_TESTS AND NOT ANDROID)
         src)
     find_package(Threads REQUIRED)
     target_link_libraries(ffta_unit_tests PRIVATE Threads::Threads)
+    if(HOST_STACK_GUARD_API)
+        target_compile_definitions(ffta_unit_tests PRIVATE HOST_STACK_GUARD_API=1)
+    endif()
     add_test(NAME ram_dispatch COMMAND ffta_unit_tests)
 endif()
