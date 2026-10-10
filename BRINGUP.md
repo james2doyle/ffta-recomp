@@ -3798,3 +3798,47 @@ TCP free-run PASS (close route), routes G/K FULLY_STATIC.
 self-contained, no guest-visible behavior on a legal return. The
 abandon-close (its consumer) stays FFTA-conditional per the audit
 (`tools/patches/README.md` § Upstream priority).
+
+## 2026-10-09 — CI tier-1 hardening: pristine-checkout conditions (3 fixes)
+
+Asking "will .github/workflows/ci.yml break?" surfaced three breaks — all
+latent, all only visible on a **fresh checkout with pristine submodules at the
+pin** (the runner's condition; locally the submodule dev trees carry the
+uncommitted framework edits, so every local run masked them). Found by a
+faithful fresh-clone simulation (`git clone` + pristine-at-pin submodule
+archives + CI's exact suites), not by reading:
+
+1. **Per-feature patches were dev-based, not pin-based** (`e006928`).
+   `check.py` `patches` validates each file against whatever tree the runner
+   sees: locally the patched dev tree (reverse), on CI the pristine pin
+   (forward). The regenerated `irq-handler-abandon-close.patch` +
+   `swi-return-ledger.patch` carried interleaved context (ledger/trace lines)
+   only present on my dev tree → INVALID on CI. Rebuilt both pin-based; the
+   `swi_ledger_push` call moved from the interleaved post-bank block to just
+   before `runtime_dispatch(0x08)` (pin-stable context, semantics unchanged:
+   push pairs with this SWI's SVC entry).
+2. **`check_patches`' replay byte-compare false-reds on CI** (`ecb5540`).
+   The replay (pin+consolidated → byte-match the working tree) is a
+   local-dev-tree guarantee; a pristine checkout's tree IS the pin, so every
+   patched file "differs". The checker now skips the compare when the
+   submodule is unmodified (`status --porcelain -uno` empty) — the clean
+   apply alone still proves patch↔pin fidelity there.
+3. **`unit-cpp` did not compile on a pristine submodule** (`4623e9c`).
+   `test_host_stack_guard.cpp` targets the guard APIs from the (local-only)
+   `host-stack-guard-desktop.patch` work; the pinned header doesn't declare
+   them → 11 compile errors on CI. CMakeLists now probes the pinned
+   `mobile_platform.h` for `host_stack_guard_arm_current` and defines
+   `HOST_STACK_GUARD_API=1` only where present; the test compiles to a skip
+   line otherwise (prints `APIs unavailable (pristine submodule); skipped`).
+
+**Verification matrix (2026-10-09):**
+
+| Condition | unit-cpp | unit-py | patches | android-static |
+|---|---|---|---|---|
+| Fresh clone, pristine-at-pin submodules (CI) | PASS (guard skip) | PASS | PASS (10× forward-ok + apply-ok) | PASS |
+| Local dev tree (patched submodule) | PASS (full guard test) | PASS | PASS (431-file replay match) | PASS |
+| Local full gate (all 13 suites) | ALL PASS 13/13 | — | — | — |
+
+**Method note:** the local runs cannot see pristine conditions (the dev trees
+carry the edits); the fresh-clone simulation with pristine-at-pin archives is
+the only faithful CI proxy. Keep using it after any patch/test-affecting change.
