@@ -261,6 +261,11 @@
 # the address is a dispatchable resume entry of the 0x08000418 host.
 0x08000428	thumb	vblank_wait_loop_cont
 0x0800042A	thumb	vblank_wait_exit
+# Target of the crt0 gate exits (`b 0x080042E` @0x404 / @0x42E fall-through):
+# the per-frame loop head of the crt0 scheduler — the cycle 0x364 -> ... ->
+# 0x3F0 gate -> 0x42E -> 0x364 drives ffta's frame pacing (BRINGUP
+# § 2026-10-09: the save-completion gate lives inside this loop).
+0x08000364	thumb	crt0_frame_loop
 0x08000460	thumb	frame_step
 0x081451B4	thumb	m4a_soundmain_wrapper
 0x08144510	thumb	m4a_mixer_core

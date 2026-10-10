@@ -60,3 +60,13 @@ resumed-from-savestate flow — not to the SPSR/bank machinery.
   `GBARECOMP_SWI_TRACE` logs SWI HLE/LLE + SVC banking.
 - A breakpoint at pc=0 (`set_break_pc`) parks the anomalous transfer so the
   pre-transfer ring + registers can be captured.
+
+## Later evidence (2026-10-09): the real anomaly is a stack-slot slip
+
+The three captured garbage transfers (0x080000F0 / 0x08000494 / 0x00000FF8)
+all show lr=0x08000499, sp~0x03007EB8-0x7EC0, stop=0x08094FCC. The loaded
+state's IWRAM contains the targets as stack words — [0x03007EBC]=0x080000F0
+verbatim, [0x03007EB4]=0x08000499 (its LR), [0x03007EAC]=0x0800050B. So a
+return in the resumed save-completion flow popped an adjacent slot under the
+load-time IRQ race; the popped word becomes pc. Nothing to do with
+BIOS/SPSR semantics (which this note validates as matching mGBA).

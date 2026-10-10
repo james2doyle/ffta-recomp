@@ -57,6 +57,25 @@ one-shot unwind: expose a `pending_resume()` predicate and have the yield
 hook return true once while it is armed, so the runner redispatches and
 the redirect can act.
 
+## Catching corrupted transfers
+
+- A `set_break_pc` park is a capture point: the ring dumped at the park
+  (`GBARECOMP_BREAK_FP` pattern) ends with the instruction that transferred
+  to the break pc, registers included — usable on surfaces without an
+  fp_save command. Pair it with an engine-side entry dump
+  (`..._BRIDGE_ENTRY_FP`) because the bridge's own interpreted records
+  overwrite the ring within ~1 s of a miss.
+- When a pc looks like garbage, search guest RAM for the exact value before
+  theorizing: corrupted return targets are often verbatim stack words
+  (a return popped an adjacent slot). `read_iwram` around SP is the cheap
+  check.
+- Before attributing a failure to BIOS/CPU semantics, validate the semantics
+  in the accuracy reference (mGBA source is readable): the whole
+  System-mode-SPSR / boot-trampoline story here turned out to match the
+  reference exactly, and the real bug was engine-side corruption. Web docs
+  (GBATEK, annotated disassemblies) plus emulator source settle these
+  questions; cite them in a reference note rather than guessing.
+
 ## Ring walks: falsify the story, then diff the delta
 
 The per-instruction ring is ground truth over every bookkeeping log: a

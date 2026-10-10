@@ -135,6 +135,22 @@ recipe below is validated there.
   data region; the fix pattern for a runtime redirect is the one-shot
   unwind hook `runtime_abandon_resume_pending()` consulted by
   `runtime_should_yield` (2026-10-09, BRINGUP § windowed close-route).
+- **Observe vs full TCP surfaces differ in command availability**: the
+  `--tcp-observe` surface accepts `set_break_pc`/`set_keyinput`/reads but
+  NOT `fp_save` ("callback not wired") and no step; the full `--tcp` surface
+  has everything but the windowed derail (stack-slot slip family) did NOT
+  reproduce there (0/16) — run repro hunts in the mode that catches it
+  (`--tcp-observe`). Ring dumps on observe come from the ENGINE-side hooks:
+  `GBARECOMP_BRIDGE_ENTRY_FP`, `GBARECOMP_BRIDGE_ABORT_FP`, and
+  `GBARECOMP_BREAK_FP` (dump when a `set_break_pc` park fires — the last
+  record is the instruction that TRANSFERRED to the break pc, with full
+  registers).
+- **Garbage-pc triage trick that worked**: when a dispatch miss/abort shows
+  a nonsense target (0x080000F0, 0x00000FF8, mid-function addresses), read
+  the loaded state's RAM and search for the value — the derail targets were
+  verbatim STACK WORDS near SP (e.g. `[0x03007EBC]=0x080000F0`), i.e. a
+  return popped an adjacent slot. Check `read_iwram` around SP before
+  theorizing about code.
 - **The BIOS cart-boot trampoline (0x1C-0x64) and System-mode SPSR**: the
   soft-reset path runs the BIOS SWI dispatcher in SVC, but the dispatcher
   itself switches to **System** (`msr cpsr_cf, (spsr & 0x80) | 0x1F`, at
