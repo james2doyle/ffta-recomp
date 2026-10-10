@@ -3842,3 +3842,31 @@ archives + CI's exact suites), not by reading:
 **Method note:** the local runs cannot see pristine conditions (the dev trees
 carry the edits); the fresh-clone simulation with pristine-at-pin archives is
 the only faithful CI proxy. Keep using it after any patch/test-affecting change.
+
+## 2026-10-09 — Cheap test additions (session's break classes, now guarded)
+
+Three additions from the "quick but meaningful" ask — each maps to a failure
+class that actually bit this session; total added runtime < 1 s:
+
+1. **`patches` pin-forward validation** (tools/check.py): reverse-ok on the
+   local dev tree is NOT the CI condition — a fresh checkout validates each
+   per-feature file forward against the pristine pin. A dev-based export
+   goes INVALID there (today's tier-1 break). The check now also applies
+   every per-feature patch to a `git archive HEAD` tree and fails on
+   mismatch: `reverse-ok (applied), pin-forward-ok`. Sub-second, pure git.
+2. **TSV guards** (tests/python/test_tools.py, unit-py): `ffta_symbols.tsv`
+   (3 fields, hex address, arm|thumb, C identifier) +
+   `ffta_data_symbols.tsv` (4 fields, region, hex size, C identifier),
+   no duplicate names across both, and the patches README table must list
+   exactly the present `*.patch` files. Malformed lines break regen or
+   silently mislabel emitted units — the sweep catches them pre-regen
+   (negative-tested: a planted bad line fails the suite).
+3. **BIOS byte-pin** (test_tools.py): sha1 of `gba_bios.bin` +
+   the exact words at every contract point our engine cites (vectors, IRQ
+   wrapper epilogue `E8BD500F`/`E25EF004`, SWI dispatcher service-switch
+   `E129F00B` + epilogue `E8BD5800`/`E1B0F00E`). This morning's
+   0x138-vs-0x184 citation drift in my own comments is exactly what a
+   replaced BIOS would do silently. Skips without the submodule checked out.
+
+unit-py runs the file wholesale — no registry change needed. Suites:
+unit-py 0.7s, patches 0.6s (was 0.2s); full gate ALL PASS 13/13.

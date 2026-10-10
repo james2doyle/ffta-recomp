@@ -157,7 +157,32 @@ def check_patches():
         rev = run(["git", "-C", root, "apply", "--check",
                    "--reverse", str(p)])
         if rev.returncode == 0:
-            details.append(f"{name}: reverse-ok (applied)")
+            # Reverse-ok on a local dev tree is NOT enough for CI: a fresh
+            # checkout validates the SAME file forward against the pristine
+            # pin, and a dev-based export (context interleave from other
+            # local features) goes INVALID there (2026-10-09: both
+            # regenerated reference diffs broke tier-1 this way). A pristine
+            # submodule has no local edits, so forward-apply there is the
+            # cheap equivalent of the pin-based export — enforce it.
+            pin_ok = None
+            with tempfile.TemporaryDirectory(prefix="gbpin.") as td:
+                pr = subprocess.run(
+                    ["bash", "-c",
+                     f"git -C {root} archive HEAD | tar -x -C {td}"],
+                    cwd=str(REPO), capture_output=True, text=True)
+                if pr.returncode == 0:
+                    pf = subprocess.run(
+                        ["git", "-C", td, "apply", "--check", str(p)],
+                        capture_output=True, text=True)
+                    if pf.returncode != 0:
+                        ok = False
+                        details.append(
+                            f"{name}: INVALID on pristine pin "
+                            f"(CI condition; rebase pin-based)")
+                    else:
+                        pin_ok = True
+            details.append(f"{name}: reverse-ok (applied)"
+                           + (", pin-forward-ok" if pin_ok else ""))
         else:
             ok = False
             details.append(f"{name}: INVALID")
