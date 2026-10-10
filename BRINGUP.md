@@ -3900,3 +3900,64 @@ Audited all of src/ (ffta_ram_dispatch.h, main.cpp, game_launcher_boot.*):
 
 Gates: unit tests PASS (0 failures, new LZSS/boundary lines verified);
 full check.py ALL PASS 13/13.
+
+## 2026-10-09 — Citation correction: the BIOS SWI epilogue is 0x184/0x188, not 0x138/0x13C
+
+The ledger's comments and the patches README cited the SWI epilogue as
+`0x138 pop / 0x13C subs pc,lr,#4`. Disassembly of `gba_bios.bin` proves those
+are the **IRQ wrapper's** return (`BIOS 0x130-0x13C`); the SWI dispatcher
+epilogue is `0x184 pop {fp,ip,lr}` / `0x188 movs pc,lr`, with the service
+running in System mode (`0x160 msr cpsr_fc`) in between. The
+`swi-return-ledger` comments + both exported patch files were corrected
+(`e71a86c`); the BIOS byte-pin test now guards the *correct* words
+(`E129F00B` at 0x160, `E3A0C0D3` at 0x174, `E8BD5800` at 0x184,
+`E1B0F00E` at 0x188) so the citation cannot drift silently again.
+
+## 2026-10-09 — Symbol: swi0c_thunk_tail (0x0814186A)
+
+Sweep of the session's new text for raw-hex citations found one TSV gap:
+`0x0814186A` — the SWI 0x0C veneer's `bx lr` continuation (disarm:
+`0814186a: 7047 bx lr`) — appeared live in the ledger session's SWI trace
+(`swi_imm=0xC ret=0x0814186A`, the save flow's context copy) and is exactly
+what the ledger guards, but had no entry while its 0x0B sibling
+(`swi0b_thunk_tail`, 0x0814186E) did. Added name-only with the evidence
+note (`9d1d044`); verified the seed flows through (`{0x0814186Au, 1u, 0u,
+gf_swi0c_thunk_tail}` in the dispatch table), `cycle.py` PASS (attract
+byte-identical), full gate ALL PASS 13/13.
+
+## 2026-10-09 — Patch re-audit (late): all 10 necessary, ledger promoted, upstream drift
+
+Re-grounded every patch against the pin, the session's fresh evidence, and
+upstream drift (`ecc9c55` 2026-10-03 → ~30 commits since: the web/WASM wave
+PR #16, PR #29 opt-in shared-RAM DMA HLE, PR #31 scanline-HLE default).
+Verdict: **no patch is unnecessary** — the two `runtime_arm.cpp` patches are
+complementary layers over the same ring-proven chain (ledger = containment,
+abandon-close = recovery), not duplicates; hangrepro exercises both.
+Re-ranked in `tools/patches/README.md` (`912f1a3`): `swi-return-ledger`
+promoted above `irq-handler-abandon-close` (the ledger is the principled
+fix; the close mops up what it cannot see — an iret lost before any SWI).
+**Upstream drift finding:** verified none of our issues are subsumed
+upstream (PR #29's `gba_io` rework does not touch `g_mmio_split` recording;
+`9be5351` is WASM reporting; `mod_runtime.cpp` untouched), but the same
+files moved — so **a pin bump is a deliberate milestone**: rebase/re-export
+every patch, re-run the fresh-clone CI simulation, re-verify hangrepro +
+desktop-accept on the new pin before committing it.
+
+Coverage snapshot re-measured the same day via
+`tools/coverage_report.py` (not inferred): walker **55,102/56,332**,
+pool **55,102/55,514** — both denominators moved with the split-loop gap
+roll-in (`vblank_wait_loop_cont` merged into its host as a resume alias);
+corpus 55,102; executed path 100% FULLY_STATIC. `tests/README.md` snapshot
+re-dated and re-measured to match (`ed189bd`).
+
+## 2026-10-09 — tools: disarm.py polish (the canonical evidence tool)
+
+`tools/disarm.py` — cited by AGENTS.md as *the* verification tool ("run
+`tools/disarm.py` and cite the address") — still called itself
+`tools/dis.py` in its usage line, carried dead code (an
+`insn.group(capstone.x86.X86_GRP_JUMP) if False else False` branch that
+could never run), and silently accepted nonsense ranges (`end <= start`,
+short reads past the ROM end). Fixed (`1a9c669`): usage matches the real
+path, both nonsense ranges now fail loudly, examples added. Output for
+valid invocations verified byte-identical against the ROM (phase 0
+crt0/veneer bytes reproduce exactly).
