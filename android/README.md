@@ -78,6 +78,18 @@ tap). Candidate upstream note for gbarecomp.
 
 ## Build (Linux)
 
+One command wraps the whole private-build pipeline (preflight → Gradle →
+content guard → install + device gate):
+
+```sh
+python3 build_apk.py              # arm64 private build, install, gate
+python3 build_apk.py --no-install        # build + content guard only
+python3 build_apk.py --abi x86_64        # emulator build
+```
+
+The prerequisites below are what its preflight checks. The manual route
+follows.
+
 Prerequisites (this machine): JDK 21 (`/usr/lib/jvm/java-21-openjdk` — the
 default JDK 27 is too new for Gradle 8.11.1), Android SDK at
 `/opt/android-sdk` (platform 35, build-tools 35, cmake 3.22.1, NDK

@@ -48,6 +48,10 @@ static corpus → `build/FFTARecomp` → strict 2400-frame smoke (expect
 `FULLY_STATIC`). The first run takes a few minutes (two
 builds plus the corpus).
 
+For the Android target, `python3 build_apk.py` wraps the whole private-build
+pipeline (preflight → Gradle with ROM+BIOS embedded → APK content guard →
+install + device gate) — guide: [android/README.md](android/README.md).
+
 <details>
 <summary>Manual route (what build.py automates — reference + troubleshooting)</summary>
 
@@ -222,6 +226,7 @@ All testing, debugging and verification workflows live in
 | Path | What |
 |---|---|
 | `build.py` | Fresh-clone bootstrap — submodules → dumps → venv → patches → tools → BIOS → corpus → build → smoke (see Setup) |
+| `build_apk.py` | Android bootstrap — preflight → private Gradle build (ROM+BIOS embedded) → APK content guard → install + device gate (android/README.md § Build) |
 | `game.toml` | Per-game config: identity pin + all audit seeds (evidence in `note`s) |
 | `src/` | Host integration: `main.cpp`, launcher boot, stack setup |
 | `android/` | Android target: Gradle project + engine-shell wiring, runtime TOML, payload defaults, device gate — guide `android/README.md` |

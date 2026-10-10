@@ -4072,3 +4072,27 @@ converge on the final `import capstone` verification), BIOS freshness
 smoke (GBARECOMP_* env stripped + strict), `--force`/`--no-smoke`/`--jobs`
 plumbing, Fail.msg/hint, `submodule_drift`'s `+`/`-` counting. Full
 end-to-end idempotent run: DONE in 12.2s, smoke FULLY_STATIC.
+
+## 2026-10-09 (late) — build_apk.py: the Android bootstrap (until the phone UI can load a ROM)
+
+The public app imports the ROM/BIOS through the phone's SAF picker on
+first run; until the game shell grows that UI, the practical path is the
+private test build (ROM+BIOS embedded). `build_apk.py` wraps the whole
+pipeline in build.py's step pattern: **preflight** (JDK 17-26 for Gradle
+8.11.1, ANDROID_HOME/SDK auto-discovery + NDK presence, the engine SDL
+submodule — initialized on demand —, dumps size+SHA-1, and a fresh
+`generated/` corpus, since an Android build consumes it but cannot
+produce it) → **gradle** (`:app:assembleDebug -PgbaAbis -PgbaNativeJobs
+-PprivateRom -PprivateBios`) → **content guard**
+(`tools/android_apk_check.py --expect private` — payload byte-match +
+embedded ROM/BIOS hash pins) → **install + device gate** (`adb install -r`
++ `tools/validate_android.sh --no-install`; default on when exactly one
+device is ready). Flags: `--abi` (arm64 default, x86_64 for emulator),
+`--jobs`, `--no-install`, `--no-gate`, `--skip-check`.
+
+Verified end to end on the connected phone: preflight ok (JDK 21, SDK,
+SDL, corpus), gradle BUILD SUCCESSFUL, content guard 8/8 (private,
+arm64-v8a, 64.2 MiB), install + **GATE PASSED**. One tooling bug caught
+by the run itself (missing `time` import → NameError) and a draft closure
+plumbing cleanup before the first green run. README § Setup +
+§ Repository layout and android/README § Build now point at it.
