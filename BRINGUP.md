@@ -3789,8 +3789,8 @@ TCP free-run PASS (close route), routes G/K FULLY_STATIC.
   the concurrent `hangrepro` (19878) and `desktop-accept` (19878) raced the bind
   and both failed. Serially each passed; with distinct ports the full gate
   passes in parallel.
-- `tools/pc0_hunt.py` + `tools/derail_loop.sh`: hardcoded `/home/james` repo
-  paths removed (`pathlib` / `dirname`) — the `unit-py` repo-hygiene gate
+- `tools/pc0_hunt.py` + `tools/derail_loop.sh`: hardcoded absolute home-directory
+  repo paths removed (`pathlib` / `dirname`) — the `unit-py` repo-hygiene gate
   (absolute home paths) went red on them.
 
 **Upstream.** This is the R1 containment for issue #30's suspected-root family

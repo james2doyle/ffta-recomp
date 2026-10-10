@@ -28,7 +28,7 @@ index bc6663c..3574b4f 100644
          }
  
 diff --git a/src/armv4t/runtime_arm.cpp b/src/armv4t/runtime_arm.cpp
-index 78f06d6..dac357e 100644
+index 78f06d6..2968d0a 100644
 --- a/src/armv4t/runtime_arm.cpp
 +++ b/src/armv4t/runtime_arm.cpp
 @@ -406,9 +406,71 @@ extern "C" void runtime_insn_fp(void) {
@@ -41,7 +41,7 @@ index 78f06d6..dac357e 100644
 +// the SWI site + instruction width) — LR_svc, a banked register the guest
 +// cannot legally touch. But the recomp's shared R[14] slot can be clobbered
 +// by the drive loop's phantom-era stack churn before the BIOS epilogue
-+// (0x138 pop / 0x13C subs pc,lr,#4 — disarm-verified) consumes it, so the
++// (0x184 pop {fp,ip,lr} / 0x188 movs pc,lr — disarm-verified) consumes it, so the
 +// exception return lands at the IRQ-interrupted PC instead (ring-proven:
 +// BIOS 0x188 -> 0x080033BA while the veneer continuation 0x814186E was
 +// live; BRINGUP § true root). Stack-ordered ledger: push at runtime_swi's
@@ -159,8 +159,8 @@ index 78f06d6..dac357e 100644
      bank_in(new_bank, spsr);
  
 +    // SWI-return continuation validation (issue #30 R1): a return FROM
-+    // Supervisor mode is a BIOS SWI epilogue (0x138 pop / 0x13C
-+    // subs pc,lr,#4 — disarm-verified) that must land at the
++    // Supervisor mode is a BIOS SWI epilogue (0x184 pop {fp,ip,lr} /
++    // 0x188 movs pc,lr — disarm-verified) that must land at the
 +    // continuation recorded at the SWI's SVC entry. Inside a driven
 +    // IRQ handler the shared R[14] can be clobbered before the
 +    // epilogue consumes it (ring-proven 2026-10-09: BIOS 0x188 ->
