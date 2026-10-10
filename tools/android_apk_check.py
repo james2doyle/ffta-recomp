@@ -385,6 +385,23 @@ def check_packaging(ctx):
     need(not big,
          "unexpected large entries — the incremental-repackaging junk-blob "
          "class (android/README.md § Known behavior): %s" % ", ".join(big))
+    # Slack form of the same class (observed 2026-10-09): stale bytes between
+    # the last entry and the signing block — invisible to infolist(). The APK
+    # file size must be within local-header/central-directory/signing-block
+    # overhead of the sum of the compressed entries; ~1 MiB covers thousands
+    # of headers (our ~15-entry APK uses <2 KB) — 30 MB of slack failed here.
+    import os
+    apk_bytes = os.path.getsize(ctx.apk_path)
+    entries_bytes = sum(i.compress_size for i in ctx.zf.infolist())
+    overhead = sum(30 + len(i.filename) + 16 + 46 + len(i.filename)
+                    for i in ctx.zf.infolist()) + 1024 + (1 << 20)
+    need(apk_bytes <= entries_bytes + overhead,
+         "APK is %d bytes but its %d entries compress to %d — %.1f MB of "
+         "unaccounted slack between entries (the incremental-repackaging "
+         "junk class: stale bytes from a prior build, invisible to "
+         "infolist). Clean `android/app/build` and rebuild"
+         % (apk_bytes, len(ctx.names), entries_bytes,
+            (apk_bytes - entries_bytes) / (1024 * 1024)))
 
 
 CHECKS = [
