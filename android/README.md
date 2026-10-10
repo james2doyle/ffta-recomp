@@ -5,7 +5,9 @@ widescreen and the device gate are all verified on a Xiaomi Mi 11
 (Android 14/API 34). Working reference for the Android target — moved here
 from the repo root (2026-10-09; previously `ANDROID.md`); `BRINGUP.md` keeps
 the dated decision log and `reference/dev-gotchas.md` § Android device
-forensics has the on-device debugging recipe.
+forensics has the on-device debugging recipe. Re-verification after the
+2026-10-09 engine fixes is pending — run § "On-device suspend/resume
+protocol" on the next phone session.
 
 ## How the port is structured
 
@@ -128,6 +130,72 @@ adb shell run-as org.gbarecomp.fftarecomp cat files/android-runtime.log
 For TCP debugging: `adb forward tcp:19888 tcp:19888` plus `--tcp-observe
 19888` in `files/debug-args.txt`.
 
+## On-device suspend/resume protocol (the manual gate)
+
+The device gate (`tools/validate_android.sh`) asserts **boot health only**
+(process alive, activity resumed, `cpu_backend=static-recompiled`, no misses,
+no crashes). The port's worst historical bug class — the suspend→A phantom
+IRQ chain (split-loop nesting → stack exhaustion on the 256 MiB game thread;
+`BRINGUP.md` § 2026-10-09) — is **structurally invisible to it**: the gate
+cannot inject inputs, and its screenshot is pulled, never compared. The
+desktop gates exercise the chain (`tools/hangrepro.py`,
+`tools/desktop_accept.py`), but the device build carried *none* of the
+2026-10-09 engine fixes at last contact (2026-10-08). Run this protocol
+manually after every engine-affecting change until an instrumented driver
+exists.
+
+**Prep:** fresh APK (`tools/cycle.py` regenerates `generated/`, then
+`./gradlew :app:assembleDebug …` per § Build), `adb install -r`, a game save
+at or past the in-battle suspend-save point, and this watch running:
+
+```sh
+# Live log tail + marker grep (the close/resume markers in order):
+adb shell run-as org.gbarecomp.fftarecomp sh -c \
+  'tail -f files/android-runtime.log' | \
+  grep --line-buffered -E \
+  'closing the IRQ|abandon-resume|SWI-return ledger|host-stack guard|SELF-HEAL'
+```
+
+**Steps — each observable in the log or on screen:**
+
+| # | Action | Pass criterion | If it fails |
+|---|---|---|---|
+| 1 | Launch via AUTOSTART, reach a save-capable screen (world map / battle prep) | Frames advance, pad responsive, **no `host-stack guard unwind` lines** | Guard lines = a split loop still nests on device — engine re-triage |
+| 2 | Open the system menu → **Suspend Save** (progress indicator appears) | Log shows the save flow complete; **no** `SELF-HEAL` / abort lines | If `SWI-return ledger override` fires repeatedly → the ledger is catching real corruptions on device — capture `android-runtime.log` + screenshot |
+| 3 | Watch the save complete → game reboots into the intro/title sequence | Reboot visible; `cpu_backend` line intact after reboot | Hang at the completion gate = the desktop `hangrepro` class on device — pull the full log |
+| 4 | **Press A** at the title / resume point (the historical trigger input) | Press acts normally; **no crash-buffer entry** mentioning the package | SIGSEGV/freeze ~seconds after press = the pre-fix phantom class — evidence: `android/artifacts/last-run/` + `adb logcat -d -b crash` |
+| 5 | Resume from suspend (OS back gesture / power menu), then suspend→resume **twice** | Game continues each time; no stuck frame, no growing log spam | `g_irq_nest_depth`-style stickiness will show as repeated close/resume markers — record the repetition pattern |
+| 6 | Re-run `tools/validate_android.sh --no-install` | GATE PASSED (all five assertions) | Any FAIL = regression vs the boot-only baseline |
+
+**Evidence to pull on any failure:** `android-runtime.log` (full),
+`recomp_master_misses_AFXE.toml.frag` + `recomp_coverage_AFXE.json` (a
+non-empty frag means device-side misses — feed it to the healing loop per
+`tests/README.md`), `crash.log`, screenshot, and the APK's build id
+(`aapt2 dump badging | grep version`). Everything lands in
+`android/artifacts/last-run/` (gitignored — never committed).
+
+**Markers, what they mean:**
+
+- `closing the IRQ … — closing the IRQ` — the abandon-close fired: a handler
+  that never iret'd was closed coherently (IE/IME + ISR vector restored).
+  **Expected once** during the suspend→save chain. Repeated lines at other
+  times = suspicious.
+- `abandon-resume intercept want=… got=…` — the flow-continuation resume
+  redirected the first post-close dispatch with mode coherence.
+- `SWI-return ledger override: SVC return wants pc=… but …` — the ledger
+  caught a corrupted SVC return and kept the recorded continuation. This
+  engine build *contains* the fix, so this firing means corruption is live
+  on device — that's a finding, not a normal pass line.
+- `runtime: host-stack guard unwind count=…` — the budget guard unwound a
+  wedged spin. Bounded survival; investigate the spin that forced it.
+- Any `SELF-HEAL` / `missing static coverage` — dispatch misses on device:
+  the corpus is stale relative to this ROM state — regenerate + rebuild.
+
+**Coverage note:** steps 2–5 cover exactly the flows the desktop acceptance
+exercises (`tools/desktop_accept.py --mode tcp` scores the same press /
+close / resume). A pass here + the gate's boot assertions is the honest
+device-verification claim until the gate grows input injection.
+
 ### Device-free checks
 
 `tools/android_static_check.py` (also the `android-static` suite in
@@ -177,9 +245,8 @@ specific file; `--expect public|private` asserts the build mode.
   § flow-continuation resume). The in-battle suspend save → title trigger
   is described in `BRINGUP.md` § 2026-10-08/09; on-device capture:
   `tools/hangprobe.py` + `reference/dev-gotchas.md` § Android device
-  forensics. Device re-verification after these two fixes is pending
-  (desktop gates green; run `tools/validate_android.sh` when next on the
-  phone).
+  forensics. Device re-verification after these two fixes is pending — run
+  § "On-device suspend/resume protocol" on the next phone session.
 - Repackaging after a native relink can leave a junk blob inside an
   incrementally updated APK (67 MB vs the normal 37 MB, observed once);
   `rm -rf android/app/build` before packaging when artifact size matters
