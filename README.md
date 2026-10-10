@@ -73,14 +73,22 @@ uv venv .venv && uv pip install --python .venv capstone
 ```
 
 **4. Apply the local framework patches** (recommended — the tooling below
-assumes them; diffs kept on top of the pinned submodule):
+assumes them; the two **consolidated** `*-local.patch` files are the
+canonical re-apply units — per-feature files are reference diffs whose
+contexts interleave, so apply them only onto a pristine submodule, before
+the consolidated ones, and only if you need the attribution history):
+
 ```sh
 cd gbarecomp
-for p in ../tools/patches/*.patch; do git apply "$p"; done
+git apply ../tools/patches/gbarecomp-local.patch
+cd external/arm-recomp-core && git apply ../../../tools/patches/arm-recomp-core-local.patch && cd ../..
 cd ..
 ```
-`tools/check.py --only patches` guards their validity (forward against a
-pristine submodule + reverse against the patched tree).
+
+`tools/check.py --only patches` guards their validity — each file must be
+apply-able forward against the pristine pin (the CI condition) and
+reverse against the patched tree, and the replay must byte-match the dev
+tree (`tools/patches/README.md`).
 
 **5. Build the framework tools** (one-time; re-run only after submodule
 changes):
@@ -166,6 +174,31 @@ cd gbarecomp && bash oracle/setup-mgba.sh \
   && cmake -B build -S . -DGBARECOMP_BUILD_ORACLE=ON \
   && cmake --build build --target gbarecomp_oracle --parallel 8
 ```
+
+## Status & Roadmap
+
+All bring-up phases are complete; **every executed path replays
+strict-FULLY_STATIC** (zero interpreter fallback), and the attract
+regression hash has been stable since pinning. Widescreen (W1–W3, up to
+448 px) and the **Android port** are landed and device-verified
+([android/README.md](android/README.md)) — the current engine passed the
+on-device boot, press-acceptance and suspend/kill/resume lifecycle gates
+2026-10-09. Decision log, evidence, crash playbooks: `BRINGUP.md`.
+
+Remaining, roughly in order:
+
+1. **Offline-push re-trial** — re-run the speculative
+   `speculative_literal_harvest` trial now that the interior-split hazard
+   is closed (split-loop gap roll-in, issue #30); gated on an
+   interior-split policy decision.
+2. **f6000+ contact sheet** — long-run attract captures beyond the
+   2400-frame pin, eyeballed before extending the gate horizon.
+3. **Upstream notes on the bridge stop-contract** — the self-heal bridge's
+   200M-instruction runaway abort vs. computed-jump entries without a
+   matching return frame (issue-#30 family context).
+4. **Android release prep** — keystore/signing, arm64-only release,
+   version stamping (`android/README.md` § Deferred); the Robolectric shell
+   tests and the NDK cross-compile in CI from the same list.
 
 ## Run it
 

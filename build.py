@@ -7,6 +7,9 @@ Wraps the newcomer setup (README § Setup) into one idempotent script:
   2. dumps              game.gba + BIOS present and SHA-1-verified
   3. python env         .venv with the pinned capstone (uv, else venv + pip)
   4. framework patches  tools/patches/*.patch onto the pinned gbarecomp
+     (reverse-safe: already-applied files are skipped, so re-runs are
+     idempotent; the consolidated *-local.patch files are the canonical
+     units, per-feature files apply onto a pristine submodule)
   5. framework tools    build gba_recompile + gba_scan
   6. BIOS recompile     named-function corpus for the LLE BIOS
   7. corpus regen       game.gba + game.toml + symbols -> generated/
