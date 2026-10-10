@@ -208,7 +208,7 @@ index b560791..7fb0c8b 100644
      return save_ok ? 0 : 1;
  }
 diff --git a/src/runtime/runtime_bus_bridge.cpp b/src/runtime/runtime_bus_bridge.cpp
-index 044fc13..7ae2ae3 100644
+index 044fc13..2501670 100644
 --- a/src/runtime/runtime_bus_bridge.cpp
 +++ b/src/runtime/runtime_bus_bridge.cpp
 @@ -8,6 +8,7 @@
@@ -271,3 +271,22 @@ index 044fc13..7ae2ae3 100644
      // ── Always-on hang watchdog ──────────────────────────────────────
      // A healthy GBA game HALTs (VBlankIntrWait) ~60x/sec; the MC-HP-002
      // freeze is a busy-spin in the M4A mixer that NEVER halts (the PPU
+@@ -1133,6 +1171,18 @@ extern "C" bool runtime_should_yield(void) {
+     }
+ 
+     if (g_runtime_break_pc != 0u && g_cpu.R[15] == g_runtime_break_pc) {
++        // Debug breakpoint hit — unwind to the exec loop. Env-gated forensic
++        // hook: dump the instruction ring at the park. The last record is
++        // the instruction that TRANSFERRED to the break pc (with its full
++        // register set), so a breakpoint-caught anomaly is recoverable on
++        // surfaces without an fp_save command (e.g. --tcp-observe).
++        const char* fp = std::getenv("GBARECOMP_BREAK_FP");
++        if (fp != nullptr && *fp != '\0') {
++            const std::uint32_t n = runtime_fp_save_file(fp);
++            std::fprintf(stderr,
++                "runtime_break: pc=0x%08X — instruction ring dumped to %s "
++                "(%u records)\n", g_cpu.R[15], fp, n);
++        }
+         return true;  // debug breakpoint hit — unwind to the exec loop
+     }
+     return halted;

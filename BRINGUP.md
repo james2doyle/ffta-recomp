@@ -3719,3 +3719,23 @@ touches the bank machinery shared with `banked_spsr[ARM_BANK_USER]`), and
 this belongs in the upstream conversation (the issue-30 thread's SWI-return
 discussion is exactly this area). Until then the derail is reachable
 whenever the suspend-save flow runs to completion in-window.
+
+**2026-10-09 late — derail mechanism pinned to a stack-slot slip (evidence).**
+The three captured derail transfers all share the same constant context —
+`lr=0x08000499` (the savestate's LR), `sp≈0x03007EB8-0x7EC0`, `stop=0x08094FCC`
+(the save-flow's ledger frame) — and read IWRAM of the loaded state shows the
+miss targets ARE stack words: `[0x03007EBC]=0x080000F0` verbatim (the
+`pc=0x080000F0` catch), `[0x03007EB4]=0x08000499`, `[0x03007EAC]=0x0800050B`
+(return addrs), `[0x03007EB0]=0x03000FD8`. So the derail = the resumed
+save-completion flow popping an ADJACENT stack slot instead of its return
+address when the load-time IRQ race perturbs the flow — the popped word
+becomes pc → miss (0xF0 IS not a static entry) → bridge → abort (or the
+pc=0 walk through the reset vector and the BIOS 0x1C trampoline, whose
+System-mode SPSR roundtrip is mGBA-validated correct — see
+`reference/gba-bios-boot-and-spsr.md`). The residual (≈12 % of windowed
+runs; the other ~88 % are rescued by the abandon-close + intercept) is the
+same phantom IRQ/SWI-return interplay issue-30 flagged as "the SWI-return
+cancel cascade crosses the IRQ floor boundary" — upstream machinery
+territory. New instrumentation: `GBARECOMP_BREAK_FP` (ring dump at a
+`set_break_pc` park; works on `--tcp-observe`, which lacks fp_save) —
+`logs/savehang/pc0_hunt.py` is the breakpoint hunter.

@@ -147,5 +147,6 @@ crash playbooks: `BRINGUP.md`.
 | Widescreen internals + validation | `reference/widescreen.md` |
 | Event VM + scripts | `reference/event-vm.md` |
 | Community source summaries (decomp, engine hacks, FAQs, notes) | `reference/{ffta-decomp,fergusson-mechanics,bcrobert-notes,jokyr-hack-guide,ffta-gamefaqs-code-guides}.md` |
+| BIOS boot/SoftReset/System-SPSR semantics (validated vs GBATEK + mGBA source) | `reference/gba-bios-boot-and-spsr.md` |
 | Framework truth + config schema | `gbarecomp/PRINCIPLES.md`, `DEBUG.md`, `CLAUDE.md`, `docs/TOML_SCHEMA.md` |
 | Portable gbarecomp practice (loop, triage, verification) | `.agents/skills/gbarecomp-recomp-playbook/` |
