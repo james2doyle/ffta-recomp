@@ -114,16 +114,19 @@
  }
  
  extern "C" void runtime_restore_cpsr_from_spsr(void) {
-@@ -1388,6 +1478,12 @@
-     g_cpu.banked_spsr[new_bank] = saved_cpsr;
-     g_cpu.R[14]                 = return_address;  // LR_svc
-     g_cpu.R[15]                 = 0x00000008u;
+@@ -1404,6 +1494,15 @@
+     // codegen does not tick this op.
+     runtime_tick(3u + swi_fetch);
+ 
 +    // Record the SVC-return continuation for the exception-return
-+    // validation below (swi_ledger_*). return_address is the SWI site +
-+    // instruction width — what a legal epilogue returns to.
++    // validation above (swi_ledger_*). return_address is the SWI site +
++    // instruction width — what a legal epilogue returns to. Placed after
++    // runtime_tick (the entry cost may deliver a nested IRQ, which pushes
++    // its own state but no ledger entry) and immediately before the handler
++    // dispatch so the push always pairs with this SWI's SVC entry.
 +    const bool swi_from_thumb = (saved_cpsr & CPSR_T_BIT) != 0;
 +    swi_ledger_push(return_address,
 +                    return_address - (swi_from_thumb ? 2u : 4u));
-     if (std::getenv("GBARECOMP_SWI_TRACE"))
-         std::fprintf(stderr,
-             "runtime_swi: LLE bank swi_imm=0x%X ret=0x%08X "
+     runtime_dispatch(0x00000008u);
+ }
+ 
