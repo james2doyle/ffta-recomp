@@ -213,6 +213,11 @@
 # (`abandon-resume intercept want=0x0814186E`): the delayed iret restores
 # this pc so the veneer returns into the suspend flow.
 0x0814186E	thumb	swi0b_thunk_tail
+# swi0c_thunk's `bx lr` tail (disarm: 0814186a: 7047 bx lr), the recorded
+# continuation the SWI-return ledger guards on the save flow's 0x0C context
+# copy (live trace: `swi_imm=0xC ret=0x0814186A`, 2026-10-09 ledger run) —
+# name-only, naming parity with the 0x0B sibling above.
+0x0814186A	thumb	swi0c_thunk_tail
 # Post-suspend return flow (press repro): prologue push {r4-r6,lr} @0x81453F8;
 # writes 0x8f/0/8 setup values; bl swi0b_thunk @0x8145486 copies 0x40 B of
 # live stack context (r0=sp) to EWRAM — the routine the corrupted BIOS
