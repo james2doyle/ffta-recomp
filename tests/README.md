@@ -9,9 +9,27 @@ the repo-local `.venv/`.
 
 - **C++ (`src/` custom code, no ROM/BIOS):**
   `cmake --build build --target ffta_unit_tests && ctest --test-dir build -R ram_dispatch`
+  — `ffta_ram_dispatch` (RAM-code canonicalizer) + the host-stack-guard
+  test, which **compiles only where the pinned submodule declares the guard
+  APIs** (`HOST_STACK_GUARD_API`; absent on a pristine checkout, it prints a
+  skip — the APIs live in `tools/patches/host-stack-guard-desktop.patch`).
 - **Python tooling:** `.venv/bin/python tests/python/test_tools.py`
   (needs capstone — the `.venv`; run by `tools/check.py --only unit-py`).
-- `tools/check.py` runs both, plus the patches check, attract gate,
+  Covers the pure healing/audit logic (trace_split, cache_harvest,
+  misspack prologue-scan) plus cheap structural guards:
+  - **TSV shape** — `symbols/*.tsv` field counts, hex addresses, region
+    vocab, C-identifier names, no duplicate names (a malformed line breaks
+    regen or mislabels an emitted unit; negative-tested).
+  - **Patches README parity** — the table must list exactly the present
+    `*.patch` files.
+  - **`gba_bios.bin` byte-pin** — sha1 + the exact words at every contract
+    point the engine cites (vectors, IRQ wrapper epilogue, SWI dispatcher
+    service-switch + epilogue). **Local-only:** the dump is BIOS-derived and
+    never in git (`gbarecomp/.gitignore bios/*.bin`); the test skips on any
+    checkout without it (CI included).
+- `tools/check.py` runs both, plus the patches check (every per-feature
+  patch must also **forward-apply on the pristine pin** — the CI condition;
+  dev-based exports go INVALID there), the attract gate,
   widescreen smoke and strict route replays (below).
 
 ---
@@ -344,13 +362,16 @@ Two tiers, split by what may leave your machine:
 
 - **Tier 1 — `.github/workflows/ci.yml` (fork-safe, no private material).**
   Runs on GitHub-hosted runners for every push/PR: checks out the pinned
-  submodules, installs the build packages, configures, and runs
-  `tools/check.py --only unit-cpp,unit-py,patches,android-static` — the host
-  unit tests (C++/Python), patch integrity (forward-validated against the
-  pristine submodule, so it works on a fresh clone), and the device-free
-  Android checks (identity pins, payload contract, tracked-file hygiene, a
-  fake-`adb` self-test of the device gate script; no SDK needed). It needs no
-  ROM, BIOS, or savestates, and therefore cannot run the game itself.
+  submodules (**pristine at the pin** — local framework edits live only in
+  working trees, never pushed), installs the build packages, configures, and
+  runs `tools/check.py --only unit-cpp,unit-py,patches,android-static` —
+  the host unit tests (C++/Python), patch integrity (per-feature patches
+  forward-validated against the **pristine pin**, so it works on a fresh
+  clone), and the device-free Android checks (identity pins, payload
+  contract, tracked-file hygiene, a fake-`adb` self-test of the device gate
+  script; no SDK needed). It needs no ROM, BIOS, or savestates, and
+  therefore cannot run the game itself (the BIOS byte-pin and stack-guard
+  tests skip there).
 - **Tier 2 — the full gate (`attract`, `ws_smoke`, route replays).** Needs
   `game.gba` + BIOS + the sha-pinned local fixtures (`saves/ws_fixtures/`,
   `saves/regress/`), which are game-derived and never committed. Run it on

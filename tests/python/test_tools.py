@@ -263,24 +263,24 @@ class TsvGuardTests(unittest.TestCase):
                          f"{sorted(present ^ listed)}")
 
 
-if __name__ == "__main__":
-    unittest.main(verbosity=1)
-
-
 class BiosBytePinTests(unittest.TestCase):
     """gba_bios.bin must stay byte-stable at the contract points our engine
     code cites. These exact words are pinned by armv4t runtime comments/logic
-    (vector targets, the IRQ wrapper epilogue, the SWI dispatcher's System-mode
-    service switch and epilogue — BRINGUP 2026-10-09); a replaced or patched
-    BIOS silently invalidates them. Stdlib only; the file is tracked in the
-    gbarecomp submodule, so CI runs it too."""
+    (vector targets, the IRQ wrapper epilogue, the SWI dispatcher's
+    System-mode service switch and epilogue — BRINGUP 2026-10-09); a
+    replaced or patched BIOS silently invalidates them. The dump is
+    ROM/BIOS-derived and never in git (gbarecomp/.gitignore bios/*.bin; the
+    user supplies it locally) — the test is LOCAL-ONLY and skips on any
+    checkout without it (CI included)."""
 
     BIOS = REPO / "gbarecomp" / "bios" / "gba_bios.bin"
 
     @classmethod
     def setUpClass(cls):
         if not cls.BIOS.exists():
-            raise unittest.SkipTest("gbarecomp submodule not checked out")
+            raise unittest.SkipTest(
+                "gba_bios.bin absent (gitignored by design, never in git; "
+                "local-only test)")
 
     def _u32(self, off):
         with self.BIOS.open("rb") as f:
@@ -297,11 +297,13 @@ class BiosBytePinTests(unittest.TestCase):
 
     def test_vectors(self):
         # Exception vector table: B (0xEA...) targets computed from each slot.
+        # 0x1C is the shared Undefined/Abort/FIQ handler's entry (not a B).
         cases = {0x00: 0x68, 0x08: 0x140, 0x18: 0x128, 0x1C: None}
         for off, target in cases.items():
-            w = self._u32(off)
-            self.assertEqual(w >> 24, 0xEA, f"vector at {off:#05x} not a B")
             if target is not None:
+                w = self._u32(off)
+                self.assertEqual(w >> 24, 0xEA,
+                                 f"vector at {off:#05x} not a B")
                 self.assertEqual(off + 8 + ((w & 0xFFFFFF) << 2), target,
                                  f"vector at {off:#05x} target")
 
@@ -317,3 +319,9 @@ class BiosBytePinTests(unittest.TestCase):
         self.assertEqual(self._u32(0x174), 0xE3A0C0D3, "mov ip,#0xd3")
         self.assertEqual(self._u32(0x184), 0xE8BD5800, "SWI pop")
         self.assertEqual(self._u32(0x188), 0xE1B0F00E, "SWI movs pc,lr")
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=1)
+
+

@@ -3866,7 +3866,10 @@ class that actually bit this session; total added runtime < 1 s:
    wrapper epilogue `E8BD500F`/`E25EF004`, SWI dispatcher service-switch
    `E129F00B` + epilogue `E8BD5800`/`E1B0F00E`). This morning's
    0x138-vs-0x184 citation drift in my own comments is exactly what a
-   replaced BIOS would do silently. Skips without the submodule checked out.
+   replaced BIOS would do silently. LOCAL-ONLY: the dump is BIOS-derived and
+   gitignored by design (`bios/*.bin`), so the test skips on any checkout
+   without it — CI included; it guards the local tree, where the engine edits
+   cite the contract points.
 
 unit-py runs the file wholesale — no registry change needed. Suites:
 unit-py 0.7s, patches 0.6s (was 0.2s); full gate ALL PASS 13/13.
