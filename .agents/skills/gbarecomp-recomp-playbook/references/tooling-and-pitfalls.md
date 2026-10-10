@@ -72,6 +72,20 @@ Run this after every play session; it is the whole loop in order.
   exclude the nested path from the outer export, keep a separate
   consolidated patch per nested repo, and route patch validation to the
   right repo by filename prefix.
+- A bootstrap script whose patch step iterates a whole patch *directory*
+  silently misroutes when one file targets a *nested* repo: the reverse
+  probe (idempotence check) fails at the wrong root, the forward probe
+  fails with "No such file or directory", and the bootstrap dies
+  mid-run on every tree that has the nested patch applied. Route every
+  patch by its filename prefix to the repo it targets — and **test the
+  idempotence claim empirically** (run the step against a fully-applied
+  tree *and* a fresh-clone simulation of pristine pins) instead of reading
+  it: the claim was wrong here exactly one nested patch later.
+- Android build bootstraps need the *desktop* corpus first: an Android
+  build consumes the generated corpus but cannot produce it (the
+  recompiler is a desktop tool), so the preflight must check corpus
+  presence *and freshness vs the config* before the expensive Gradle
+  build, or the APK embeds a stale corpus silently.
 
 ## Decision log and docs discipline
 

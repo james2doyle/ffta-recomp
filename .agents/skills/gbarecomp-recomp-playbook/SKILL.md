@@ -66,6 +66,6 @@ Load the reference for the task at hand; do not read them all at once.
 |---|---|
 | Turn miss PCs into config entries (boundaries, switches, tables, RAM code) | `references/miss-triage.md` |
 | Sessions: savestates, input traces, replay semantics, crash harvesting, live-session watchdogs, playtest ergonomics | `references/reproducibility.md` |
-| Coverage numbers, lenses, breadth strategy, seed-until-static automation, regression gates, oracle diffs | `references/verification.md` |
-| Crashes, hangs, spins, wedges, writer hunts, recomp-vs-emulator divergence | `references/debugging.md` |
-| Harness tools to build, pitfalls that cost hours, offline state census, engine-hook/mod lifecycles, decision-log and docs discipline | `references/tooling-and-pitfalls.md` |
+| Coverage numbers, lenses, breadth strategy, seed-until-static automation, regression gates, oracle diffs, shipped-artifact guards | `references/verification.md` |
+| Crashes, hangs, spins, wedges, writer hunts, recomp-vs-emulator divergence, split-loop nesting, abandoned IRQ handlers, corrupted SVC returns | `references/debugging.md` |
+| Harness tools to build, pitfalls that cost hours, offline state census, engine-hook/mod lifecycles, bootstrap/idempotence, decision-log and docs discipline | `references/tooling-and-pitfalls.md` |

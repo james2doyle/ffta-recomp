@@ -4122,3 +4122,37 @@ guard passed the bloated build.
 
 Lesson: entry-list audits miss slack. Any future zip-based artifact guard
 bounds the container, not just the inventory.
+
+## 2026-10-09 (late) — Playbook skill updated with this session's portable lessons
+
+Reviewed `.agents/skills/gbarecomp-recomp-playbook/` (SKILL.md + 5 references,
+committed 2026-10-07) against the 2026-10-09 session's lessons; four gaps
+found and folded in (skill discipline: fold new portable lessons into its
+references, project specifics stay out):
+
+1. **debugging.md — new section** "Abandoned handlers and corrupted SVC
+   returns": the IRQ abandon-close (handler that never irets → depth stuck →
+   guard dies; close coherently = recovery tool, log loudly, root-cause) and
+   the SVC continuation ledger (validate every SVC-mode exception return
+   against the recorded continuation; deliberately do NOT repair the return
+   register — banked restore is the legal source, a `bx lr` site would
+   self-loop; clear at reset/load origins; soft resets leave stale entries).
+2. **verification.md — junk-slack form**: the incremental-repackaging class's
+   second observed form (30 MB stale bytes between last entry and signing
+   block, invisible to `infolist()`) — bound the container by the entry sum
+   + overhead; byte-wise gap diagnosis names the prior build via the stale
+   local header; clean-and-rebuild remedy.
+3. **verification.md — on-device driving**: press/lifecycle flows over the
+   observe TCP (not synthesized touch; key-register writes + queued loads +
+   run-status counters — check which the observe context wires), adb-tap
+   OS-filtering signature (zero evdev lines; verify at the launcher), binary
+   private-storage reads need `exec-out` binary mode, fresh sockets after a
+   kill.
+4. **tooling-and-pitfalls.md — two pitfalls**: the misrouted patch-directory
+   bootstrap (route by filename prefix; test idempotence *empirically* —
+   dev tree + fresh-clone sim — the claim rots one nested patch later) and
+   the Android-consumes-desktop-corpus preflight (presence *and freshness*).
+
+SKILL.md router labels updated (debugging: abandoned handlers + corrupted
+SVC returns; verification: shipped-artifact guards; tooling:
+bootstrap/idempotence). Gates: unit-py PASS.

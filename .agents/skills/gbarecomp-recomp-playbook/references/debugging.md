@@ -225,6 +225,39 @@ branch-calls.
   mobile stack + guard = bounded freeze. Pick the face that instruments
   best — usually the crash.
 
+## Abandoned handlers and corrupted SVC returns (exception-return containment)
+
+Two containment layers for the same class — guest state corruption inside a
+driven interrupt flow — both learned from a suspend→resume hang:
+
+- **An IRQ whose handler never irets poisons the drive loop.** The guest
+  keeps executing (the runtime adopts whatever runs next), so the depth
+  counter sticks ≥1 forever, the mainline runs "inside" a phantom handler,
+  and every IRQ-gated guard dies. Detect the abandonment (a ledger at the
+  floor, or N vblank boundaries passed with no return) and **close the IRQ
+  coherently**: restore the entry snapshot of the interrupt-enable/mask
+  registers and the interrupt vector cell, then let the flow continue.
+  A forced close is a recovery tool, not a fix — log it loudly, and
+  root-cause what never returned.
+- **A supervisor call's return can land at the wrong PC.** On hardware the
+  SVC-return address lives in a banked register the guest cannot touch;
+  a recomp that shares its register file can have that slot clobbered by
+  stack churn before the BIOS epilogue (`pop {…,lr}` → `movs pc,lr`)
+  consumes it — the exception return then resumes at whatever the clobber
+  left (observed: an SWI inside a driven IRQ handler returned to the
+  *IRQ-interrupted* PC instead of its own continuation). **Contain it with
+  a continuation ledger**: record the return address at SVC entry, validate
+  every SVC-mode exception return against the top entry, and on mismatch
+  keep the recorded continuation (loud log). Deliberately do NOT repair
+  the return register itself — the legal value comes from the banked
+  restore, and writing the continuation there would self-loop a `bx lr`
+  site. A soft reset that legally never returns leaves a stale entry:
+  clear the ledger at every machine-reset/load origin.
+- On-device, the same press flow that reproduces the hang on desktop
+  (state load → trigger input) can be driven through the observe TCP
+  (savestate load, key-register write) — the input *pipeline* (touch →
+  pad → key register) need not be real to exercise the flow.
+
 ## On-device hangs without root (Android)
 
 `debuggerd` is root-gated on production builds even for debug apps. Use

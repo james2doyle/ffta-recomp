@@ -218,6 +218,26 @@ command so later changes cannot regress silently:
   scenario env var — the clean scenario must pass and pull evidence; miss,
   crash, missing-input and stuck-launch scenarios must fail with the right
   assertion. Keep boot/rendering/perf acceptance on real hardware.
+- **Drive device acceptance over the observe/debug surface, not synthesized
+  touch.** A boot-health gate asserts liveness only; the flows that
+  historically broke a port (a save→suspend→resume chain, a specific press)
+  can be driven end to end over the runner's debug TCP: stage a savestate
+  into app-private storage (`adb push` + `run-as cp`), load it (the queued
+  load command), write the key register (the input register write command),
+  assert frame advancement (the run-status/ping surface — check which
+  counters the observe context actually wires; the free-run context may
+  wire none) and scan the app log + crash buffer for the anomaly markers.
+  The OS-lifecycle contract (background→flush+suspend state+marker, kill,
+  relaunch auto-resume, marker cleared) is adb-drivable the same way —
+  `input keyevent HOME`, `am force-stop`, `am start` — and shares machinery
+  with the save/resume flows, so gate it explicitly. Caveats that cost an
+  evening: adb-synthesized *taps* are OS-filtered on some ROMs (swipes
+  pass, taps never dispatch — verify at the launcher before blaming your
+  app; zero lines on the touchscreen's evdev node during `input tap` is
+  the signature), private-storage reads return *binary* (a flash battery
+  save) — use `exec-out` and binary modes, or the hash-compare of a UTF-8
+  decode dies; and a kill closes the observe socket — reconnect with a
+  fresh socket per attempt, not the dead one.
 - **Guard the shipped artifact, not just the build.** A post-build pass over
   the packaged binary catches what source checks cannot: payload files must
   byte-match the staging inputs; private/test embeds must hash-match the
@@ -226,6 +246,18 @@ command so later changes cannot regress silently:
   stray, or oversized entries must fail (incremental repackaging can leave a
   junk blob — observed once as 67 MB vs the normal 37 MB). It runs on the
   host after a build; keep it opt-in when CI cannot produce the artifact.
+- **Entry-list audits miss slack: bound the container, not just the
+  inventory.** The same incremental-repackaging class has a second form
+  observed 2026-10-09: ~30 MB of *stale bytes in the slack between the last
+  zip entry and the signing block* — a whole prior build's entry data left
+  in place (stale local headers + central entries in the gap, compressed
+  entropy). Invisible to any `infolist()`-based check: the entry walk sees
+  only the ~15 live entries and passed 8/8 on the bloated APK. Bound the
+  file size by the sum of the compressed entries + header/signing overhead
+  (+ a small slack allowance); on violation, diagnose the gap byte-wise
+  (the first stale local header names its prior-build filename). Remedy:
+  clean the packaging output directory and rebuild — the artifact must come
+  back within overhead of the entry sum.
 - **Wrap the verified fresh-clone recipe in one idempotent bootstrap
   script.** Keep it stdlib-only on the system interpreter (it runs before
   the project venv exists), make every step detect completion (submodules,
