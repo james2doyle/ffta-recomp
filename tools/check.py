@@ -186,6 +186,21 @@ def check_patches():
                 ok = False
                 details.append(f"{label} replay: apply FAILED")
             else:
+                # The byte-compare below is a LOCAL-dev-tree guarantee: pin+
+                # patch must equal the submodule tree that carries the
+                # uncommitted framework edits. A pristine checkout (CI) has
+                # no local edits — its tree IS the pin, so the clean apply
+                # above already proved patch<->pin fidelity and the compare
+                # would false-red on every patched file. Skip it there.
+                # Tracked modifications only (-uno): untracked build junk
+                # must not force the compare.
+                pristine = not run(
+                    ["git", "-C", root, "status", "--porcelain", "-uno"]
+                ).stdout.strip()
+                if pristine:
+                    details.append(
+                        f"{label} replay: apply-ok (pristine submodule)")
+                    continue
                 tracked = run(["git", "-C", root, "ls-files"]).stdout.split()
                 bad = []
                 for f in tracked:
