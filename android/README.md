@@ -140,9 +140,12 @@ IRQ chain (split-loop nesting → stack exhaustion on the 256 MiB game thread;
 cannot inject inputs, and its screenshot is pulled, never compared. The
 desktop gates exercise the chain (`tools/hangrepro.py`,
 `tools/desktop_accept.py`), but the device build carried *none* of the
-2026-10-09 engine fixes at last contact (2026-10-08). Run this protocol
-manually after every engine-affecting change until an instrumented driver
-exists.
+2026-10-09 engine fixes at last contact (2026-10-08). For the press flow
+specifically, `tools/android_press_test.py` drives it over the observe TCP
+(`--tcp-observe`) on a live device session — savestate load, A press via
+`set_keyinput`, frame advancement, anomaly scan, crash buffer. Run this
+protocol manually after every engine-affecting change until the gate grows
+native input injection.
 
 **Prep:** fresh APK (`tools/cycle.py` regenerates `generated/`, then
 `./gradlew :app:assembleDebug …` per § Build), `adb install -r`, a game save

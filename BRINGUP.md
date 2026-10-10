@@ -3961,3 +3961,46 @@ short reads past the ROM end). Fixed (`1a9c669`): usage matches the real
 path, both nonsense ranges now fail loudly, examples added. Output for
 valid invocations verified byte-identical against the ROM (phase 0
 crt0/veneer bytes reproduce exactly).
+
+## 2026-10-09 (late) — Device re-verification: current engine ON the phone + scriptable press acceptance
+
+Connected device: Xiaomi M2102K1AC (Poco X3 Pro), Android 14/API 34,
+arm64. Fresh build first — the last APK (08:39) predated every 2026-10-09
+engine fix (ledger 21:39, abandon-close/roll-in earlier); **rebuild before
+any device claim**.
+
+1. **Fresh APK** (1m40s, arm64-v8a, private ROM embed): content guard 8/8.
+   Note: 64.2 MiB vs the 08:39 build's 35.5 MiB — heavier corpus, not the
+   junk-blob class (guard's oversize check passed; libmain.so exempt by
+   design).
+2. **`tools/validate_android.sh` GATE PASSED 5/5** on the fresh build:
+   process alive (pid 17250), GbaGameActivity resumed, log reports
+   `cpu_backend=static-recompiled`, zero SELF-HEAL lines, crash buffer
+   clean. The stale 981-byte miss frag on-device was **yesterday's
+   21:20 session** (mtime), not this run — and today's run wrote no new
+   misses.
+3. **The stale frag audited and discarded (no seed):** its single proposal
+   was `0x03005710 arm`, a PC inside an unmapped IWRAM island. Live bytes
+   via observe `read_iwram`: `80 0d 00 00 | 30 37 50 ef …` — a ROM-pointer
+   table (disarm of the pointed-to 0x08A5BFD2 region: a repeating pointer
+   array, `35 30 84 35 34 84 …` sequential pointers), **not ARM code**.
+   A dispatch into data, bridged ×1 by the interpreter — honest behavior;
+   no corpus entry warranted (ground rule 4: no seed without code
+   evidence). Coverage JSON absent on device = clean-run absence, fine.
+4. **`tools/android_press_test.py` (new): the scriptable press acceptance.**
+   The manual protocol's A-press was thumb-on-glass only; the observe TCP
+   carries everything needed (`set_keyinput` press injection, `run_status`
+   frames via `ppu.frame_count()`, queued `savestate_load`, screenshot).
+   The tool: push+stage `game.state3` → load over observe → assert frames
+   advance → press A (bit0 low 0.25 s) → assert post-press advancement →
+   scan the pulled app log for ledger/self-heal/guard anomalies → crash
+   buffer. Two tool bugs found by first run (counters unwired on the
+   windowed-observe context — run_status carries frames; savestate path
+   resolves from the chdir'd `files/` cwd, so `saves/` not `files/saves/`).
+
+   **PASS on device:** load (frame 4515) → pre-press 4574→4694 → press →
+   post-press 4694→4832, **one legal abandon-close** (the suspend→A chain,
+   closed coherently — the exact flow that pre-fix SIGSEGV'd the desktop),
+   zero anomalies, crash clean. The historical worst bug class now has a
+   scriptable, evidence-producing device acceptance.
+
