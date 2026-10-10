@@ -263,11 +263,14 @@ specific file; `--expect public|private` asserts the build mode.
   forensics. Device re-verification after these two fixes is pending — run
   § "On-device suspend/resume protocol" on the next phone session.
 - Repackaging after a native relink can leave a junk blob inside an
-  incrementally updated APK (67 MB vs the normal 37 MB, observed once);
-  `rm -rf android/app/build` before packaging when artifact size matters
-  (native objects under `android/app/.cxx` are preserved). The APK content
-  guard flags duplicate and unexpected large entries, so this class cannot
-  ship silently.
+  incrementally updated APK (67 MB vs the normal 37 MB, observed once; **a
+  second form observed 2026-10-09: ~30 MB of stale bytes in the slack
+  between the last zip entry and the APK signing block — a whole prior
+  build's entry data left in place; invisible to `infolist()`-based
+  checks**); `rm -rf android/app/build` before packaging when artifact size
+  matters (native objects under `android/app/.cxx` are preserved). The APK
+  content guard flags duplicate and unexpected large *entries*; the
+  between-entries slack form needs a file-size vs sum(entries) check.
 - 256-wide title/UI BGs show tilemap wrap fragments at wide views — the same
   margin policy that desktop validated (the W3 rules pillarbox the world map
   and clip UI layers; scenes whose *main* BG is a 256 tilemap wrap

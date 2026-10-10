@@ -4096,3 +4096,29 @@ arm64-v8a, 64.2 MiB), install + **GATE PASSED**. One tooling bug caught
 by the run itself (missing `time` import → NameError) and a draft closure
 plumbing cleanup before the first green run. README § Setup +
 § Repository layout and android/README § Build now point at it.
+
+## 2026-10-09 (late) — APK slack-junk class: second form found, guard closed
+
+Checking the android/README "Known behavior" claims against tonight's
+build found the 64.2 MiB APK (vs the morning's 35.5) — initially read as
+a heavier corpus. Entry-level analysis said otherwise: all 15 entries
+compress to 37.3 MB, **30 MB of slack sits between the last zip entry and
+the APK signing block** — a complete stale copy of the prior build's
+entry data (5 local headers + 15 central entries in the gap, first bytes a
+0x3f-length local header = the game.toml variant filename), entropy 7.96
+(compressed). The README's incremental-repackaging junk class, second
+form: the first observation was a junk *entry*; this one is junk
+*slack* — invisible to `infolist()`-based checks, so the APK content
+guard passed the bloated build.
+
+- **Guard closed:** `check_packaging` now bounds the APK file size by the
+  sum of compressed entries + header/signing overhead + 1 MiB slack.
+  Negative test (the real bloated APK): FAILED with the diagnostic
+  ("28.7 MB of unaccounted slack"); clean rebuild: 35.5 MiB, 8/8 PASS.
+- **README updated:** the junk-blob entry now documents both forms and
+  that the slack form needs the file-size check (not just entry walking).
+- **Remedy unchanged:** `rm -rf android/app/build` (native objects under
+  `android/app/.cxx` preserved) — verified: 3.9 s rebuild, 35.5 MiB.
+
+Lesson: entry-list audits miss slack. Any future zip-based artifact guard
+bounds the container, not just the inventory.
