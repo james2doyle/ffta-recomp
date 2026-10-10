@@ -3873,3 +3873,30 @@ class that actually bit this session; total added runtime < 1 s:
 
 unit-py runs the file wholesale — no registry change needed. Suites:
 unit-py 0.7s, patches 0.6s (was 0.2s); full gate ALL PASS 13/13.
+
+## 2026-10-09 — src/ audit: LZSS guard extracted + tested, setenv guarded, boundary tests
+
+Audited all of src/ (ffta_ram_dispatch.h, main.cpp, game_launcher_boot.*):
+
+- **`ffta_lzss_guard.h` (new):** the LZSS entry guard lived inside an
+  anonymous namespace in main.cpp — correct at runtime, but untestable (not
+  linkable from the unit binary). Extracted verbatim to
+  `src/ffta_lzss_guard.h`; main.cpp registers `ffta::lzss_entry_guard`.
+  Unit tests now cover: plausible length → declined (body runs, PC
+  untouched), implausible → handled (PC ← LR, thumb bit stripped), and the
+  exact 0x100000/0x100001 boundary.
+- **`main.cpp`:** the Android-only `setenv("GBARECOMP_MISS_FRAG", ...)` was
+  guarded by flow (`on_mobile` is only ever true on Android) but compiled
+  on every target — MSVC's libc has no `setenv`. Now `#if defined(__ANDROID__)`
+  inside the `on_mobile` block (same code path, explicitly compiled out of
+  the desktop/Windows targets).
+- **`test_ram_dispatch.cpp`:** added the missing `case2-2early` boundary
+  tests — a two-byte-early entry that does NOT byte-match must fall through,
+  and one that matches while carrying the loop sentinel (r2 == -1) must pass
+  through (never run the body from the top).
+- No other findings: `ram_dispatch`'s ordering and guards are correct and
+  already evidenced in comments; `game_launcher_boot.*` is a trivial seam;
+  `raise_stack_limit()` correctly no-ops where RLIMIT_STACK is absent.
+
+Gates: unit tests PASS (0 failures, new LZSS/boundary lines verified);
+full check.py ALL PASS 13/13.

@@ -8,6 +8,7 @@
 #include "mod_function_hooks.h"
 #include "mod_runtime.h"
 #include "ffta_ram_dispatch.h"
+#include "ffta_lzss_guard.h"
 #include "mobile_platform.h"
 
 #if defined(GBAGAME_RECOMP_UI)
@@ -42,34 +43,11 @@ void print_usage() {
 }
 
 // ── LZSS decompressor guard (mod_function_hook, game.toml) ──────────────────
-// The decoder at 0x0800543C reads its output length from the source header
-// (big-endian at src+0, stream at src+4). The save-menu/summon divergence
-// re-enters it with a corrupted source pointer; the decoded length then
-// reads ~4G and the track-back copy loop (0x08005558) never ends. Check the
-// header at the entry: an implausible call is skipped back to the caller
-// (bounded degradation, logged) instead of hanging. BRINGUP § "Summon crash".
-int ffta_lzss_entry_guard(uint32_t addr, int thumb, ArmCpuState* cpu) {
-    (void)addr;
-    (void)thumb;
-    const uint32_t src = cpu->R[1];
-    const uint32_t len = (uint32_t(bus_read_u8(src)) << 24) |
-                         (uint32_t(bus_read_u8(src + 1)) << 16) |
-                         (uint32_t(bus_read_u8(src + 2)) << 8) |
-                         uint32_t(bus_read_u8(src + 3));
-    if (len > 0x100000u) {
-        static uint32_t logged = 0;
-        if (logged < 32) {
-            std::fprintf(stderr,
-                         "[ffta] lzss-guard: implausible length=0x%08X src=0x%08X "
-                         "dst=0x%08X; skipping decompress\n",
-                         len, src, cpu->R[0]);
-            ++logged;
-        }
-        cpu->R[15] = cpu->R[14] & ~1u;  // return to the guest caller
-        return 1;                       // handled: skip the original body
-    }
-    return 0;  // plausible call: decline (CPU writes discarded, body runs)
-}
+// Definition: src/ffta_lzss_guard.h (ffta::lzss_entry_guard). The save-menu/
+// summon divergence re-enters the 0x0800543C decoder with a corrupted source
+// pointer; the header-guard implausibility check skips back to the caller
+// (bounded degradation, logged) instead of hanging. Registered below via
+// GBA_MOD_CONSTRUCTOR; extracted to the header so the unit suite links it.
 
 // ── Trusted plugins: mods lifecycle (see reference/widescreen.md) ──────────
 // Game-owned hooks install through the trusted-plugin activation pass
@@ -120,7 +98,7 @@ static void ffta_ws_activate() {
 
 GBA_MOD_CONSTRUCTOR(register_ffta_mod_plugins) {
     gba_mod_register_function_entry_plugin("ffta.lzss-guard", 0x0800543Cu, 1,
-                                           ffta_lzss_entry_guard);
+                                           ffta::lzss_entry_guard);
     gba_mod_register_reset_callback(ffta_mod_reset);
     gba_mod_register_activation_plugin("ffta.widescreen", ffta_ws_activate);
 }
@@ -213,13 +191,19 @@ int ffta_main(int argc, char** argv) {
     opts.touch_pad_idle_hide_seconds = 15;
 
     if (on_mobile) {
+#if defined(__ANDROID__)
         // Durable miss journaling on device (mobile has no exit-time report
         // when a session hangs or is killed): every missed PC rewrites this
         // proposal fragment in the app's files/ dir the moment it is bridged,
         // so the device doubles as a harvestable audit surface. Overwrite=0
-        // keeps any externally provided path authoritative.
+        // keeps any externally provided path authoritative. on_mobile is only
+        // true on Android (mobile_prepare_process returns false elsewhere),
+        // so this is the same code path — just explicitly compiled out of the
+        // Windows/POSIX-desktop targets, whose libc does not carry setenv
+        // (MSVC) — the call was previously guarded by flow only.
         setenv("GBARECOMP_MISS_FRAG",
                "recomp_master_misses_AFXE.toml.frag", 0);
+#endif
         // Phones fill the screen with the desktop-validated expanded view
         // (decision 2026-10-08); physical-pixel sizing keeps the runtime
         // chrome readable, resume after an OS kill, touch-friendly UI.
