@@ -15,13 +15,16 @@ git -C gbarecomp/external/arm-recomp-core apply \
 
 Each `*-local.patch` is one pristine→dev diff of its repo's whole tracked
 tree. `tools/check.py`'s `patches` check (1) sanity-validates every file in
-this directory per the rules below (forward against its target's pin, or
-reverse on the patched dev tree) and (2) replays pin + each consolidated
-patch and requires the result to byte-match the corresponding dev tree
-(tracked files, including gitlink entries skipped) — it fails on any drift
-between the recorded patches and the actual submodule states. **After any
-further framework edit, regenerate the matching consolidated patch** (export
-commands below) or the check fails.
+this directory per the rules below — forward against its target's pin, or
+reverse on the patched dev tree **plus a pin-forward apply** (the CI
+condition: a fresh checkout validates each file against the pristine pin,
+so dev-based exports fail — enforced since the 2026-10-09 tier-1 break) —
+and (2) replays pin + each consolidated patch and requires the result to
+byte-match the corresponding dev tree locally (skipped as trivially-satisfied
+on a pristine checkout). It fails on any drift between the recorded patches
+and the actual submodule states. **After any further framework edit,
+regenerate the matching consolidated patch** (export commands below) or the
+check fails.
 
 The per-feature files below are **reference diffs** (history and
 attribution): each applies forward to the pin individually and
@@ -43,19 +46,52 @@ patch to re-apply; use these files to see what each change was for.
 | `touch-pad-idle-hide.patch` | `gbarecomp/src/runtime/{runtime.h,runtime.cpp,host_window.h,host_window.cpp}` | **Feature** (low) | Virtual pad idle auto-hide (`RunOptions::touch_pad_idle_hide_seconds`): the pad hides after N s of touch inactivity; any touch reveals it and then acts. UX enhancement for touch devices, not a correctness fix. |
 | `swi-return-ledger.patch` | `gbarecomp/src/armv4t/runtime_arm.cpp` | **Yes** (high; the issue #30 R1 root containment) | SWI-return continuation ledger: `runtime_swi`'s LLE entry records the SVC-return continuation (`return_address` — the SWI site + instruction width); every SVC-mode exception return (`runtime_exception_return` + the interpreted note) validates `new_pc` against the ledger top and keeps the recorded continuation on mismatch (loud log). Ring-proven root (2026-10-09): the BIOS SWI epilogue (`0x184 pop {fp,ip,lr}` / `0x188 movs pc,lr`, disarm-verified) returned to the IRQ-interrupted PC (`0x080033BA`) instead of the recorded veneer continuation (`0x814186E`) when the shared R[14] slot was clobbered mid-drive — on hardware LR_svc is banked and untouchable, so this pins the recomp divergence, not guest behavior. Ledger cleared at every machine-reset / savestate-load origin (`runtime_fp_reset`); SoftReset's never-returned SWI leaves only a harmless stale entry. |
 
-## Upstream priority (audit 2026-10-09)
+## Upstream priority (re-audit 2026-10-09, late)
+
+**Verdict: all 10 patches are necessary** — no duplicates. The two
+`runtime_arm.cpp` patches are complementary layers over the same
+ring-proven corruption chain: `swi-return-ledger` is the containment
+(a corrupted SVC return never lands), `irq-handler-abandon-close` the
+recovery (a handler that lost its iret anyway is closed coherently);
+`hangrepro` exercises both.
 
 Recommended order for proposing to gbarecomp:
 
-1. `mmio-cap-dma-reentrancy` — correctness bug; any game with 32-bit DMA config writes loses DMA tracking.
+1. `mmio-cap-dma-reentrancy` — correctness bug; any game with 32-bit DMA
+   config writes loses DMA tracking. Still valid after upstream PR #29
+   (2026-10-09): its shared-RAM DMA HLE is a compile-time opt-in that
+   bypasses the per-unit bus service entirely (so the default LLE path —
+   and its recording gap — is unchanged).
 2. `mod-state-publish-race` — clear concurrency fix for multi-process usage.
-3. `arm-recomp-core` + the gap-roll-in hunk in `gbarecomp-local.patch` (`src/recompile/function_finder.cpp`) — split-loop codegen; should go together.
-4. `selfheal-journal-close-hardening` — durability + bounded shutdown, universally valuable.
-5. `host-stack-guard-desktop` — robustness for finite-stack threads (strip the project-specific resume hook if upstream prefers).
-6. `oracle-save-autoload` — small usability fix.
-7. `irq-handler-abandon-close` — high value but complex; consider upstreaming only the abandon-detect + close without the resume redirect.
-8. `swi-return-ledger` — the R1 containment for the same issue-#30 family (see #7); small, self-contained, no guest-visible behavior on a legal return.
+3. `arm-recomp-core` + the gap-roll-in hunk in `gbarecomp-local.patch`
+   (`src/recompile/function_finder.cpp`) — split-loop codegen; should go
+   together.
+4. `swi-return-ledger` — the issue-#30 R1 containment; small, self-contained,
+   no guest-visible behavior on a legal return. Promoted above the recovery
+   (#8): it is the principled fix — the close only exists to mop up the case
+   the ledger cannot see (an iret lost *before* any SWI).
+5. `selfheal-journal-close-hardening` — durability + bounded shutdown,
+   universally valuable.
+6. `host-stack-guard-desktop` — robustness for finite-stack threads (strip
+   the project-specific resume hook if upstream prefers).
+7. `oracle-save-autoload` — small usability fix.
+8. `irq-handler-abandon-close` — high value but complex; consider upstreaming
+   only the abandon-detect + close without the resume redirect.
 9. `touch-pad-idle-hide` — feature request; not a correctness issue.
+
+### Upstream drift (checked 2026-10-09)
+
+The pin (`ecc9c55`, 2026-10-03) is ~30 upstream commits behind (the
+web/WASM support wave, PR #16; PR #29's opt-in shared-RAM DMA HLE; PR #31's
+scanline-HLE default). Verified **none subsume our patches** — PR #29's
+`gba_io` rework does not touch `g_mmio_split` recording; `9be5351` is
+WASM-availability reporting only; `src/runtime/mod_runtime.cpp` is
+untouched — but the same *files* moved (`gba_io.{h,cpp}`,
+`runtime_arm.cpp`, `host_window.*`, `overlay_loader.cpp`, `runtime.cpp`,
+`oracle/` region). **A pin bump is a deliberate milestone, not a routine
+pull**: rebase/re-export every patch, re-run the fresh-clone CI simulation
+(pristine-at-pin submodules), and re-verify `hangrepro` +
+`desktop-accept` on the new pin before committing it.
 
 Export after further submodule edits (regenerates the canonical patch; the
 replay check above goes red until you do):
