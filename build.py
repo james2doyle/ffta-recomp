@@ -187,17 +187,25 @@ def step_patches():
     if not patches:
         die("no framework patches found in tools/patches/",
             hint="incomplete checkout — the patches ship with this repo")
+    # Route by filename prefix (the tools/patches/README.md convention):
+    # arm-recomp-core-* targets the nested gbarecomp/external/arm-recomp-core
+    # repo; everything else targets gbarecomp itself.
+    def target_root(patch):
+        return (REPO / "gbarecomp/external/arm-recomp-core"
+                if patch.name.startswith("arm-recomp-core")
+                else REPO / "gbarecomp")
     applied, in_place = [], 0
     for patch in patches:
-        if run_ok(["git", "-C", "gbarecomp", "apply", "--check", "--reverse",
+        root = target_root(patch)
+        if run_ok(["git", "-C", root, "apply", "--check", "--reverse",
                    patch]):
             in_place += 1
             continue
-        if not run_ok(["git", "-C", "gbarecomp", "apply", "--check", patch]):
+        if not run_ok(["git", "-C", root, "apply", "--check", patch]):
             die(f"patch does not apply: {patch.name}",
                 hint="the submodule likely drifted from its pin — check "
                      "`git -C gbarecomp status`; see README § Troubleshooting")
-        r = run(["git", "-C", "gbarecomp", "apply", patch])
+        r = run(["git", "-C", root, "apply", patch])
         if r.returncode != 0:
             die(f"failed to apply {patch.name}", hint=tail(r))
         applied.append(patch.name)

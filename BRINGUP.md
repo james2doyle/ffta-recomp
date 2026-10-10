@@ -4047,3 +4047,28 @@ fed by real SDL fingers (host_window.cpp:2810+ → `pad_buttons_at`), so
 TCP-injected scripts queue but never drain in our game. The press tests'
 `set_keyinput` bypass is the correct observe-surface for KEYINPUT-level
 assertions.
+
+## 2026-10-09 (late) — build.py audit: nested-patch routing bug (found empirically, fixed)
+
+Audited `build.py` end to end. One genuine bug, found by running
+`step_patches()` against the current tree rather than reading:
+
+**`step_patches` applied EVERY patch at the `gbarecomp/` root** — but
+`arm-recomp-core-local.patch` targets the *nested*
+`gbarecomp/external/arm-recomp-core` repo (the tools/patches/README.md
+filename-prefix routing convention that `check.py` implements). On this
+dev tree the step DIED mid-bootstrap ("patch does not apply:
+arm-recomp-core-local.patch" — reverse fails at the wrong root, forward
+fails with No such file or directory), and on a fresh clone the same
+forward-apply fails. Introduced when the nested consolidated patch
+landed; the idempotence claim was true only for the gbarecomp-root
+patches. Fix: route each file by its `arm-recomp-core` prefix to the
+nested root — verified both ways (dev tree: "all 10 already in place",
+correctly routed; fresh-clone sim of pristine pins: all 10 forward-ok).
+
+Everything else checked clean: dumps (size+SHA-1), venv (both branches
+converge on the final `import capstone` verification), BIOS freshness
+(mtime), regen staleness (mtime sweep of the four inputs), host build,
+smoke (GBARECOMP_* env stripped + strict), `--force`/`--no-smoke`/`--jobs`
+plumbing, Fail.msg/hint, `submodule_drift`'s `+`/`-` counting. Full
+end-to-end idempotent run: DONE in 12.2s, smoke FULLY_STATIC.
