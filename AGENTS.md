@@ -131,7 +131,7 @@ phantom closed (IRQ abandon-close + split-loop gap roll-in — issue #30 fixes);
 **Android port** landed and device-verified 2026-10-08 (guide
 `android/README.md`). Remaining: offline-push re-trial (gated on an
 interior-split policy), f6000+ contact sheet, upstream note on the bridge
-stop-contract, Android release prep — README § Roadmap. History, evidence,
+stop-contract, Android release prep. History, evidence,
 crash playbooks: `BRINGUP.md`.
 
 ## Reference index (load what the task needs)
