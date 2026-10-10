@@ -4004,3 +4004,46 @@ any device claim**.
    zero anomalies, crash clean. The historical worst bug class now has a
    scriptable, evidence-producing device acceptance.
 
+
+## 2026-10-09 (late) — Device lifecycle gate + touch-realism findings
+
+**1. `tools/android_lifecycle_test.py` (new): the OS suspend/kill/relaunch
+lifecycle gate — ALL 15 PASS on the Poco X3 Pro.** The engine's mobile-only
+contract, end to end: session live → KEYCODE_HOME background (save flushed +
+suspend state + `.suspend.pending` marker written, log line asserted) →
+`am force-stop` (the real OS kill — marker SURVIVES, battery save present) →
+relaunch via AUTOSTART (`suspend_resumed path=… frame=<exact>` logged,
+marker cleared) → observe reconnects (fresh socket) + frames advance → zero
+ledger/self-heal/guard anomalies → crash buffer clean. Three tool-side bugs
+fixed along the way (binary adb read for the flash save; marker-clear race
+poll; fresh-socket reconnect after the kill). Bonus finding en route: a
+**stale marker from a real background kill resumed unprompted** at the exact
+frame (`frame=12768`) on the very next launch — the contract doing its job
+before we even tested it.
+
+**2. Touch realism: adb-synthesized taps are OS-filtered on this ROM.**
+Driving the REAL pipeline (OS touch → SDL_FINGERDOWN → `pad_buttons_at` →
+`host_keyinput` → guest KEYINPUT) via `adb shell input tap`: zero TouchHub
+journal events, zero KEYINPUT motion during rapid-poll, zero pixel response
+in-app — AND zero effect at the launcher/drawer level, with **zero lines on
+the touchscreen's evdev node (`/dev/input/event4`, getevent-capped) during
+`input tap`** — while `input swipe` demonstrably works (shade opened). The
+phone's ROM drops adb-synthesized tap touches (MIUI/HyperOS-class
+restriction; swipes pass, taps filtered). Not an engine or app defect:
+the engine's pad path is reachable by physical fingers (and by TCP touch
+commands — `touch_back` journaled a gesture on the same session), and the
+press/lifecycle gates validate input *effect* via the observe TCP instead.
+`tools/android_touch_test.py` is committed as the instrumented check for
+when a tap-permissive device (or the emulator, or a physical finger) is
+available: it reads the live pad layout from the boot log, taps the A
+button, and asserts KEYINPUT + journal + gesture. Its failure mode on THIS
+phone documents the restriction honestly (the launcher-level checks are in
+the BRINGUP evidence above).
+
+Architecture note (verified in source while here): the TCP touch-script
+engine (`touch_tap`/`touch_drag`/…, touch_input.cpp `drain()`) only pumps for
+games that install an `input_frame` policy (runtime.cpp:2404+); FFTA's pad is
+fed by real SDL fingers (host_window.cpp:2810+ → `pad_buttons_at`), so
+TCP-injected scripts queue but never drain in our game. The press tests'
+`set_keyinput` bypass is the correct observe-surface for KEYINPUT-level
+assertions.
