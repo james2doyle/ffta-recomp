@@ -1,13 +1,21 @@
 # Android (FFTARecomp)
 
-Status 2026-10-08: **playable on device** — skeleton, build, first boot,
-widescreen and the device gate are all verified on a Xiaomi Mi 11
-(Android 14/API 34). Working reference for the Android target — moved here
-from the repo root (2026-10-09; previously `ANDROID.md`); `BRINGUP.md` keeps
-the dated decision log and `reference/dev-gotchas.md` § Android device
-forensics has the on-device debugging recipe. Re-verification after the
-2026-10-09 engine fixes is pending — run § "On-device suspend/resume
-protocol" on the next phone session.
+Status 2026-10-09: **playable on device, current engine re-verified** —
+skeleton, build, first boot, widescreen and the device gate are verified on
+a Xiaomi Mi 11 (Android 14/API 34), and the current engine (split-loop gap
+roll-in, IRQ abandon-close, SWI-return ledger, touch idle-hide) passed the
+on-device gates 2026-10-09 on a Xiaomi M2102K1AC / Poco X3 Pro (Android
+14/API 34): boot gate (`validate_android.sh`) GATE PASSED, press acceptance
+(`tools/android_press_test.py` — savestate load → A press → one legal
+abandon-close → frames advance), and the suspend/kill/relaunch lifecycle
+(`tools/android_lifecycle_test.py`, 15/15 — marker survives `force-stop`,
+auto-resume at the exact frame). adb-synthesized **taps are OS-filtered on
+this ROM** (swipes pass) — press flows are driven through the observe TCP
+(`set_keyinput`), not `input tap`. Working reference for the Android
+target — moved here from the repo root (2026-10-09; previously
+`ANDROID.md`); `BRINGUP.md` keeps the dated decision log and
+`reference/dev-gotchas.md` § Android device forensics has the on-device
+debugging recipe.
 
 ## How the port is structured
 
@@ -32,6 +40,9 @@ This repo therefore adds only a thin surface:
 | `CMakeLists.txt` (`if(ANDROID)`) | Target `main` instead of `FFTARecomp`; forced mods; SDL/UI guards |
 | `src/main.cpp` | `mobile_prepare_process` preflight, phone run options, `SDL_main` via a 256 MiB pthread |
 | `tools/validate_android.sh` | Device acceptance gate (assertions + evidence pull) |
+| `tools/android_press_test.py` | On-device press acceptance over the observe TCP (savestate load → `set_keyinput` A press → frames/anomaly/crash assertions) |
+| `tools/android_lifecycle_test.py` | On-device suspend/kill/relaunch lifecycle gate (15 assertions: flush, marker survival, auto-resume, reconnect) |
+| `tools/android_touch_test.py` | Touch-pad realism check (real-pipeline tap → KEYINPUT/journal/gesture); adb taps are OS-filtered on this ROM — see § Touch realism |
 | `tools/android_static_check.py` | Device-free checks: identity pins, payload contract, hygiene, fake-`adb` gate self-test (suite `android-static`) |
 | `tools/android_apk_check.py` | APK content guard for built APKs (payload vs sources, embed pins, libs/ABI, manifest, junk/duplicates) — `check.py --only android-apk` |
 
@@ -260,8 +271,10 @@ specific file; `--expect public|private` asserts the build mode.
   § flow-continuation resume). The in-battle suspend save → title trigger
   is described in `BRINGUP.md` § 2026-10-08/09; on-device capture:
   `tools/hangprobe.py` + `reference/dev-gotchas.md` § Android device
-  forensics. Device re-verification after these two fixes is pending — run
-  § "On-device suspend/resume protocol" on the next phone session.
+  forensics. Device re-verification after these fixes: **done 2026-10-09**
+  (§ On-device suspend/resume protocol → now
+  `tools/android_press_test.py` + `tools/android_lifecycle_test.py`,
+  both PASS on the current engine — see the status header).
 - Repackaging after a native relink can leave a junk blob inside an
   incrementally updated APK (67 MB vs the normal 37 MB, observed once; **a
   second form observed 2026-10-09: ~30 MB of stale bytes in the slack

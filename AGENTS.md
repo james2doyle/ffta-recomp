@@ -128,10 +128,11 @@ All phases complete; **every executed path strict-FULLY_STATIC**; corpus
 done when its replay is FULLY_STATIC, not when a proxy moves); attract hash
 stable since pinning; widescreen W1–W3 complete; save/summon hangs fixed; suspend-flow
 phantom closed (IRQ abandon-close + split-loop gap roll-in — issue #30 fixes);
-**Android port** landed and device-verified 2026-10-08 (guide
-`android/README.md`). Remaining: offline-push re-trial (gated on an
-interior-split policy), f6000+ contact sheet, upstream note on the bridge
-stop-contract, Android release prep. History, evidence,
+**Android port** landed and device-verified 2026-10-08, current engine
+re-verified on device 2026-10-09 (boot gate, press acceptance, suspend/kill/
+relaunch lifecycle — guide `android/README.md`). Remaining: offline-push
+re-trial (gated on an interior-split policy), f6000+ contact sheet, upstream
+note on the bridge stop-contract, Android release prep. History, evidence,
 crash playbooks: `BRINGUP.md`.
 
 ## Reference index (load what the task needs)
