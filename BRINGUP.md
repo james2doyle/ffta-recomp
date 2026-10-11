@@ -4437,3 +4437,9 @@ Live repro (DISPLAY=:0, 25 s timeout): game booted straight through
 
 Conclusion: issue #5 root-caused and fixed with both-direction evidence.
 Commit after this entry.
+
+Follow-up (hygiene): the live `--launcher` verification run wrote
+`keybinds.ini` + `rom.cfg` (absolute local ROM path) into the repo root.
+Deleted both; `.gitignore` now covers the four launcher sidecars
+(`rom.cfg`, `bios.cfg`, `config.ini`, `keybinds.ini`) — no tracked file
+matches those names (verified). Committed with this note.

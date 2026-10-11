@@ -134,6 +134,16 @@ diffs/
 *screenshot*.png
 
 # -----------------------------------------------------------------------------
+# Launcher sidecars (written next to the working directory by desktop
+# launcher runs — machine-specific paths; the player-owned device copies
+# are separate)
+# -----------------------------------------------------------------------------
+rom.cfg
+bios.cfg
+config.ini
+keybinds.ini
+
+# -----------------------------------------------------------------------------
 # Editors & OS cruft
 # -----------------------------------------------------------------------------
 .vscode/
