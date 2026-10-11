@@ -164,3 +164,59 @@
 # 0x03002B70): the helper swaps the two 16-byte halves at +0x40 and
 # takes-clears +4. Size covers the +0x40..+0x5F block.
 0x030028A0	iwram	0x60	gMsgWorkBuffer
+
+# Section 16: event-system tables + pointer cells (2026-10-11; from
+# LeonarthCG/FFTA_Event_Editor, GPL-3.0 — structure/names ours, opcode
+# semantics theirs; see symbols/ffta_symbols.tsv § 19 for the EUR trap).
+# Every word below read from game.gba: gSceneOpcodeTable (114 valid x6 B,
+# sizes match the editor 114/114); gCondOpcodeTable (17 x6 B, 17/17);
+# gEventList (234x4 {script,scene,text,pad}, pad 0 in all 234); gSceneBanks
+# (62x4 = 0xF8; relative-offset scheme readWord(base-4+script*4) sampled 5/5
+# in range); gTextBankEn (RELATIVE u32 offsets, e.g. [0]=0x30974 ->
+# 0x089F1DF8 — not absolute pointers); gConditionalTypeList (8xu16 relative
+# -> per-type lists, all in range). Pointer cells hold the absolute table
+# addresses the editor's repoint_*() routines write.
+0x083A7EE4	rom	0x2B2	gSceneOpcodeTable
+0x0836D5A4	rom	0x66	gCondOpcodeTable
+0x08A19970	rom	0x3A8	gEventList
+0x08009A20	rom	0x04	gEventListPtrCell
+0x089A5D54	rom	0xF8	gSceneBanks
+0x081223C0	rom	0x04	gSceneBanksPtrCell
+0x089C1484	rom	0x0	gTextBankEn
+0x08009A88	rom	0x04	gTextBankEnPtrCell
+0x08A1A908	rom	0x10	gConditionalTypeList
+0x0800A148	rom	0x04	gCondTypeListPtrCell
+# Per-type conditional lists (targets of gConditionalTypeList's 8 relative
+# offsets; names = the editor's CONDITIONAL_TYPES; extents unverified -> 0x0).
+0x08A1A918	rom	0x0	gCondListMapReached
+0x08A1ABEC	rom	0x0	gCondListMapSelected
+0x08A1AEAC	rom	0x0	gCondListMissionAccepted
+0x08A1AF68	rom	0x0	gCondListTurnStart
+0x08A1B200	rom	0x0	gCondListActionStart
+0x08A1B294	rom	0x0	gCondListActionEnd
+0x08A1B48C	rom	0x0	gCondListTurnEnd
+0x08A1B684	rom	0x0	gCondListVictoryMet
+
+# Section 17: Engine-Hacks RAM cells (2026-10-11; LeonarthCG/FFTA_Engine_Hacks,
+# no license — names ours, evidence their .s comments; extents unverified).
+# gInventory = the inventory-data array ($2001940: "inventory data / owned
+# amount", read right after the party-unit window); gUnlockedJobsBitfield =
+# $2002AD0 ("unlocked jobs bitfield location"); gMenuCurrentUnit = $200FD40
+# ("unit we are looking at", party menu); gMenuUnitList = $200FD72 ("list of
+# the units", roster order — the manual-sorting hack's target);
+# gFirstEnemyUnit = $2002FC4 ("first enemy on ram"); gCurrentCharPtr =
+# $200F438 ("current character pointer", battle); gStoryProgress = $2002190
+# (byte; "story >= 0x10" gates the Montblanc game-over check); gCurrentJobPtr
+# = $3002818 ("if no job, stop", ability-learn flow; extent unverified).
+# FLAG (not changed): gPartyUnits is based at 0x02000000 size 0x18C0 (§ 6),
+# but engine-hacks treats party unit data as 0x02000080-0x02001940 ("first
+# unit" / "last unit" 0x02001838) — needs a live re-verify before any seed
+# relies on either window (BRINGUP § 2026-10-11).
+0x02001940	ewram	0x0	gInventory
+0x02002AD0	ewram	0x0	gUnlockedJobsBitfield
+0x0200FD40	ewram	0x0	gMenuCurrentUnit
+0x0200FD72	ewram	0x0	gMenuUnitList
+0x02002FC4	ewram	0x0	gFirstEnemyUnit
+0x0200F438	ewram	0x0	gCurrentCharPtr
+0x02002190	ewram	0x1	gStoryProgress
+0x03002818	iwram	0x0	gCurrentJobPtr

@@ -41,6 +41,8 @@ redistributed here.
 
 Community research is used as reference only, with attribution (see
 `BRINGUP.md` studies): Data Crystal wiki, LeonarthCG/FFTA_Engine_Hacks,
+LeonarthCG/FFTA_Event_Editor (**GPL-3.0** — opcode semantics and table
+structure referenced; its code is never copied or ingested),
 spiiin/FFTAUtils, charlie-troy/ffta-decomp (**no license** — facts and
 addresses referenced; its sources/logs are never ingested), and the
 JoKyR / BCROBERT / GameFAQs guide authors (facts and brief attributed

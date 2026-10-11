@@ -346,3 +346,189 @@
 # g_irq_nest_depth poisoning came from inside it (0x080033BA): BRINGUP
 # § 2026-10-09 (later entry).
 0x08003398	thumb	wait_for_vblank
+
+# Section 19: event scene/conditional VM opcode handlers (2026-10-11).
+# Source: LeonarthCG/FFTA_Event_Editor (GPL-3.0) ffta/ffta_common.py opcode
+# definitions — names ours, opcode semantics theirs, addresses OURS (see trap below).
+# TRAP: the editor's in-code handler addresses (`#4 0x8126625` comments) and its
+# old_scripts table offsets (0x3ACEBC / 0x370F94) are EUR-ROM values — DO NOT import
+# them. USA tables located by searching our ROM for the editor's opcode-size
+# sequence: scene VM table gSceneOpcodeTable @0x083A7EE4 (114 valid entries x 6 B:
+# u16 size + u32 thumb handler; size column matches the editor 114/114, entry 0x72
+# is garbage), conditionals table gCondOpcodeTable @0x0836D5A4 (17 entries, 17/17).
+# Handler PCs read from game.gba directly; all carry the thumb bit; spot-disarmed
+# (op 0x00 scene = push {r4,lr} stream reader indexing the table at x6 stride;
+# cond op 0x00 = bx lr; cond op 0x01 = u16 branch -> script PC). Cross-checks:
+# scene op 0x52/0x53/0x68 handlers = existing evt_healing_case/mission_script_trigger/
+# evt_death_case (Section 5 — not re-seeded here); op 0x4A = ffta-decomp's
+# "VM spawn command" 0x08123670. Data symbols: gSceneOpcodeTable etc. (§ 16).
+# BRINGUP § 2026-10-11. Out-of-line handlers (0x18/0x2F/0x34/0x3D/0x46/0x47/0x6F/0x70)
+# sit outside the main 0x08122B14+ run — that is where the table points, verified.
+# MEASURED regen outcome (not naming-only): discovery 55,102 -> 55,350 (+248;
+# seeds reach table-only entries the sweep never found — legitimate per
+# gbarecomp/docs/SYMBOL_OVERLAY.md step 4); names stick only where the seed wins
+# the finder's first-discovery race — 45/128 applied, the other 83 keep
+# gf_tfunc_* (seed dropped on visited_/overlap). The op->PC map below stays the
+# readable reference regardless; attract hash unchanged (cycle PASS).
+0x08122B14	thumb	scene_thread_with_tag
+0x08122B50	thumb	scene_thread
+0x08122B8C	thumb	scene_end
+0x08122BA4	thumb	scene_join_tag
+0x08122BC8	thumb	scene_join
+0x08122BEC	thumb	scene_op_05
+0x08122BFC	thumb	scene_fade_screen
+0x08122C28	thumb	scene_op_07
+0x08122C3C	thumb	scene_op_08
+0x08122C6C	thumb	scene_op_09
+0x08122CA8	thumb	scene_op_0A
+0x08122D04	thumb	scene_op_0B
+0x08122D20	thumb	scene_set_map
+0x08122D64	thumb	scene_op_0D
+0x08122D74	thumb	scene_op_0E
+0x08122DAC	thumb	scene_char_talk
+0x08122DBC	thumb	scene_op_10
+0x08122DD4	thumb	scene_op_11
+0x08122DE8	thumb	scene_op_12
+0x08122E1C	thumb	scene_op_13
+0x08122E2C	thumb	scene_op_14
+0x08122E34	thumb	scene_sleep
+0x08122E40	thumb	scene_op_16
+0x08122E50	thumb	scene_op_17
+0x081224B8	thumb	scene_op_18
+0x08122E7C	thumb	scene_go_to
+0x08122E90	thumb	scene_set_flag
+0x08122EA8	thumb	scene_op_1B
+0x08122EC0	thumb	scene_op_1C
+0x08122EF8	thumb	scene_op_1D
+0x08122F24	thumb	scene_op_1E
+0x08122F58	thumb	scene_load_char
+0x08122F8C	thumb	scene_load_unit
+0x08122FB8	thumb	scene_op_21
+0x08122FCC	thumb	scene_op_22
+0x08122FE8	thumb	scene_op_23
+0x08122FFC	thumb	scene_op_24
+0x08123010	thumb	scene_char_set_idle_pose
+0x0812302C	thumb	scene_op_26
+0x08123044	thumb	scene_char_pose
+0x08123064	thumb	scene_char_freeze_pose
+0x08123080	thumb	scene_char_set_direction
+0x08123098	thumb	scene_char_stop_animation
+0x081230A8	thumb	scene_op_2B
+0x081230C4	thumb	scene_op_2C
+0x081230DC	thumb	scene_op_2D
+0x0812310C	thumb	scene_char_warp_to_pos_relative
+0x08122598	thumb	scene_char_warp_to_tile
+0x0812314C	thumb	scene_char_set_shadow
+0x081231B0	thumb	scene_op_31
+0x081231FC	thumb	scene_op_32
+0x08123224	thumb	scene_op_33
+0x0812260C	thumb	scene_op_34
+0x08123234	thumb	scene_op_35
+0x08123294	thumb	scene_op_36
+0x081232A4	thumb	scene_op_37
+0x081232C8	thumb	scene_op_38
+0x08123320	thumb	scene_char_move_to_pos
+0x08123398	thumb	scene_op_3A
+0x081233F8	thumb	scene_op_3B
+0x08123400	thumb	scene_op_3C
+0x08122770	thumb	scene_op_3D
+0x08123408	thumb	scene_op_3E
+0x08123474	thumb	scene_op_3F
+0x081234B4	thumb	scene_op_40
+0x081234FC	thumb	scene_op_41
+0x0812352C	thumb	scene_op_42
+0x08123564	thumb	scene_op_43
+0x08123580	thumb	scene_op_44
+0x081235A8	thumb	scene_op_45
+0x081227F8	thumb	scene_op_46
+0x081228D4	thumb	scene_camera_move_to_pos
+0x081235C0	thumb	scene_set_map_type
+0x081235E4	thumb	scene_op_49
+0x08123670	thumb	scene_spawn_cmd
+0x08123694	thumb	scene_play_song
+0x08123770	thumb	scene_play_sound
+0x08123714	thumb	scene_fade_music
+0x081237D0	thumb	scene_start_map
+0x08123814	thumb	scene_op_4F
+0x08123834	thumb	scene_op_50
+0x08123848	thumb	scene_op_51
+# Scene ops 0x52/0x53/0x68 = evt_healing_case / mission_script_trigger /
+# evt_death_case, already named in Section 5 — not re-seeded.
+0x08123900	thumb	scene_op_54
+0x0812391C	thumb	scene_op_55
+0x08123938	thumb	scene_op_56
+0x08123948	thumb	scene_op_57
+0x08123958	thumb	scene_op_58
+0x08123968	thumb	scene_op_59
+0x0812397C	thumb	scene_op_5A
+0x08123994	thumb	scene_op_5B
+0x081239C4	thumb	scene_op_5C
+0x081239DC	thumb	scene_op_5D
+0x081239F8	thumb	scene_op_5E
+0x08123A08	thumb	scene_op_5F
+0x08123A1C	thumb	scene_op_60
+0x08123A2C	thumb	scene_op_61
+0x08123A60	thumb	scene_op_62
+0x08123A7C	thumb	scene_op_63
+0x08123A8C	thumb	scene_op_64
+0x08123ACC	thumb	scene_go_to_if_flag
+0x08123AFC	thumb	scene_op_66
+0x08123B34	thumb	scene_op_67
+0x08123BC8	thumb	scene_op_69
+0x08123C0C	thumb	scene_op_6A
+0x08123C50	thumb	scene_op_6B
+0x08123C58	thumb	scene_op_6C
+0x08123CC0	thumb	scene_op_6D
+0x08123CFC	thumb	scene_op_6E
+0x08122984	thumb	scene_op_6F
+0x08122A00	thumb	scene_op_70
+0x08123D28	thumb	scene_op_71
+# Conditionals VM handlers (dispatch table gCondOpcodeTable @0x0836D5A4; this VM
+# had zero coverage before — all 17 are new rows; same verification as above).
+0x0800A1A8	thumb	cond_end
+0x0800A1AC	thumb	cond_go_to
+0x0800A1BC	thumb	cond_set_flag_1
+0x0800A1D0	thumb	cond_set_flag_2
+0x0800A1E4	thumb	cond_go_to_if_flag
+0x0800A210	thumb	cond_start_event
+0x0800A244	thumb	cond_op_06
+0x0800A2F0	thumb	cond_op_07
+0x0800A330	thumb	cond_op_08
+0x0800A36C	thumb	cond_op_09
+0x0800A3E4	thumb	cond_op_0A
+0x0800A420	thumb	cond_op_0B
+0x0800A490	thumb	cond_op_0C
+0x0800A4EC	thumb	cond_op_0D
+0x0800A4F8	thumb	cond_op_0E
+0x0800A564	thumb	cond_op_0F
+0x0800A5A0	thumb	cond_op_10
+
+# Section 20: FFTA_Engine_Hacks call-target delta (2026-10-11).
+# The 2026-10-06 study took 2 names + 5 game.toml notes from this repo
+# (Event Assembler hack package, no license — names ours, evidence theirs);
+# this section adds the prologue-verified call targets its .s sources document
+# via the `ldr rN,=target / mov lr,rN / .short 0xF800` (blx-via-lr) idiom.
+# All 11 names applied in the 2026-10-11 regen (56/139 overall incl. § 19;
+# remainder are finder-race drops — see § 19 header).
+# Each entry disarmed in game.gba (2026-10-11): rng_next = leaf LCG
+# (ldr/muls, no stack — the BRINGUP "Phase 4 LCG"); job_stat_getter =
+# push {r4-r6,lr} @0x080C8570; unit_growth_getter = push {lr} @0x080C92F0;
+# race_ability_list_getter = leaf @0x080CD480; bx_r2_veneer = `bx r2` @0x0814224C
+# (sibling of bx_r3_veneer 0x08142250); sprite_reorder_helper = push {r4-r7,lr}
+# @0x08087B30; battle_animation_dispatch = push {r4-r7,lr} @0x080975DC;
+# menu_index_save = push {r4-r7,lr} @0x08009AFC; char_tile_source_helper =
+# push {r4,r5,lr} @0x08018C24; clan_named_check = push {r4,r5,lr} @0x080CEA80;
+# save_level_name_helper = leaf @0x0813BB1A (call-target evidence only).
+# 38 further prologue-verified targets without usable comments are NOT seeded
+# (list in BRINGUP § 2026-10-11).
+0x08002804	thumb	rng_next
+0x080C8570	thumb	job_stat_getter
+0x080C92F0	thumb	unit_growth_getter
+0x080CD480	thumb	race_ability_list_getter
+0x0814224C	thumb	bx_r2_veneer
+0x08087B30	thumb	sprite_reorder_helper
+0x080975DC	thumb	battle_animation_dispatch
+0x08009AFC	thumb	menu_index_save
+0x08018C24	thumb	char_tile_source_helper
+0x080CEA80	thumb	clan_named_check
+0x0813BB1A	thumb	save_level_name_helper

@@ -4156,3 +4156,75 @@ references, project specifics stay out):
 SKILL.md router labels updated (debugging: abandoned handlers + corrupted
 SVC returns; verification: shipped-artifact guards; tooling:
 bootstrap/idempotence). Gates: unit-py PASS.
+
+## 2026-10-11 — Event-Editor + Engine-Hacks symbol import (131 VM handlers, 26 data cells, 11 EH functions)
+
+User-requested deep dive on LeonarthCG/FFTA_Event_Editor (new source,
+GPL-3.0) and LeonarthCG/FFTA_Engine_Hacks (delta vs the 2026-10-06 study,
+which had taken 2 names + 5 game.toml notes). Clones kept in /tmp (never in
+git); attribution-only per public-repo hygiene (THIRD_PARTY_ATTRIBUTION.md
+updated: Event Editor = GPL-3.0, reference only, code never copied).
+
+- **EUR trap (would have seeded 131 wrong addresses):** the editor's in-code
+  handler addresses (`ffta_common.py` `#4 0x8126625` comments) and its
+  old_scripts table offsets (0x3ACEBC / 0x370F94) are EUR-ROM. Located the
+  same structures in our USA ROM by searching for the editor's opcode-size
+  sequence: scene VM table **gSceneOpcodeTable @0x083A7EE4** (114 valid x6 B:
+  u16 size + u32 thumb handler; entry 0x72 garbage) and conditionals table
+  **gCondOpcodeTable @0x0836D5A4** (17 x6 B). Size columns match the editor
+  114/114 and 17/17; every handler carries the thumb bit; spot-disarmed
+  (scene op 0x00 @0x08122B14 = `push {r4,lr}` stream reader indexing the
+  table at x6 stride; cond op 0x00 = bare `bx lr`; cond op 0x01 = u16 branch
+  -> script PC). Data cells verified by direct word reads: gEventList
+  @0x08A19970 (234x4, pad 0 in all 234), cells @0x08009A20/@0x081223C0/
+  @0x0800A148/@0x08009A88 point at the right tables, gSceneBanks relative
+  scheme sampled 5/5 in range, gTextBankEn is RELATIVE u32 offsets (not
+  absolute pointers), gConditionalTypeList 8xu16 -> per-type lists all in
+  range. EUR pointer cells (@0x08009AAC etc.) do NOT verify — region
+  offsets, correctly excluded.
+- **Cross-validations:** scene op 0x52/0x53/0x68 handlers = existing
+  evt_healing_case / mission_script_trigger / evt_death_case (§ 5, not
+  re-seeded); op 0x4A = 0x08123670 = ffta-decomp's "VM spawn command". Four
+  independent sources agree the 0x08122xxx-0x08123xxx region is the
+  scene/cutscene script VM; the conditionals VM (0x0800A1A9-0x0800A5A1) had
+  zero coverage before. reference/event-vm.md gained a "two VMs" section;
+  its stale 0x08122A00 note corrected (it IS scene op 0x70's handler entry
+  per the table, not an interior).
+- **Changes:** symbols/ffta_symbols.tsv § 19 (111 scene + 17 cond handler
+  rows; 3 map to existing § 5 names) + § 20 (11 Engine-Hacks call targets
+  via the `ldr/mov lr/.short 0xF800` idiom, each disarmed — prologues cited
+  in the header; incl. rng_next @0x08002804, the BRINGUP "Phase 4 LCG",
+  previously unseeded); symbols/ffta_data_symbols.tsv § 16 (10 tables/cells
+  + 8 per-type cond lists) + § 17 (8 EH RAM cells, extents hedged).
+- **Measured regen outcome (corrected mid-session: NOT naming-only):**
+  discovery 55,102 -> 55,350 (+248 — seeds reach table-only entries the
+  sweep never found; legitimate per gbarecomp/docs/SYMBOL_OVERLAY.md step
+  4). Names stick only where the seed wins the finder's first-discovery
+  race (`visited_` early-return, function_finder.cpp:483; seed_by_key only
+  renames queued, undiscovered seeds): **56/139 applied** (11/11 EH +
+  45/128 VM); the other 83 keep `gf_tfunc_*`. No rename pass exists for
+  walker-discovered functions — accepted, headers state the outcome, and
+  the op->PC map stays readable regardless.
+- **Gates:** cycle.py PASS (regen 55350, dispatch sanity, build, attract
+  sha256=1EF4C1... unchanged); check.py ALL PASS 13/13 — route_G, route_K,
+  user_load all FULLY_STATIC with 0 misses; hangrepro, ws_smoke,
+  desktop-accept, units, patches, savecheck, android-static green.
+- **NOT seeded (deliberate):** 43 further prologue-verified (`push {..,lr}`)
+  Engine-Hacks call targets without usable comments — seeds without names
+  add no readability: 0x08001F34, 0x080051C4, 0x08005318, 0x08005B28,
+  0x08006FCC, 0x080142DC, 0x08015110, 0x080161BC, 0x08017B68, 0x080269D8,
+  0x0802AB64, 0x0802D824, 0x0802D934, 0x080354AC, 0x08035A68, 0x08035D00,
+  0x08035E04, 0x08036350, 0x08045668, 0x08071378, 0x08072130, 0x080725B8,
+  0x080876F4, 0x0808A268, 0x08099560, 0x080995C0, 0x08099C04, 0x0809F8EC,
+  0x080C9540, 0x080C9574, 0x080CA7A4, 0x080CA9E8, 0x080CB1F4, 0x080CB450,
+  0x080CB48C, 0x080CB5A8, 0x080CB9E0, 0x080CBA14, 0x080CD50C, 0x080D2F2C,
+  0x080D3508, 0x080DDF68, 0x0812AE8C. ~500 remaining ORG sites are interior
+  patch points (2026-10-06 conclusion stands).
+- **FLAG (not changed, needs live re-verify):** gPartyUnits is based at
+  0x02000000 size 0x18C0 (§ 6), but engine-hacks treats party unit data as
+  0x02000080-0x02001940 ("first unit" / "last unit" 0x02001838). Noted in
+  data-symbols § 17 header; no seed relies on either window until verified.
+
+Conclusion: event system now has full handler + table coverage in symbols;
+behavior provably unchanged (pinned hash + strict replays). Commit after
+this entry per change-cycle discipline.
