@@ -696,6 +696,22 @@ index 261d693..84067d7 100644
      // Loads/persists the player's pad choice in <dir>/config.ini [Touch].
      void set_touch_config_dir(const char* dir);
      bool touch_pad_visible() const;
+diff --git a/src/runtime/launcher_seam.h b/src/runtime/launcher_seam.h
+index 6609185..f3cb97f 100644
+--- a/src/runtime/launcher_seam.h
++++ b/src/runtime/launcher_seam.h
+@@ -657,7 +657,10 @@ inline int gbarecomp_launcher_preboot(std::vector<std::string>& args,
+     }
+     if (const char* env = std::getenv("GBARECOMP_NO_LAUNCHER"))
+         if (env[0] && env[0] != '0') skip_once = true;
+-    if (headless || (skip_once && !force_launcher) || (opts.netplay && opts.netplay->enabled)) return 0;
++    // An explicit --launcher forces the UI even for scripted-looking runs
++    // (play.sh always passes --rom, which reads as headless below); without
++    // it, any headless flag skips the launcher silently.
++    if ((headless && !force_launcher) || (skip_once && !force_launcher) || (opts.netplay && opts.netplay->enabled)) return 0;
+ 
+     const std::string dir = exe_dir(args);
+     const auto state_path = [&](const char* filename,
 diff --git a/src/runtime/mobile_platform.cpp b/src/runtime/mobile_platform.cpp
 index 176a73b..45b82d9 100644
 --- a/src/runtime/mobile_platform.cpp

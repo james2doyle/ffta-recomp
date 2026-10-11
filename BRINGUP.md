@@ -4404,3 +4404,36 @@ no text taken).
 
 Conclusion: issue #2 done — quick start + scale/screen examples up front,
 detail one link away. Commit after this entry.
+
+## 2026-10-11 (issue #5) — --launcher ignored: headless short-circuit beat force
+
+Issue #5: `tools/play.sh --launcher` never showed the settings UI.
+Live repro (DISPLAY=:0, 25 s timeout): game booted straight through
+(`cpu_backend` line, 1459 frames presented) — flag silently ignored.
+
+- **Root cause (engine, launcher_seam.h:660):** `gbarecomp_launcher_preboot`
+  classifies `--rom` as a headless flag, and the skip chain reads
+  `if (headless || (skip_once && !force) || netplay) return 0` — headless
+  short-circuits BEFORE `force_launcher` is honored. `--launcher` only ever
+  defeated `--no-launcher`/persisted skip, never headless detection. Fatal
+  combination: `play.sh` unconditionally passes `--rom game.gba`, so the
+  flag could never take effect through the documented entry point. Nothing
+  in-repo passes `--launcher` programmatically (only the play.sh usage
+  hint), so no flow depended on the old precedence.
+- **Fix (one line + comment):** `(headless && !force_launcher) || ...` —
+  explicit `--launcher` forces the UI; without it headless still skips
+  silently. Recorded as `tools/patches/launcher-force-ui.patch`
+  (pin-forward + dev-reverse verified; launcher_seam.h untouched by other
+  patches) + regenerated `gbarecomp-local.patch` + README table row
+  (marked Proposal/medium — extends the documented force-past-skip
+  contract, behavior change for upstream to take or leave).
+- **Live verification (rebuilt via cycle.py):** `play.sh --launcher`, 20 s —
+  process sits in the UI (`[launcher]`/`[rui]` lines, 0 `cpu_backend`
+  markers, killed by timeout); plain `play.sh`, 20 s — straight boot
+  (`cpu_backend`, 1153 frames). No regression either direction.
+- **Gates:** cycle.py PASS (55350 flat, attract 1EF4C1... unchanged);
+  check.py ALL PASS 13/13 (patches replay incl. the new file, 18/18
+  android-static, routes FULLY_STATIC).
+
+Conclusion: issue #5 root-caused and fixed with both-direction evidence.
+Commit after this entry.

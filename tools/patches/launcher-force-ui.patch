@@ -1,0 +1,14 @@
+--- a/src/runtime/launcher_seam.h
++++ b/src/runtime/launcher_seam.h
+@@ -657,7 +657,10 @@
+     }
+     if (const char* env = std::getenv("GBARECOMP_NO_LAUNCHER"))
+         if (env[0] && env[0] != '0') skip_once = true;
+-    if (headless || (skip_once && !force_launcher) || (opts.netplay && opts.netplay->enabled)) return 0;
++    // An explicit --launcher forces the UI even for scripted-looking runs
++    // (play.sh always passes --rom, which reads as headless below); without
++    // it, any headless flag skips the launcher silently.
++    if ((headless && !force_launcher) || (skip_once && !force_launcher) || (opts.netplay && opts.netplay->enabled)) return 0;
+ 
+     const std::string dir = exe_dir(args);
+     const auto state_path = [&](const char* filename,
