@@ -264,7 +264,7 @@ command so later changes cannot regress silently:
   venv + tool deps, patch apply-check, tool build, BIOS/corpus mtime
   gates, host build), hash-verify the user-supplied dumps with actionable
   hints and fail before any long build, and keep the manual route as a
-  collapsible reference. A recipe you validated once by hand should be
+  reference document. A recipe you validated once by hand should be
   executable by every newcomer the same way.
 - **Gate your submodule patches if you keep them.** Each patch must apply
   to the pristine pin (or be already applied and reverse cleanly) — and

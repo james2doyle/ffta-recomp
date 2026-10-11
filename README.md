@@ -20,164 +20,51 @@ coverage** loop so the next build is fully static.
 
 ---
 
-## Requirements
+## Quick start
 
-- CMake ≥ 3.20 + Ninja, GCC or Clang (C++17), SDL2 (dev), git
-- Python 3.10+ with `capstone`, installed into a repo-local `.venv/`
-  (`build.py` sets this up; `uv` recommended, plain `python3 -m venv` works
-  too)
-- Your own dumps: the FFTA (USA) ROM and a GBA BIOS dump — both
-  hash-verified at launch (see the block above) and never committed
-- Optional: a system mGBA install (`mgba-qt`) for side-by-side eyeballing
-
-## Setup (fresh clone → running game)
-
-Everything after cloning is wrapped in one idempotent script — place your
-dumps and run:
+Requirements: CMake ≥ 3.20 + Ninja, GCC or Clang (C++17), SDL2 (dev), git,
+Python 3.10+ — plus the two dumps above. Everything after cloning is one
+idempotent script:
 
 ```sh
 git clone --recursive <repo-url> ffta-recompiled && cd ffta-recompiled
-cp /path/to/ffta-us.gba game.gba
+cp /path/to/ffta-usa.gba game.gba
 cp /path/to/gba_bios.bin gbarecomp/bios/gba_bios.bin
-python3 build.py
+python3 build.py            # deps → recompile → build → smoke test (FULLY_STATIC)
+tools/play.sh --scale 4     # play: 4x window (960x640)
 ```
 
-`build.py` runs, in order: submodules → dump validation → `.venv/`
-(pinned capstone) → framework patches → framework tools → BIOS recompile →
-static corpus → `build/FFTARecomp` → strict 2400-frame smoke (expect
-`FULLY_STATIC`). The first run takes a few minutes (two
-builds plus the corpus).
+Controls: arrows = D-pad, X = A, Z = B, Enter = Start, Backspace = Select,
+C = L, V = R. Re-run `build.py` after pulling; it skips finished steps.
 
-For the Android target, `python3 build_apk.py` wraps the whole private-build
-pipeline (preflight → Gradle with ROM+BIOS embedded → APK content guard →
-install + device gate) — guide: [android/README.md](android/README.md).
+Prefer the script over the manual route ([docs/manual-build.md](docs/manual-build.md)
+— reference + troubleshooting for every step above). Android is a separate
+target: [android/README.md](android/README.md).
 
-<details>
-<summary>Manual route (what build.py automates — reference + troubleshooting)</summary>
-
-The manual sequence was verified end-to-end from a fresh clone on
-2026-10-08 (submodules → tools → patches → BIOS → corpus → build → strict
-smoke + attract gate).
-
-**1. Clone with submodules.**
-```sh
-git clone <repo-url> ffta-recompiled && cd ffta-recompiled
-git submodule update --init --recursive
-# If a submodule worktree comes up empty, re-run with --checkout --recursive
-```
-
-**2. Place your dumps** — `game.gba` at the repo root (FFTA USA) and
-`gbarecomp/bios/gba_bios.bin` (your own BIOS dump). Launch verifies both
-hashes and fails loudly if either is wrong or missing.
-
-**3. Python venv for the tooling** (disassembler, audit harness):
-```sh
-uv venv .venv && uv pip install --python .venv capstone
-#   (or: python3 -m venv .venv && .venv/bin/pip install capstone)
-```
-
-**4. Apply the local framework patches** (recommended — the tooling below
-assumes them; the two **consolidated** `*-local.patch` files are the
-canonical re-apply units — per-feature files are reference diffs whose
-contexts interleave, so apply them only onto a pristine submodule, before
-the consolidated ones, and only if you need the attribution history):
+## Display options
 
 ```sh
-cd gbarecomp
-git apply ../tools/patches/gbarecomp-local.patch
-cd external/arm-recomp-core && git apply ../../../tools/patches/arm-recomp-core-local.patch && cd ../..
-cd ..
+tools/play.sh --scale 8 --screen backlit   # bigger window + GBA-screen color
 ```
 
-`tools/check.py --only patches` guards their validity — each file must be
-apply-able forward against the pristine pin (the CI condition) and
-reverse against the patched tree, and the replay must byte-match the dev
-tree (`tools/patches/README.md`).
+- `--scale N` (1–8, default 3): window size is N×240 × N×160 pixels
+  (4 → 960x640, 8 → 1920x1280). `play.sh` forwards extra flags to the binary.
+- `--screen KIND`: GBA screen simulation — `raw` (default, exact passthrough),
+  `unlit`, `frontlit`, `backlit`, `classic`. Also via `[video].screen` in
+  `game.toml`, or the `GBARECOMP_SCREEN` environment variable.
+- Widescreen up to 448 px (`--view-width`, `--resize-view`) is a validated
+  feature with its own model — guide: [reference/widescreen.md](reference/widescreen.md).
 
-**5. Build the framework tools** (one-time; re-run only after submodule
-changes):
-```sh
-cmake -S gbarecomp -B gbarecomp/build -G Ninja -DCMAKE_BUILD_TYPE=Release
-cmake --build gbarecomp/build --target gba_recompile gba_scan --parallel 8
-```
-
-**6. Recompile the BIOS (one-time).** Run it *from `gbarecomp/`* so the
-output lands in `gbarecomp/src/runtime/generated_bios/`, and pass the
-project's BIOS config — it seeds the 770 named BIOS functions and
-identity-checks the dump (without it only 666 are discovered and strict
-runs abort on a miss at pc `0x300`):
-```sh
-cd gbarecomp && ./build/gba_recompile --bios bios/gba_bios.bin \
-  --config bios/gba_bios.toml && cd ..
-```
-
-**7. Generate the game's static code corpus** (also after every `game.toml`
-change — `tools/cycle.py` wraps this with the sanity checks and the attract
-gate):
-```sh
-./gbarecomp/build/gba_recompile --rom game.gba --config game.toml \
-  --symbols symbols/ffta_symbols.tsv --data-symbols symbols/ffta_data_symbols.tsv \
-  --out generated --max-functions 65536
-```
-
-**8. Configure and build the game binary:**
-```sh
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DGBARECOMP_ENABLE_MODS=ON
-cmake --build build --target FFTARecomp --parallel 8
-```
-
-(`GBARECOMP_ENABLE_MODS=ON` links the framework's mod lifecycle APIs —
-activation/reset plugins, view-width requests — used by the game's
-widescreen hooks; verified gate-neutral.)
-
-**9. Sanity.** Strict, headless, no input — expect `FULLY_STATIC` in the
-banner:
-```sh
-GBARECOMP_STRICT_STATIC=1 ./build/FFTARecomp \
-  --bios gbarecomp/bios/gba_bios.bin --rom game.gba --frames 2400 --no-window
-```
-And optionally the attract gate, which pins the exact frame hash:
-```sh
-.venv/bin/python tools/attract_check.py    # PASS + exit 0 expected
-```
-
-</details>
-
-Then play — `tools/play.sh` (guide: `tests/README.md`).
-
-<details>
-<summary>Troubleshooting</summary>
-
-- `build.py` stops at **dumps** → the ROM/BIOS is missing or has the wrong
-  hash (expected SHA-1s at the top of this README); it never downloads them.
-- `build.py` stops at **framework patches** → the submodule drifted from
-  its pin; check `git -C gbarecomp status`.
-- `gba_recompile: command not found` → step 5 was not run in this checkout.
-- `generated_bios/` stays empty / BIOS never loads → step 6 was run from the
-  wrong directory (`cd gbarecomp` first). If strict runs instead abort with
-  a dispatch miss near pc `0x300`, step 6 ran without
-  `--config bios/gba_bios.toml`.
-- Launch aborts with an identity/hash error → wrong or missing dump; compare
-  the SHA-1s listed at the top of this README.
-- CMake cannot find SDL2 → install the dev package (see Requirements).
-- `import capstone` fails in tools → step 3's venv (use
-  `.venv/bin/python tools/...`).
-- A submodule directory is empty after cloning → step 1's retry line.
-- Window refuses to close, or a session wedges → `tools/quit.py <port>`; see
-  `tests/README.md` § Playtesting & debugging.
-- After `game.toml` edits: regenerate (step 7) → rebuild → attract gate, i.e.
-  `.venv/bin/python tools/cycle.py`.
-
-</details>
-
-Optional — the mGBA oracle used by the frame-diff harness (needs network
-once; distinct from a system mGBA):
+Headless runs are for scripts and gates; use `tools/play.sh` for anything
+interactive:
 
 ```sh
-cd gbarecomp && bash oracle/setup-mgba.sh \
-  && cmake -B build -S . -DGBARECOMP_BUILD_ORACLE=ON \
-  && cmake --build build --target gbarecomp_oracle --parallel 8
+./build/FFTARecomp --bios gbarecomp/bios/gba_bios.bin --rom game.gba \
+  --frames 6000 --no-window       # headless; add --dump-png out.png for a frame
 ```
+
+Session recording, savestates, debug ports and clean shutdown are covered in
+**[tests/README.md](tests/README.md)**.
 
 ## Status
 
@@ -189,20 +76,6 @@ regression hash has been stable since pinning. Widescreen (W1–W3, up to
 on-device boot, press-acceptance and suspend/kill/resume lifecycle gates
 2026-10-09. Open items and gating decisions live in `AGENTS.md` § Status;
 the dated decision log, evidence and crash playbooks are `BRINGUP.md`.
-
-## Run it
-
-```sh
-tools/play.sh                     # windowed, instrumented — the normal way to play
-tools/play.sh --scale 8           # windowed, bigger (guide: tests/README.md)
-
-./build/FFTARecomp --bios gbarecomp/bios/gba_bios.bin --rom game.gba \
-  --frames 6000 --no-window       # headless; add --dump-png out.png for a frame
-```
-
-Headless runs are for scripts and gates; use `tools/play.sh` for anything
-interactive. Session recording, controls, savestates, debug ports and clean
-shutdown are covered in **[tests/README.md](tests/README.md)**.
 
 ## Testing & debugging
 
@@ -225,12 +98,13 @@ All testing, debugging and verification workflows live in
 
 | Path | What |
 |---|---|
-| `build.py` | Fresh-clone bootstrap — submodules → dumps → venv → patches → tools → BIOS → corpus → build → smoke (see Setup) |
+| `build.py` | Fresh-clone bootstrap — submodules → dumps → venv → patches → tools → BIOS → corpus → build → smoke (see Quick start) |
 | `build_apk.py` | Android bootstrap — preflight → private Gradle build (ROM+BIOS embedded) → APK content guard → install + device gate (android/README.md § Build) |
 | `game.toml` | Per-game config: identity pin + all audit seeds (evidence in `note`s) |
 | `src/` | Host integration: `main.cpp`, launcher boot, stack setup |
 | `android/` | Android target: Gradle project + engine-shell wiring, runtime TOML, payload defaults, device gate — guide `android/README.md` |
 | `tests/` | Host unit tests + the testing guide — playtesting, healing loop, gates, CI (`tests/README.md`) |
+| `docs/` | Deep-dive build docs — the manual setup route (`docs/manual-build.md`) |
 | `generated/` | Recompiler output — gitignored, **never edited** |
 | `mods/` | Preloaded mod catalog shipped beside the exe — the default-enabled `ffta.enhancement.widescreen` manifest activating the linked `ffta.widescreen` plugin |
 | `gbarecomp/`, `recomp-ui/` | Pinned framework submodules (see `reference/dev-gotchas.md` for pins) |
@@ -249,12 +123,10 @@ Full rules live in `AGENTS.md`; the essentials:
    cited; every `game.toml` entry carries its evidence in `note`.
 2. **Never edit `generated/`.** Curation happens in `game.toml` and `src/`.
 3. **ROM hygiene.** No ROM-derived bytes in git, ever.
-4. **First divergence only** when comparing against the emulator.
-5. **Log decisions** in `BRINGUP.md` (date, action, result, conclusion) and
+4. **Log decisions** in `BRINGUP.md` (date, action, result, conclusion) and
    commit after every milestone.
-6. **Don't auto-write `game.toml`** — proposals are reviewed by a human/agent
+5. **Don't auto-write `game.toml`** — proposals are reviewed by a human/agent
    before merging.
-7. Stuck three times? Stop, write the state to `BRINGUP.md`, report.
 
 The coverage/healing workflow (play → harvest → resolve → verify) is
 documented in [tests/README.md](tests/README.md).
@@ -279,37 +151,32 @@ documented in [tests/README.md](tests/README.md).
 
 ## Thanks
 
-Nothing here would exist without work other people shared. Thank you to:
+Nothing here would exist without work other people shared:
 
 - **[mstan](https://github.com/mstan)** — the
   [gbarecomp](https://github.com/mstan/gbarecomp) framework and
   [recomp-ui](https://github.com/mstan/recomp-ui), plus the reference-game
-  recompilations whose conventions we studied — and the R.A.I.D. community
-  around them.
-- **Bregalad and loveemu** — "GBA Mus Ripper" / `sappy_detector.c`, the
-  basis of our m4a engine detection, with the
-  [berg8793](https://github.com/berg8793/gba-mus-ripper) and
-  [CaptainSwag101](https://github.com/CaptainSwag101/gba-mus-ripper) forks
-  for cross-checking.
-- **The [Data Crystal](https://datacrystal.tcrf.net/) contributors** — the
-  FFTA ROM/RAM maps, scripting and compression pages (recovered via the
-  Wayback Machine) that seeded many symbols.
+  recompilations and the R.A.I.D. community around them.
+- **Bregalad and loveemu** — "GBA Mus Ripper" / `sappy_detector.c` behind our
+  m4a engine detection ([berg8793](https://github.com/berg8793/gba-mus-ripper)
+  and [CaptainSwag101](https://github.com/CaptainSwag101/gba-mus-ripper) forks
+  for cross-checking).
+- **The [Data Crystal](https://datacrystal.tcrf.net/) contributors** — FFTA
+  ROM/RAM maps, scripting and compression pages (via the Wayback Machine).
 - **[LeonarthCG](https://github.com/LeonarthCG)** —
   [FFTA_Engine_Hacks](https://github.com/LeonarthCG/FFTA_Engine_Hacks), the
-  address index that anchored our engine studies.
+  address index behind our engine studies.
 - **[charlie-troy](https://github.com/charlie-troy)** —
-  [ffta-decomp](https://github.com/charlie-troy/ffta-decomp), a
-  revision-exact partial decomp used for naming and cross-checks.
+  [ffta-decomp](https://github.com/charlie-troy/ffta-decomp), used for naming
+  and cross-checks.
 - **[spiiin](https://github.com/spiiin)** —
-  [FFTAUtils](https://github.com/spiiin/FFTAUtils), map-data formats and
-  verified data regions.
+  [FFTAUtils](https://github.com/spiiin/FFTAUtils): map-data formats, verified
+  data regions.
 - **BCROBERT, JoKyR, Terence Fergusson, and the GameFAQs code-guide authors
-  (Adrammelech, labmaster, TetrisTheMovie, Vegikachu)** — the notes and
-  guides that mapped FFTA's structures and formulas.
-- **The [FFHacktics](https://ffhacktics.com/) community** — home of the
-  long-running FFTA research that made all of this findable.
-- **The [mGBA](https://mgba.io/) project** — the emulator we use as the
-  differential-testing oracle.
+  (Adrammelech, labmaster, TetrisTheMovie, Vegikachu)** — structures and formulas.
+- **The [FFHacktics](https://ffhacktics.com/) community** — long-running FFTA
+  research that made all of this findable.
+- **The [mGBA](https://mgba.io/) project** — our differential-testing oracle.
 
 Redistribution terms for anything included here live in
 `THIRD_PARTY_ATTRIBUTION.md` and `reference/datacrystal/README.md`.

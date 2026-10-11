@@ -4371,3 +4371,36 @@ runtime.cpp), which needs `run-as` and is invisible to file managers/MTP.
 
 Conclusion: issue #6 implemented on all three layers (engine knob, game
 redirect+migration, gates/docs). Commit after this entry.
+
+## 2026-10-11 (issue #2) — root README slimmed, manual route to docs/
+
+Issue #2: root docs too dense, no simple build/run example with scale+screen
+flags (WarioWareTwistedRecomp cited as the better model — structure studied,
+no text taken).
+
+- **Root README 323 -> 190 lines.** New Quick start (clone -> dumps ->
+  `build.py` -> `tools/play.sh --scale 4`) and Display options (`--scale N`
+  1-8/default 3 with pixel math; `--screen` raw/unlit/frontlit/backlit/
+  classic with default + TOML/env overrides; widescreen pointer to
+  reference/widescreen.md). Flag facts verified against runtime.cpp
+  (parse_cli + color_lut.cpp kinds) and a headless `--scale 4
+  --screen backlit` smoke run (exit 0, FULLY_STATIC); invalid `--screen`
+  values do NOT fail (fall back silently) so no such claim is documented.
+  Thanks compressed to one line per credit (all names kept); Contributing to
+  5 + AGENTS.md pointer; layout/status/testing pointers unchanged.
+- **Overflow bucket:** manual 9-step route + troubleshooting + oracle setup
+  moved verbatim to `docs/manual-build.md` (new `docs/` dir, layout table
+  row added). Stale-pointer sweep: `build.py:207` hint now targets
+  `docs/manual-build.md § Troubleshooting`; skill verification.md
+  "collapsible reference" -> "reference document"; AGENTS.md index gains
+  the docs/ row. No other file anchored the moved sections (checked).
+- **Gates:** docs-only (no game.toml/src change) so no cycle/check run;
+  `tests/python/test_tools.py` 27/27 OK (covers build.py); fence/link audit
+  clean (relative links resolved per-file).
+- Note: `tools/play.sh` header still says `--view-width` is unsupported for
+  FFTA (clamps to 240) — stale vs the validated W1-W3 448 px model, left
+  alone as out of scope; README points widescreen readers at
+  reference/widescreen.md instead.
+
+Conclusion: issue #2 done — quick start + scale/screen examples up front,
+detail one link away. Commit after this entry.

@@ -141,6 +141,7 @@ crash playbooks: `BRINGUP.md`.
 |---|---|
 | Decisions, priors, corrections, crash playbooks | `BRINGUP.md` |
 | Setup, run, layout, roadmap | `README.md` |
+| Manual setup route (no build.py) + troubleshooting | `docs/manual-build.md` |
 | Playtest/debug cookbook, healing loop, gates, coverage, CI, unit tests | `tests/README.md` |
 | Android target: build, run, device gate, known behavior | `android/README.md` |
 | Harness traps: run modes, capture envs, close handling, RAM-dispatch, saves, submodule pins, framework patches | `reference/dev-gotchas.md` |

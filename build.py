@@ -204,7 +204,8 @@ def step_patches():
         if not run_ok(["git", "-C", root, "apply", "--check", patch]):
             die(f"patch does not apply: {patch.name}",
                 hint="the submodule likely drifted from its pin — check "
-                     "`git -C gbarecomp status`; see README § Troubleshooting")
+                     "`git -C gbarecomp status`; see docs/manual-build.md "
+                     "§ Troubleshooting")
         r = run(["git", "-C", root, "apply", patch])
         if r.returncode != 0:
             die(f"failed to apply {patch.name}", hint=tail(r))
