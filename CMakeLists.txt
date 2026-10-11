@@ -71,6 +71,16 @@ target_link_libraries(${FFTA_TARGET} PRIVATE
     "-Wl,--end-group")
 
 if(ANDROID)
+    # src/main.cpp uses SDL_AndroidGetExternalStoragePath() (issue #6) for
+    # the user-visible save/state directories. The engine template builds
+    # SDL2 shared before this project, so the target exists; the guard keeps
+    # exotic standalone configures working.
+    if(TARGET SDL2::SDL2)
+        target_link_libraries(${FFTA_TARGET} PRIVATE SDL2::SDL2)
+    endif()
+endif()
+
+if(ANDROID)
     set(FFTA_DEFAULT_GAME_CONFIG "variants/final_fantasy_tactics_advance/game.toml")
 else()
     set(FFTA_DEFAULT_GAME_CONFIG "game.toml")

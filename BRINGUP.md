@@ -4328,3 +4328,46 @@ entry (tests/python/test_tools.py only — no regen/build impact):
 
 Conclusion: the EUR-trap, party-base, and CpuSet pins are now permanent
 regression guards. Commit after this entry.
+
+## 2026-10-11 (issue #6) — saves + states to the user-visible app dir
+
+Issue #6: `.sav` and save states are invisible at
+`/sdcard/Android/data/org.gbarecomp.fftarecomp` — everything lived in the
+app-private `files/` tree (`files/saves/ffta_us.sav` via game_android.toml
+`[save].path ../../saves/ffta_us.sav`; slots/suspend derived from `args.rom`
+as `files/roms/ffta_usa.stateN/.suspend.state/.suspend.pending` in
+runtime.cpp), which needs `run-as` and is invisible to file managers/MTP.
+
+- **Fix:** `src/main.cpp` (Android only) resolves the external app dir via
+  `SDL_AndroidGetExternalStoragePath()`, one-time migrates app-private files
+  outward (`saves/ffta_us.sav`, `roms/ffta_usa.state1-9`,
+  `roms/ffta_usa.suspend.state`; copy + size-verify + remove original, only
+  when the external copy is absent so player imports win; `.suspend.pending`
+  deliberately not migrated), then appends `--save-path` + `--state-dir`
+  (CLI wins over the staged TOML; `find_config_arg` needed the new flag in
+  `kCliValueFlags`). New layout: `.../files/saves/ffta_us.sav`,
+  `.../files/states/ffta_usa.*`. No storage permission needed (app owns its
+  external dir); external unavailable -> TOML internal fallback stands.
+- **Engine knob (local patch):** `--state-dir <dir>` in runtime.cpp
+  (`Args::state_dir`, `state_base()` helper serving slot/suspend/marker
+  paths; empty = historical next-to-ROM behavior, desktop untouched).
+  Recorded as `tools/patches/android-external-state-dir.patch` (pin-forward
+  + dev-reverse verified) + regenerated `gbarecomp-local.patch`; regions
+  confirmed clear of the 5 existing runtime.cpp hunks before writing.
+  Game `main` links `SDL2::SDL2` on Android (engine builds it shared first).
+- **Tests/docs:** `android_static_check.py` gains the issue-#6 wiring check
+  (TOML fallback + src tokens + engine knob + lifecycle paths + romFile
+  basename pin); `android_lifecycle_test.py` asserts the external locations;
+  `android/README.md` gains a Saves & states section (paths, MTP/adb,
+  import-while-stopped rule).
+- **Gates:** cycle.py PASS (55350 flat, attract 1EF4C1... unchanged);
+  desktop `--state-dir` smoke run exit 0 + FULLY_STATIC identical;
+  check.py ALL PASS 13/13 (incl. patches replay + android-static 18/18).
+- **Pending (no device attached here):** rebuild + reinstall the APK (native
+  change), then `android_lifecycle_test.py` and `android_press_test.py` on
+  device; confirm MTP visibility + a USB round-trip (pull/push `.sav`).
+  `git status` keeps the `gbarecomp` worktree dirty by design (recorded via
+  the consolidated patch, applied by build.py on fresh clones).
+
+Conclusion: issue #6 implemented on all three layers (engine knob, game
+redirect+migration, gates/docs). Commit after this entry.

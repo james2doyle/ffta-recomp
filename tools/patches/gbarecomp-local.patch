@@ -911,7 +911,7 @@ index 117db49..4d847fb 100644
      // DLLs are left loaded (immutable code, process-lifetime); the OS reclaims
      // them at exit. Drain any last results so counters/banner are accurate.
 diff --git a/src/runtime/runtime.cpp b/src/runtime/runtime.cpp
-index b560791..7fb0c8b 100644
+index b560791..b2860c4 100644
 --- a/src/runtime/runtime.cpp
 +++ b/src/runtime/runtime.cpp
 @@ -34,6 +34,7 @@
@@ -922,7 +922,42 @@ index b560791..7fb0c8b 100644
  #include "save_config.h"
  #include "self_heal.h"
  #include "overlay_loader.h"
-@@ -2449,6 +2450,11 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -150,6 +151,11 @@ struct Args {
+     std::string rom_sha1;
+     std::uint32_t rom_crc32 = 0;  // 0 = no CRC check (per-game TOML fills)
+     std::string save_path;
++    // --state-dir <dir>: host-window save-state slots (.stateN) and the
++    // mobile suspend state/marker (.suspend.state/.suspend.pending) are
++    // written under this directory (ROM basename kept) instead of next to
++    // the ROM. Empty = historical next-to-ROM behavior (desktop default).
++    std::string state_dir;
+     std::optional<gba::SaveType> save_type;
+     std::size_t save_size = 0;
+     int steps = 16;
+@@ -788,7 +794,8 @@ constexpr std::string_view kCliValueFlags[] = {
+     "--rom-sha1",    "--rom-crc32",     "--steps",         "--frames",
+     "--scale",       "--tcp",           "--tcp-observe",   "--dump-bmp",
+     "--dump-png",    "--load-state",    "--view-width",    "--widescreen",
+-    "--save",        "--save-path",     "--gyro-sensitivity",
++    "--save",        "--save-path",     "--state-dir",
++    "--gyro-sensitivity",
+     "--sharp-filter", "--linear-filter", "--affine-filter", "--screen",
+     "--volume",
+ };
+@@ -1011,6 +1018,12 @@ bool parse_cli(int argc, char** argv, Args* args, std::string* err) {
+             args->save_path = v;
+             continue;
+         }
++        if (s == "--state-dir") {
++            const char* v = need_value(s.c_str());
++            if (!v) return false;
++            args->state_dir = v;
++            continue;
++        }
+         if (s == "--screen") {
+             const char* v = need_value("--screen");
+             if (!v) return false;
+@@ -2449,6 +2462,11 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
          bool ctl_step_ok   = true;
  
          std::thread game_thread([&]() {
@@ -934,7 +969,7 @@ index b560791..7fb0c8b 100644
              for (;;) {
                  int st;
                  {
-@@ -2588,8 +2594,10 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -2588,8 +2606,10 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
          if (game_thread.joinable()) game_thread.join();
          bool save_ok = flush_save();
          write_session_diagnostics(opts, "exit", ppu.frame_count());
@@ -946,7 +981,7 @@ index b560791..7fb0c8b 100644
          runtime_shutdown();
          return (ok && save_ok) ? 0 : 1;
      }
-@@ -2865,7 +2873,8 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -2865,7 +2885,8 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
                                    opts.assist_fast_forward_multiplier_default);
              win.configure_touch(opts.input_frame != nullptr,
                                  opts.touch_gesture_claims,
@@ -956,7 +991,44 @@ index b560791..7fb0c8b 100644
              win.set_touch_config_dir(exe_dir.c_str());
          }
          win.set_host_overlay(opts.host_overlay);
-@@ -4260,8 +4269,10 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -3098,25 +3119,27 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+     // Host-window save-state slots: the ROM path with a .stateN extension.
+     // Shift+F1..F9 writes slots 1..9 and F1..F9 restores them; a runtime menu
+     // may additionally expose slot 10 without changing the established
+-    // function-key shortcut scheme.
+-    auto slot_path = [&](int slot) -> std::string {
++    // function-key shortcut scheme. With --state-dir the same basenames live
++    // under that directory instead of next to the ROM.
++    auto state_base = [&](const char* ext) -> std::string {
+         std::filesystem::path p(args.rom);
+-        p.replace_extension(".state" + std::to_string(slot));
++        if (!args.state_dir.empty())
++            p = std::filesystem::path(args.state_dir) / p.filename();
++        p.replace_extension(ext);
+         return p.string();
+     };
++    auto slot_path = [&](int slot) -> std::string {
++        return state_base((".state" + std::to_string(slot)).c_str());
++    };
+     // Mobile suspend: a state written whenever the OS backgrounds the app,
+     // plus a marker that exists only while the app is suspended. If the OS
+     // kills the process in the background the marker survives, and the next
+     // launch resumes exactly where the player left (RunOptions opt-in).
+     auto suspend_state_path = [&]() -> std::string {
+-        std::filesystem::path p(args.rom);
+-        p.replace_extension(".suspend.state");
+-        return p.string();
++        return state_base(".suspend.state");
+     };
+     auto suspend_marker_path = [&]() -> std::string {
+-        std::filesystem::path p(args.rom);
+-        p.replace_extension(".suspend.pending");
+-        return p.string();
++        return state_base(".suspend.pending");
+     };
+     auto clear_suspend_marker = [&]() {
+         std::error_code ec;
+@@ -4260,8 +4283,10 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
          }
      }
  

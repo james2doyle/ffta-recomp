@@ -238,6 +238,45 @@ def check_save_config():
          % (game["save"]["size"], android["save"]["size"]))
 
 
+def check_save_external_wiring():
+    # Issue #6: battery saves + save states must land in the user-visible
+    # external app directory. The TOML keeps the app-private fallback (used
+    # when external storage is unavailable); src/main.cpp migrates + appends
+    # --save-path/--state-dir on Android; the engine honors --state-dir for
+    # slots/suspend; the lifecycle gate asserts the external locations.
+    android = load_toml("android/game_android.toml")
+    need(android["save"]["path"].replace("\\", "/").endswith(
+        "saves/ffta_us.sav"),
+         "game_android.toml [save].path must keep the app-private fallback "
+         "saves/ffta_us.sav, found %r" % android["save"]["path"])
+    main = read_text("src/main.cpp")
+    need("SDL_AndroidGetExternalStoragePath" in main,
+         "src/main.cpp lost the external-storage lookup (issue #6)")
+    for token in ("--save-path", "--state-dir", "saves/ffta_us.sav",
+                  "ffta_usa.state", "ffta_usa.suspend.state",
+                  ".suspend.pending"):
+        need(token in main,
+             "src/main.cpp missing external-redirect token %r (issue #6)"
+             % token)
+    gradle = read_text("android/app/build.gradle")
+    need('romFile' in gradle and 'ffta_usa.gba' in gradle,
+         "build.gradle romFile pin unreadable (state basenames derive "
+         "from it)")
+    need("ffta_usa" in main,
+         "src/main.cpp state basenames drifted from romFile ffta_usa.gba")
+    runtime = read_text("gbarecomp/src/runtime/runtime.cpp")
+    need('"--state-dir"' in runtime and "args->state_dir" in runtime
+         and "state_base" in runtime,
+         "engine --state-dir knob missing from gbarecomp/src/runtime/"
+         "runtime.cpp (slots/suspend would stay app-private)")
+    lifecycle = read_text("tools/android_lifecycle_test.py")
+    need("/sdcard/Android/data/" in lifecycle
+         and "/states/ffta_usa" in lifecycle
+         and "/saves/ffta_us.sav" in lifecycle,
+         "android_lifecycle_test.py must assert the external save/state "
+         "locations (issue #6)")
+
+
 # ---------------------------------------------------------------------------
 # Payload checks
 # ---------------------------------------------------------------------------
@@ -542,6 +581,8 @@ CHECKS = [
     ("identity: BIOS sha1 consistent (game.toml, game_android.toml, engine "
      "default)", check_bios_pins),
     ("identity: save type/size mirror the desktop config", check_save_config),
+    ("identity: saves/states land in the user-visible app dir (issue #6)",
+     check_save_external_wiring),
     ("payload: state.toml keeps the widescreen feature enabled",
      check_state_toml),
     ("payload: state.toml matches the preloaded catalog manifest",

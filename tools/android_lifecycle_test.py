@@ -33,7 +33,13 @@ REPO = Path(__file__).resolve().parent.parent
 PACKAGE = "org.gbarecomp.fftarecomp"
 SETUP_ACTIVITY = "org.gbarecomp.GbaSetupActivity"
 AUTOSTART_EXTRA = "org.gbarecomp.extra.AUTOSTART"
-ROM_BASE = "files/roms/ffta_usa"
+# Issue #6: suspend states + battery saves live in the user-visible external
+# app directory (src/main.cpp redirects --state-dir/--save-path there, with a
+# one-time migration from the old app-private locations). run-as reaches both
+# trees on a debuggable build.
+EXT_FILES = f"/sdcard/Android/data/{PACKAGE}/files"
+ROM_BASE = EXT_FILES + "/states/ffta_usa"
+SAVE_PATH = EXT_FILES + "/saves/ffta_us.sav"
 OBSERVE_PORT = 19888
 
 
@@ -140,7 +146,7 @@ def main():
         check("kill: suspend marker survived",
               file_exists(ROM_BASE + ".suspend.pending"))
         save_before = adb("exec-out", "run-as", PACKAGE, "cat",
-                          "files/saves/ffta_us.sav", binary=True)
+                          SAVE_PATH, binary=True)
         save_bytes = len(save_before.stdout) \
             if save_before.returncode == 0 else -1
         check("kill: battery save present", save_bytes > 0,

@@ -1,0 +1,74 @@
+--- a/src/runtime/runtime.cpp
++++ b/src/runtime/runtime.cpp
+@@ -150,6 +150,11 @@
+     std::string rom_sha1;
+     std::uint32_t rom_crc32 = 0;  // 0 = no CRC check (per-game TOML fills)
+     std::string save_path;
++    // --state-dir <dir>: host-window save-state slots (.stateN) and the
++    // mobile suspend state/marker (.suspend.state/.suspend.pending) are
++    // written under this directory (ROM basename kept) instead of next to
++    // the ROM. Empty = historical next-to-ROM behavior (desktop default).
++    std::string state_dir;
+     std::optional<gba::SaveType> save_type;
+     std::size_t save_size = 0;
+     int steps = 16;
+@@ -788,7 +793,8 @@
+     "--rom-sha1",    "--rom-crc32",     "--steps",         "--frames",
+     "--scale",       "--tcp",           "--tcp-observe",   "--dump-bmp",
+     "--dump-png",    "--load-state",    "--view-width",    "--widescreen",
+-    "--save",        "--save-path",     "--gyro-sensitivity",
++    "--save",        "--save-path",     "--state-dir",
++    "--gyro-sensitivity",
+     "--sharp-filter", "--linear-filter", "--affine-filter", "--screen",
+     "--volume",
+ };
+@@ -1011,6 +1017,12 @@
+             args->save_path = v;
+             continue;
+         }
++        if (s == "--state-dir") {
++            const char* v = need_value(s.c_str());
++            if (!v) return false;
++            args->state_dir = v;
++            continue;
++        }
+         if (s == "--screen") {
+             const char* v = need_value("--screen");
+             if (!v) return false;
+@@ -3098,25 +3110,27 @@
+     // Host-window save-state slots: the ROM path with a .stateN extension.
+     // Shift+F1..F9 writes slots 1..9 and F1..F9 restores them; a runtime menu
+     // may additionally expose slot 10 without changing the established
+-    // function-key shortcut scheme.
+-    auto slot_path = [&](int slot) -> std::string {
++    // function-key shortcut scheme. With --state-dir the same basenames live
++    // under that directory instead of next to the ROM.
++    auto state_base = [&](const char* ext) -> std::string {
+         std::filesystem::path p(args.rom);
+-        p.replace_extension(".state" + std::to_string(slot));
++        if (!args.state_dir.empty())
++            p = std::filesystem::path(args.state_dir) / p.filename();
++        p.replace_extension(ext);
+         return p.string();
+     };
++    auto slot_path = [&](int slot) -> std::string {
++        return state_base((".state" + std::to_string(slot)).c_str());
++    };
+     // Mobile suspend: a state written whenever the OS backgrounds the app,
+     // plus a marker that exists only while the app is suspended. If the OS
+     // kills the process in the background the marker survives, and the next
+     // launch resumes exactly where the player left (RunOptions opt-in).
+     auto suspend_state_path = [&]() -> std::string {
+-        std::filesystem::path p(args.rom);
+-        p.replace_extension(".suspend.state");
+-        return p.string();
++        return state_base(".suspend.state");
+     };
+     auto suspend_marker_path = [&]() -> std::string {
+-        std::filesystem::path p(args.rom);
+-        p.replace_extension(".suspend.pending");
+-        return p.string();
++        return state_base(".suspend.pending");
+     };
+     auto clear_suspend_marker = [&]() {
+         std::error_code ec;

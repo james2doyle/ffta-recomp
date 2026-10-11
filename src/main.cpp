@@ -1,6 +1,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <string>
 #include <vector>
 
 #include "runtime.h"
@@ -10,6 +11,12 @@
 #include "ffta_ram_dispatch.h"
 #include "ffta_lzss_guard.h"
 #include "mobile_platform.h"
+
+#if defined(__ANDROID__)
+#include <SDL_system.h>  // SDL_AndroidGetExternalStoragePath (user-visible saves)
+#include <filesystem>
+#include <system_error>
+#endif
 
 #if defined(GBAGAME_RECOMP_UI)
 #include "game_launcher_boot.h"
@@ -135,6 +142,79 @@ int ffta_ws_bg_x_provider(int bg, int x, int y, int* hw_x) {
     return 0;
 }
 
+#if defined(__ANDROID__)
+// Issue #6: battery saves and save states live in the user-visible external
+// app directory (.../Android/data/org.gbarecomp.fftarecomp/files/) so players
+// can back them up or import them over USB/MTP — the app-private files/ tree
+// needs run-as and is invisible to file managers. Internal files/ stays the
+// fallback when external storage is unavailable, and the staged game TOML
+// still points there. Filenames mirror android/app/build.gradle (romFile)
+// and android/game_android.toml ([save].path); tools/android_static_check.py
+// pins all three together.
+// One-time migration: internal files move outward (copy + size-verify +
+// remove original) only when the external copy is absent, so a
+// player-imported file is never overwritten. The .suspend.pending marker is
+// deliberately NOT migrated — a stale resume marker must never survive an
+// update.
+namespace {
+
+void ffta_migrate_file(const std::filesystem::path& from,
+                       const std::filesystem::path& to) {
+    std::error_code ec;
+    if (!std::filesystem::is_regular_file(from, ec)) return;
+    if (std::filesystem::is_regular_file(to, ec)) return;  // player import wins
+    std::filesystem::create_directories(to.parent_path(), ec);
+    if (ec) {
+        std::fprintf(stderr, "[ffta] saves: cannot create %s (%s)\n",
+                     to.parent_path().c_str(), ec.message().c_str());
+        return;
+    }
+    std::filesystem::copy_file(from, to, ec);
+    if (ec) {
+        std::fprintf(stderr, "[ffta] saves: cannot migrate %s (%s)\n",
+                     from.c_str(), ec.message().c_str());
+        return;
+    }
+    const auto src_size = std::filesystem::file_size(from, ec);
+    const auto dst_size = std::filesystem::file_size(to, ec);
+    if (!ec && src_size == dst_size) {
+        std::filesystem::remove(from, ec);
+        std::fprintf(stderr, "[ffta] saves: migrated %s -> %s\n",
+                     from.c_str(), to.c_str());
+    }
+}
+
+// Appends --save-path/--state-dir (CLI wins over the staged TOML). No-op
+// when external storage is unavailable: the TOML's internal paths stand.
+void ffta_redirect_player_data(std::vector<std::string>& args) {
+    const char* ext = SDL_AndroidGetExternalStoragePath();
+    if (!ext || !*ext) {
+        std::fprintf(stderr, "[ffta] saves: external storage unavailable, "
+                             "keeping app-private files/\n");
+        return;
+    }
+    const std::filesystem::path saves = std::filesystem::path(ext) / "saves";
+    const std::filesystem::path states = std::filesystem::path(ext) / "states";
+    ffta_migrate_file("saves/ffta_us.sav", saves / "ffta_us.sav");
+    for (int slot = 1; slot <= 9; ++slot)
+        ffta_migrate_file("roms/ffta_usa.state" + std::to_string(slot),
+                          states / ("ffta_usa.state" + std::to_string(slot)));
+    ffta_migrate_file("roms/ffta_usa.suspend.state",
+                      states / "ffta_usa.suspend.state");
+    std::error_code ec;
+    std::filesystem::create_directories(saves, ec);
+    std::filesystem::create_directories(states, ec);
+    args.emplace_back("--save-path");
+    args.emplace_back((saves / "ffta_us.sav").string());
+    args.emplace_back("--state-dir");
+    args.emplace_back(states.string());
+    std::fprintf(stderr, "[ffta] saves: external saves=%s states=%s\n",
+                 saves.c_str(), states.c_str());
+}
+
+}  // namespace
+#endif
+
 }  // namespace
 
 int ffta_main(int argc, char** argv) {
@@ -203,6 +283,9 @@ int ffta_main(int argc, char** argv) {
         // (MSVC) — the call was previously guarded by flow only.
         setenv("GBARECOMP_MISS_FRAG",
                "recomp_master_misses_AFXE.toml.frag", 0);
+        // Issue #6: user-visible battery saves + save states (no-op when
+        // external storage is unavailable).
+        ffta_redirect_player_data(args);
 #endif
         // Phones fill the screen with the desktop-validated expanded view
         // (decision 2026-10-08); physical-pixel sizing keeps the runtime

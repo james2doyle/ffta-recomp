@@ -246,6 +246,39 @@ build type's debuggable flag, and the zip must be free of duplicate / stray /
 oversized entries (the junk-blob class below). `--apk PATH` selects a
 specific file; `--expect public|private` asserts the build mode.
 
+## Saves & states (backup / import)
+
+Battery saves and save states live in the **user-visible external app
+directory**, so they can be backed up or imported without root or `run-as`:
+
+| What | Path on shared storage |
+|---|---|
+| Battery save (64 KiB flash) | `Android/data/org.gbarecomp.fftarecomp/files/saves/ffta_us.sav` |
+| Save-state slots 1–9 | `…/files/states/ffta_usa.state<N>` |
+| Suspend state + marker | `…/files/states/ffta_usa.suspend.state` (+ `.suspend.pending`) |
+
+Browse it over USB/MTP, or via adb (`adb shell ls
+/sdcard/Android/data/org.gbarecomp.fftarecomp/files`; `adb pull/push` the
+`saves/` and `states/` trees). No storage permission is needed: an app
+always owns its own external directory. **Import rule:** copy files in while
+the app is fully stopped (`am force-stop` first); a foreign `.sav` must
+still be the 65536-byte flash image or the boot warning fires.
+
+How it works: `src/main.cpp` (Android only) resolves the external directory
+via `SDL_AndroidGetExternalStoragePath()`, one-time migrates any existing
+app-private files outward (copy + size-verify + remove original, only when
+the external copy is absent — a player-imported file is never overwritten;
+the `.suspend.pending` marker is deliberately not migrated), then appends
+`--save-path` / `--state-dir` (CLI wins over the staged TOML). The engine
+knows `--state-dir` through a local patch (`tools/patches/
+android-external-state-dir.patch` — slots/suspend keep the ROM basename
+under that directory). When external storage is unavailable the staged
+`game_android.toml` fallback (`files/saves/ffta_us.sav`, states next to the
+ROM in `files/roms/`) stands. The device lifecycle gate
+(`tools/android_lifecycle_test.py`) asserts the external locations, and
+`tools/android_static_check.py` pins the wiring (filenames ↔ `romFile` ↔
+TOML) device-free.
+
 ## Known behavior
 
 - **Split-loop nesting (fixed 2026-10-09, `607ca07`):** the vblank wait
