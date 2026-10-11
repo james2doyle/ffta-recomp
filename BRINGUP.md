@@ -4443,3 +4443,25 @@ Follow-up (hygiene): the live `--launcher` verification run wrote
 Deleted both; `.gitignore` now covers the four launcher sidecars
 (`rom.cfg`, `bios.cfg`, `config.ini`, `keybinds.ini`) — no tracked file
 matches those names (verified). Committed with this note.
+
+## 2026-10-10 (CI tier-1) — android-static failed on pristine clones (issue #6 check)
+
+CI (`unit-cpp,unit-py,patches,android-static`) failed only
+`android-static`: `identity: saves/states land in the user-visible app
+dir (issue #6)` — 17/18 passed. Local run was green, so the check was
+environment-sensitive.
+
+- **Root cause:** `check_save_external_wiring` read the live working tree
+  `gbarecomp/src/runtime/runtime.cpp` for the `--state-dir` knob. That
+  knob exists only as a local framework edit (recorded in
+  `tools/patches/gbarecomp-local.patch` + reference
+  `android-external-state-dir.patch`); pristine CI submodules
+  (`git show HEAD:src/runtime/runtime.cpp` — 0 hits) don't have it.
+- **Fix:** the engine assertion now accepts the working tree OR the
+  recorded patches (same three tokens: `"--state-dir"`,
+  `args->state_dir`, `state_base`). Patch<->pin fidelity stays with the
+  `patches` suite; this keeps tier 1 fork-safe on fresh clones.
+- **Verification:** `git show HEAD:...runtime.cpp` lacks the knob (old
+  code must fail) while both patch files carry all three tokens (new
+  code passes); `.venv/bin/python tools/check.py --only
+  unit-cpp,unit-py,patches,android-static` → ALL PASS 4/4.

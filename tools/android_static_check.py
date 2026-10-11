@@ -265,10 +265,26 @@ def check_save_external_wiring():
     need("ffta_usa" in main,
          "src/main.cpp state basenames drifted from romFile ffta_usa.gba")
     runtime = read_text("gbarecomp/src/runtime/runtime.cpp")
-    need('"--state-dir"' in runtime and "args->state_dir" in runtime
-         and "state_base" in runtime,
+    runtime_ok = ('"--state-dir"' in runtime and "args->state_dir" in runtime
+                  and "state_base" in runtime)
+    if not runtime_ok:
+        # Fresh clones (CI tier 1) check out pristine submodules, so the
+        # knob lives only in the recorded patches until applied. Accept
+        # the working tree or the recorded diff (the `patches` suite pins
+        # patch<->pin fidelity separately).
+        recorded = ""
+        for rel in ("tools/patches/gbarecomp-local.patch",
+                    "tools/patches/android-external-state-dir.patch"):
+            path = REPO / rel
+            if path.is_file():
+                recorded += path.read_text(encoding="utf-8") + "\n"
+        runtime_ok = ('"--state-dir"' in recorded
+                      and "args->state_dir" in recorded
+                      and "state_base" in recorded)
+    need(runtime_ok,
          "engine --state-dir knob missing from gbarecomp/src/runtime/"
-         "runtime.cpp (slots/suspend would stay app-private)")
+         "runtime.cpp and the recorded patches (slots/suspend would stay "
+         "app-private)")
     lifecycle = read_text("tools/android_lifecycle_test.py")
     need("/sdcard/Android/data/" in lifecycle
          and "/states/ffta_usa" in lifecycle
