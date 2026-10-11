@@ -4298,3 +4298,33 @@ Follow-up to this morning's entry (the two "later items").
 
 Conclusion: the 43-backlog is closed (30 named + applied, 13 documented);
 party-base flag resolved with the base corrected. Commit after this entry.
+
+## 2026-10-11 (tests) — TsvGuard extensions + RomTruthTests pin the import
+
+User asked for additional tests; implemented both proposals from the prior
+entry (tests/python/test_tools.py only — no regen/build impact):
+
+- **TsvGuardTests +2:** test_thumb_arm_alignment (even thumb / 4-aligned
+  ARM — the cycle.py dispatch sanity, now at the source) and
+  test_no_duplicate_symbol_addrs with a 4-entry allowlist. The allowlist
+  correction is a finding in itself: besides 0x085680DC there are THREE
+  deliberate cross-file overlaps (0x080C7EA4/0x080CCD50/0x0812ED98 =
+  function seed doubling as data-table label, § 3) — first inventoried
+  here; any fifth duplicate now fails.
+- **RomTruthTests (new class, 6 tests; LOCAL-ONLY, skips without game.gba
+  per the SaveCheckTest/BiosBytePinTests precedent):** VM table hash
+  (sha256 over both dispatch regions — one EUR handler swap breaks it,
+  verified with a tampered-copy negative control), TSV handler membership
+  (all 128 scene_/cond_ rows resolve into the ROM tables; scene_gfx_load
+  excluded by design), USA pointer cells, event-list pad bytes (234/234),
+  party-base literals (0x0802D878/0x0802D9E4 + enemy +0x2F44 + UnitStat
+  table base + index-0 stub), SWI veneer immediates + bx lr tails.
+- **Two test bugs caught by running (both mine, fixed):** `bx lr` is
+  0x4770, not 0x7047 (byte-order slip — the disassembler prints bytes);
+  the duplicate allowlist needed all four overlaps, not one. Suite is
+  27/27 OK (19 existing + 8 new); check.py --only unit-py PASS.
+  Full-gate re-run unnecessary (no symbols/config/src change since the
+  13/13 gate on the identical tree).
+
+Conclusion: the EUR-trap, party-base, and CpuSet pins are now permanent
+regression guards. Commit after this entry.

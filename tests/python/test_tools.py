@@ -5,6 +5,10 @@ Covers the pure logic the healing/audit flow depends on:
   - trace_split: backward-jump segmentation + header preservation
   - cache_harvest: recomp_cache unit-file parsing + game.toml address set
   - misspack.prologue_scan: thumb push-with-lr backscan on a synthetic ROM
+  - TsvGuardTests: symbols/*.tsv shape, alignment, duplicate discipline
+  - RomTruthTests: ROM-pinned facts behind the symbol tables (LOCAL-ONLY,
+    skips without game.gba) — dispatch tables, pointer cells, party base,
+    SWI veneers
 
 Run: .venv/bin/python tests/python/test_tools.py [-v]
 Requires capstone (misspack dependency): use .venv per README setup, or
@@ -250,6 +254,42 @@ class TsvGuardTests(unittest.TestCase):
                               f"{addr}, {name} line {i})")
                 seen[sym] = (addr, name)
 
+    def test_thumb_arm_alignment(self):
+        # Mirrors cycle.py's dispatch sanity at the source: a thumb seed
+        # must be even, an ARM seed 4-aligned. An odd address means a raw
+        # interworking pointer slipped into the TSV.
+        for name in ("ffta_symbols", "ffta_data_symbols"):
+            path = REPO / "symbols" / f"{name}.tsv"
+            for i, f in self._tsv_rows(path):
+                addr = int(f[0], 16)
+                if name == "ffta_symbols":
+                    if f[1].lower() == "thumb":
+                        self.assertEqual(addr & 1, 0,
+                                         f"{name} line {i}: odd thumb {f[0]}")
+                    else:
+                        self.assertEqual(addr & 3, 0,
+                                         f"{name} line {i}: misaligned arm "
+                                         f"{f[0]}")
+
+    def test_no_duplicate_symbol_addrs(self):
+        # Two rows for one address split the debug meaning (and one of the
+        # names silently loses in symbol_map.cpp). Four overlaps are
+        # tolerated, all deliberate and documented in the TSVs: the three
+        # accessor entries (function seed doubles as table label —
+        # UnitStat/AbilityProp/AbilityMpCost, data-symbols § 3) and
+        # 0x085680DC (gNamePtrTableB starts where gTextRandomUnitNames
+        # lives — same bytes, two views).
+        allowed = {"0X080C7EA4", "0X080CCD50", "0X0812ED98", "0X085680DC"}
+        seen = {}
+        for name in ("ffta_symbols", "ffta_data_symbols"):
+            path = REPO / "symbols" / f"{name}.tsv"
+            for i, f in self._tsv_rows(path):
+                addr = f[0].upper()
+                if addr in seen and addr not in allowed:
+                    self.fail(f"duplicate address {f[0]} ({seen[addr]} vs "
+                              f"{name} line {i})")
+                seen.setdefault(addr, f"{name} line {i}")
+
     def test_patches_readme_rows_match_files(self):
         readme = (REPO / "tools" / "patches" / "README.md").read_text()
         listed = set()
@@ -319,6 +359,110 @@ class BiosBytePinTests(unittest.TestCase):
         self.assertEqual(self._u32(0x174), 0xE3A0C0D3, "mov ip,#0xd3")
         self.assertEqual(self._u32(0x184), 0xE8BD5800, "SWI pop")
         self.assertEqual(self._u32(0x188), 0xE1B0F00E, "SWI movs pc,lr")
+
+
+class RomTruthTests(unittest.TestCase):
+    """game.gba words pinned behind symbols/*.tsv rows (BRINGUP 2026-10-11).
+
+    Every value here was read from the ROM during the Event-Editor /
+    Engine-Hacks import and cross-checked against vanilla code. The pins
+    exist so the two traps found then can never silently regress: the
+    editor's EUR handler addresses (importing one breaks the table-hash
+    and handler-membership tests) and the inherited 0x02000000 party base
+    (moving gPartyUnits back breaks the literal pins). LOCAL-ONLY like
+    BiosBytePinTests: skips without game.gba (CI included)."""
+
+    ROM = REPO / "game.gba"
+    SCENE_TABLE = 0x083A7EE4  # 115 entries x (u16 size, u32 thumb handler)
+    COND_TABLE = 0x0836D5A4  # 17 entries x (u16 size, u32 thumb handler)
+
+    @classmethod
+    def setUpClass(cls):
+        if not cls.ROM.exists():
+            raise unittest.SkipTest("game.gba absent (local-only test)")
+        cls.rom = cls.ROM.read_bytes()
+
+    def _u16(self, addr):
+        return struct.unpack_from("<H", self.rom, addr - 0x08000000)[0]
+
+    def _u32(self, addr):
+        return struct.unpack_from("<I", self.rom, addr - 0x08000000)[0]
+
+    def _table_handlers(self, base, count):
+        return {self._u32(base + i * 6 + 2) & ~1 for i in range(count)}
+
+    def test_vm_dispatch_tables_hash(self):
+        # Both opcode dispatch tables byte-for-byte (sizes + handlers).
+        # Entry 0x72 of the scene table is garbage in-ROM; it is included
+        # because the pin is over bytes, not semantics.
+        import hashlib
+        blob = (self.rom[0x3A7EE4:0x3A7EE4 + 115 * 6]
+                + self.rom[0x36D5A4:0x36D5A4 + 17 * 6])
+        self.assertEqual(
+            hashlib.sha256(blob).hexdigest(),
+            "91c1ce0d51b1882da5d6e3b3eb2edca7d520b7ab319e5baa33145bba4604686a",
+            "event VM dispatch tables changed — every scene_*/cond_* row "
+            "and gSceneOpcodeTable/gCondOpcodeTable is now suspect")
+
+    def test_tsv_handlers_in_rom_tables(self):
+        # Each scene_*/cond_* TSV row must name a handler the ROM tables
+        # actually dispatch to (even entry address; table holds thumb +1).
+        # An EUR address can never satisfy this.
+        handlers = (self._table_handlers(self.SCENE_TABLE, 114)
+                    | self._table_handlers(self.COND_TABLE, 17))
+        rows = 0
+        for line in (REPO / "symbols" / "ffta_symbols.tsv"
+                     ).read_text().splitlines():
+            if not line or line.startswith("#"):
+                continue
+            addr_s, _, name = line.split("\t")[:3]
+            if not (name.startswith("scene_") or name.startswith("cond_")):
+                continue
+            if name == "scene_gfx_load":
+                continue  # not a VM handler (scene-load pipeline, § 14)
+            rows += 1
+            self.assertIn(int(addr_s, 16), handlers,
+                          f"{name} {addr_s} not a ROM table handler")
+        self.assertGreater(rows, 100, "scene_/cond_ rows went missing?")
+
+    def test_event_pointer_cells(self):
+        # USA cells (the EUR cells at 0x08009AAC/0x08125ED0/0x0800A234 hold
+        # region garbage — correctly excluded from the data symbols).
+        cases = {0x08009A20: 0x08A19970,  # gEventListPtrCell
+                 0x081223C0: 0x089A5D54,  # gSceneBanksPtrCell
+                 0x0800A148: 0x08A1A908,  # gCondTypeListPtrCell
+                 0x08009A88: 0x089C1484}  # gTextBankEnPtrCell
+        for cell, target in cases.items():
+            self.assertEqual(self._u32(cell), target,
+                             f"pointer cell {cell:#010x}")
+
+    def test_event_list_pad_bytes(self):
+        # 234 x {script, scene, text, pad}; pad must be 0 (gEventList 0x3A8).
+        for i in range(234):
+            self.assertEqual(self.rom[0xA19970 + i * 4 + 3], 0,
+                             f"event {i} pad byte")
+
+    def test_party_base_literals(self):
+        # The mission-end heal loop bases its 24x0x108 party walk at
+        # 0x02000080 (never 0x02000000): pool words of 0x0802D824/0x0802D934.
+        self.assertEqual(self._u32(0x0802D878), 0x02000080)
+        self.assertEqual(self._u32(0x0802D9E4), 0x02000080)
+        # Enemy loop base: 0x02000080 + 0x2F44 = gFirstEnemyUnit.
+        self.assertEqual(self._u32(0x0802D9F8), 0x00002F44)
+        # UnitStat dispatcher reads its table base from 0x080C7EBC, and
+        # index-0 (name) reads struct+0x00 — the corrected framing.
+        self.assertEqual(self._u32(0x080C7EBC), 0x080C7EC0)
+        self.assertEqual(self._u16(0x080C7FD4), 0x6810, "ldr r0,[r2]")
+
+    def test_swi_veneer_table(self):
+        # 0x08141860+: (svc #N, bx lr) pairs; 0x0814186C = SWI 0x0B = CpuSet
+        # (NOT CpuFastSet — the fill-mode bit24 calls prove it).
+        for addr, svc in ((0x08141860, 0x0A), (0x08141864, 0x0E),
+                          (0x08141868, 0x0C), (0x0814186C, 0x0B)):
+            self.assertEqual(self._u16(addr), 0xDF00 | svc,
+                             f"veneer {addr:#010x} svc imm")
+            self.assertEqual(self._u16(addr + 2), 0x4770,
+                             f"veneer {addr:#010x} bx lr")
 
 
 if __name__ == "__main__":
