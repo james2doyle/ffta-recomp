@@ -84,10 +84,23 @@
 0x08565880	rom	0x0	gTextClanNames
 0x08566A00	rom	0x0	gTextNames
 0x085680DC	rom	0x0	gTextRandomUnitNames
-# Section 6: JoKyR "Advanced Hacking Guide" (GameFAQs 2005) — VERIFIED live on
-# our build 2026-10-07: name-ptr @+0x80 (char1 = 0x02001F1C), level @+0x89
-# (read 3), stride 0x108, 24 slots; growth counters readable.
-0x02000000	ewram	0x18C0	gPartyUnits
+# Section 6: JoKyR "Advanced Hacking Guide" (GameFAQs 2005) — record layout
+# live-verified on our build 2026-10-07, BASE CORRECTED 2026-10-11 (was
+# 0x02000000 from JoKyR/GameFAQs inheritance; that base was never independently
+# pinned — every §6/§7 live read aliased under both models — while vanilla code
+# uses 0x02000080 + i*0x108 in 34 stride-loop sites: mission-end heal
+# 0x0802D824/0x0802D934 [pool-verified base + 24x0x108 + UnitStat dispatch],
+# roster sort/display 0x08071378/0x08071E90/0x080722F8 [0x02000000+0x84 effective
+# base], sprite reorder 0x08087B30 [+0x80], occupancy count 0x080D2F2C
+# [0x02000000+0x84 over 24 slots], battle/event loops; ZERO vanilla sites use
+# 0x02000000 as a unit base — BRINGUP § 2026-10-11). Name-ptr @+0x80 in the old
+# framing = +0x00 in the corrected framing (UnitStat index-0 stub @0x080C7FD4 =
+# `ldr r0,[r2]` — disarmed); level @+0x89 = +0x09 (stub idx6 = ldrb +0x09);
+# HP +0x98/+0x9A = +0x18/+0x1A; MP +0x9C/+0x9E = +0x1C/+0x1E; Atk +0xA0 = +0x20
+# (+2 each through Res +0x26); abilities bitmap +0xC0 = +0x40; Speed +0x152 =
+# +0xD2 (== EH newspawning.s speed offset — the two sources describe the same
+# struct framed 0x80 apart); stride 0x108, 24 slots, growth counters readable.
+0x02000080	ewram	0x18C0	gPartyUnits
 0x02001F1C	ewram	0x0	gPartyNameBuffer
 0x02002031	ewram	0x4	gGrowthItemCounters
 # Section 7: GameFAQs code compilations (Adrammelech 25621, labmaster 26118,
@@ -208,10 +221,14 @@
 # $200F438 ("current character pointer", battle); gStoryProgress = $2002190
 # (byte; "story >= 0x10" gates the Montblanc game-over check); gCurrentJobPtr
 # = $3002818 ("if no job, stop", ability-learn flow; extent unverified).
-# FLAG (not changed): gPartyUnits is based at 0x02000000 size 0x18C0 (§ 6),
-# but engine-hacks treats party unit data as 0x02000080-0x02001940 ("first
-# unit" / "last unit" 0x02001838) — needs a live re-verify before any seed
-# relies on either window (BRINGUP § 2026-10-11).
+# RESOLVED 2026-10-11 (was FLAG): the party-unit base IS 0x02000080, not
+# 0x02000000 — gPartyUnits moved to § 6 corrected (vanilla stride-loop
+# evidence there). Corollaries: gInventory @0x02001940 sits exactly at the
+# array end (0x02000080 + 24*0x108), matching EH's "end of unit data"; the
+# inventory layout itself (14x4 B {id,count} + alt table +0x5A4) is now
+# independently confirmed by inventory_item_consume @0x080CA9E8 (symbols
+# § 21). Bytes [0x02000000,0x02000080) are unidentified header/scratch
+# (live: 0x45544646 magic-ish word at +0x00) — deliberately unnamed.
 0x02001940	ewram	0x0	gInventory
 0x02002AD0	ewram	0x0	gUnlockedJobsBitfield
 0x0200FD40	ewram	0x0	gMenuCurrentUnit

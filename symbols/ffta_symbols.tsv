@@ -204,9 +204,10 @@
 0x0801F098	thumb	decompressor_u16len
 0x08141868	thumb	swi0c_thunk
 # SWI veneer table 0x8141860+ (svc #N; bx lr pairs). 0x814186C = SWI 0x0B
-# (CpuFastSet): the hot veneer in the 2026-10-09 press-flow chain (ring
-# evidence: BRINGUP § true root — the suspend flow copies 0x40 B of stack
-# context to EWRAM through it).
+# (CpuSet — the fill-mode bit24 calls, e.g. the 128 B tile-entry zeroing in
+# unit_name_tiles_refresh, only make sense as CpuSet): the hot veneer in the
+# 2026-10-09 press-flow chain (ring evidence: BRINGUP § true root — the
+# suspend flow copies 0x40 B of stack context to EWRAM through it).
 0x0814186C	thumb	swi0b_thunk
 # The veneer's second halfword (`bx lr`); a separate walker unit and the
 # flow-continuation resume target of the 2026-10-09 abandon-close chain
@@ -532,3 +533,77 @@
 0x08018C24	thumb	char_tile_source_helper
 0x080CEA80	thumb	clan_named_check
 0x0813BB1A	thumb	save_level_name_helper
+
+# Section 21: Engine-Hacks 43 backlog — resolved names (2026-10-11).
+# The 43 prologue-verified call targets left unseeded in § 20 (BRINGUP
+# § 2026-10-11) were triaged in three parallel analyses (menu/shop,
+# menu/roster, battle/learn clusters) and every load-bearing line below was
+# re-verified against game.gba: prologue halfwords, pool-literal values,
+# bl-target chains, and caller arg setup in the EH .s sources. 30/43 named;
+# 13 stay UNRESOLVED (single-evidence only): 0x08001F34, 0x08005B28,
+# 0x08006FCC, 0x0802AB64, 0x08035E04, 0x08036350, 0x0808A268, 0x08099560,
+# 0x08099C04, 0x080C9540, 0x080C9574, 0x080CB1F4, 0x080D2F2C (reasons in
+# BRINGUP § 2026-10-11 later entry). Names stick where the seed wins the
+# finder race (see § 19 header); applied count reported post-regen in BRINGUP.
+# Table-decode pair: 0x08005318 inits the 0x03002BB0/B4/B8 cursor cells then
+# loops `bl 0x080051C4` until it returns 0 (callers feed table/start/count).
+0x080051C4	thumb	decode_table_entry
+0x08005318	thumb	decode_entry_range
+# Menu text/number drawing: padded-count glyphs w/ 0x81 0x18 prefix
+# (callers pass owned/equipped counts, width by cmp #9); VRAM glyph dispatch
+# via the 0x08015190 jump table (buffer 0x0200FA44, VRAM dest args); pixel
+# width /8 for window sizing; list-cursor clamp used as ability-list cursor.
+0x080142DC	thumb	draw_padded_number
+0x08015110	thumb	text_render_to_vram
+0x080161BC	thumb	text_width_tiles
+0x08017B68	thumb	list_cursor_clamp
+# Battle/item permissions: 5 equipment slots at unit+0x2A gated on the
+# 0x080CB1F4 range check + ability-query==8, caller checks free hands;
+# mission-end heal opcode calls with no args (24x0x108 party loop from
+# 0x02000080, UnitStat(unit,1) dispatch to 0x080C9574 restores); status-clear
+# twin adds the 12-enemy loop from 0x02002FC4; message-id dispatch through
+# 0x08526CD8 with job_stat_getter for small ids, chained after.
+0x080269D8	thumb	unit_can_equip_weapon
+0x0802D824	thumb	mission_end_party_heal
+0x0802D934	thumb	mission_end_status_clear
+0x080354AC	thumb	mission_message_draw
+# Menu chrome/roster: divmod-by-10 digit tiles (+0x1E glyphs, CpuFastSet
+# strip copy; JP capped 9999, digits=4); month/day bytes to tile VRAM;
+# 12-word param block driving the 0x0808A268 window engine + 0x0808B8E4
+# row-writer; roster trio called in order dispatch(0x08072130, 6-way table)
+# -> list_build(0x08071378, 0x02000080 x0x108 roster loop) ->
+# draw(0x080725B8, r0=0); equip-menu sentinel/row query (called (0,0,-1),
+# return = item id); battle-node teardown handing name-ptr to 0x08007170;
+# flag-gated wait-value decrement/clamp/store (+0xD0/-500/-300, +0xD4=0;
+# field identities unpinned).
+0x08035A68	thumb	decimal_number_tiles_draw
+0x08035D00	thumb	date_display_draw
+0x08045668	thumb	message_window_draw
+0x08071378	thumb	roster_sort_list_build
+0x08072130	thumb	roster_sort_dispatch
+0x080725B8	thumb	roster_sort_draw
+0x080876F4	thumb	equip_menu_item_query
+0x080995C0	thumb	battle_unit_node_release
+0x0809F8EC	thumb	battle_wait_value_finalize
+# Item/learn/battle data accessors: item-record getter (base 0x0851D180,
+# id*0x20, jump table @0x080CA7CC; idx 0x12 = abilities id per 3 callers);
+# inventory consume (14x4 B {id,count} + alt table +0x5A4, 0/−1 returns);
+# job-bitmask permission via unit_growth_getter(0x24) + item_data_getter(3);
+# equip permission via the 0x080CAE2C worker (unit+0x2A slots,
+# race_ability_list_getter); icon gfx/palette tables 0x083B9004/0x083B8F50
+# (palette nibble <<12 into tile attrs); equipped-ability byte from the
+# 0x0851BA84 group tables (+0x3B slot semantics unpinned); animation-id
+# validation + dispatch through 0x08005954 (death 0x15D/undead 0x169);
+# weapon-visual resolver feeding 0x08005B6C; name-tile rebuild (blank marker
+# 0x40,0x73 at unit+0x312, 128 B staging entries, 0x120 B VRAM upload).
+0x080CA7A4	thumb	item_data_getter
+0x080CA9E8	thumb	inventory_item_consume
+0x080CB450	thumb	unit_can_use_item
+0x080CB48C	thumb	unit_can_equip_item
+0x080CB5A8	thumb	job_can_equip_item
+0x080CB9E0	thumb	icon_gfx_load
+0x080CBA14	thumb	icon_palette_get
+0x080CD50C	thumb	unit_equipped_ability_get
+0x080D3508	thumb	battle_animation_play
+0x080DDF68	thumb	weapon_animation_resolve
+0x0812AE8C	thumb	unit_name_tiles_refresh

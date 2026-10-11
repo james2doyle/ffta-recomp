@@ -4228,3 +4228,73 @@ updated: Event Editor = GPL-3.0, reference only, code never copied).
 Conclusion: event system now has full handler + table coverage in symbols;
 behavior provably unchanged (pinned hash + strict replays). Commit after
 this entry per change-cycle discipline.
+
+## 2026-10-11 (later) — 43-backlog triage (30 seeded as § 21) + party-base resolved + SWI fix
+
+Follow-up to this morning's entry (the two "later items").
+
+- **43 triage:** three parallel read-only analyses (menu/shop, menu/roster,
+  battle/learn clusters; sessions ses_*BvS/6Roa/zqSzkE) proposed 30 names;
+  I re-verified every load-bearing line myself (prologue halfwords, pool
+  literals, bl chains, caller arg setup in the EH .s) before seeding.
+  Seeded as symbols § 21 (30 rows with cluster evidence comments).
+  Regen: **30/30 names stuck**, discovery flat at 55,350, attract hash
+  unchanged — these callees are only reachable via the EH blx-via-lr idiom
+  (`.short 0xF800`, opaque to the walker), so each seed won its race.
+  Internal consistency: newly-named functions call each other
+  (0x08005318->decode_table_entry, 0x080CB450/0x080CB5A8->unit_growth_getter/
+  item_data_getter, 0x080725B8->decimal_number_tiles_draw).
+- **13 stay UNRESOLVED (single-evidence only, not seeded):** 0x08001F34
+  (shop number-draw; callee 0x080016D4 + IWRAM cells unpinned), 0x08005B28
+  (buffer-setup veneer, worker 0x08007138 unknown), 0x08006FCC (command-
+  buffer init, both callees unknown), 0x0802AB64 (tilemap fill, no
+  literals/callees), 0x08035E04 (flag-gated IWRAM writes, cell semantics
+  unpinned), 0x08036350 (29x12 B table ID lookup, table + flag cell
+  unpinned), 0x0808A268 (window-tile engine, param semantics unpinned),
+  0x08099560 (unit-presence query triplets, subject table unpinned),
+  0x08099C04 (one-field load + tail call, callee unpinned), 0x080C9540 /
+  0x080C9574 (bit test / bit set-clear over the 0x02001F70 bitfield —
+  mechanism solid, bit meanings unknown), 0x080CB1F4 (bare [1,0xFC] range
+  gate; "weapon" reading from one caller comment only), 0x080D2F2C
+  (24-slot occupancy count toggling bit 0x5A7; threshold/bit meaning
+  unknown — but its 0x02000000+0x84 loop is party-base evidence, below).
+  Follow-up family noted (not seeded, triage evidence already gathered):
+  0x080C95A8/0x080C95BE (bit/byte accessors over 0x02001F70/0x02002030),
+  0x080CB210/0x080CB24C (inventory table-locator family), 0x08007138 (list
+  worker behind 0x08005B28), 0x08005318 (4-arg gfx helper behind
+  icon_gfx_load), 0x0808B8E4 (menu row-writer).
+- **Party base RESOLVED (E model: 0x02000080):** the JoKyR/GameFAQs
+  0x02000000 base was never independently pinned — every § 6/§ 7 live read
+  aliased under both framings (models are 0x80-shift-equivalent on all
+  slot fields). Vanilla code survey: **34 stride-loop sites** use effective
+  base 0x02000080 (mission-end heal 0x0802D824/0x0802D934: pool-verified
+  base + 24x0x108 + UnitStat dispatch + 12-enemy loop from 0x02002FC4 =
+  gFirstEnemyUnit; roster sort/display 0x08071378/0x08071E90/0x080722F8;
+  sprite reorder 0x08087B30; occupancy 0x080D2F2C; battle/event loops) and
+  **ZERO** use 0x02000000 as a unit base (the 8 apparent hits all add
+  +0x80/+0x84 first, i.e. reach 0x02000080/0x02000084). Cross-checks:
+  UnitStat stubs give E-frame offsets directly (idx0 = `ldr r0,[r2]`;
+  idx6 level = ldrb +0x09); JoKyR +0x152 speed − 0x80 = EH +0xD2 speed.
+  Live EWRAM (world_map.state f51827 over headless --tcp read_ewram):
+  [0,0x80) is header/scratch (0x45544646 magic-ish word), not a record.
+  gPartyUnits -> 0x02000080 size 0x18C0 (§ 6 comment rewritten with the
+  evidence); gInventory @0x02001940 is now exactly array-end continuous,
+  and its layout is independently confirmed by inventory_item_consume.
+- **SWI parenthetical fix (§ 5):** disarmed the veneer table — 0x0814186C
+  = `svc #0xB; bx lr` (table order A/E/C/B at 0x60/64/68/6C). SWI 0x0B is
+  **CpuSet** (has fill mode), not CpuFastSet — the old "(CpuFastSet)"
+  parenthetical was wrong; batch-C's fill-mode call (r2=0x1000040, 128 B
+  zero) corroborates. Fixed in-file.
+- **Harness notes:** --tcp-observe serves TCP only in windowed mode;
+  headless --tcp serves the full TcpDebugServer (read_ewram works);
+  --load-state is ignored in --tcp mode — load via the savestate_load
+  command (needs parked core; returns pc/frame).
+- **Gates:** cycle.py PASS (55350, attract 1EF4C1... unchanged); check.py
+  ALL PASS 13/13 (route_G/K + user_load FULLY_STATIC, 0 misses).
+- **Proposed, awaiting user go-ahead:** TsvGuardTests extensions (alignment
+  + duplicate-allowlist) and a ROM-truth unittest class pinning this
+  session's ROM reads (dispatch tables, pointer cells, party-base literals,
+  SWI immediates) — EUR-trap and base-regression guards.
+
+Conclusion: the 43-backlog is closed (30 named + applied, 13 documented);
+party-base flag resolved with the base corrected. Commit after this entry.
