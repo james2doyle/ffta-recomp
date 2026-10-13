@@ -52,7 +52,7 @@
  
 --- a/src/runtime/runtime.cpp
 +++ b/src/runtime/runtime.cpp
-@@ -3687,12 +3879,125 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -3687,12 +3887,144 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
                  // the same frame-indexed input as headless acceptance runs.
                  if (input_replay_requested) apply_input_replay();
                  if (phase_active) fp_t4 = FramePhaseRing::now_ns();
@@ -126,20 +126,39 @@
 +                                    interp_prev_vofs[layer] = v;
 +                                }
 +                                interp_have_prev = true;
-+                                if (best_mag > 32) {
-+                                    best_dh = 0;
-+                                    best_dv = 0;
-+                                }
-+                                interp_vel_h = best_dh;
-+                                interp_vel_v = best_dv;
-+                                const bool scrolling =
-+                                    (best_dh != 0 || best_dv != 0);
-+                                if (scrolling != interp_vel_announced) {
-+                                    interp_vel_announced = scrolling;
++                                // Consistency gate (fullscreen-jump fix):
++                                // shift only during SMOOTH motion: the step's
++                                // change since last frame (delta) must match
++                                // the previous change — steady (0,0,...) or
++                                // steadily ramping (+1,+1,...). A ±1 px
++                                // oscillation (deltas -1,+1,-1...), a camera
++                                // snap, a reversal, or a dominant-layer flip
++                                // all break delta-consistency and hold exact
++                                // for that wait. Cuts fail inherently (a
++                                // single discontinuous frame), so no
++                                // magnitude backstop is needed.
++                                const int32_t ddh = best_dh - interp_last_dh;
++                                const int32_t ddv = best_dv - interp_last_dv;
++                                const bool steady =
++                                    (best_dh != 0 || best_dv != 0) &&
++                                    ((ddh == 0 && ddv == 0 &&
++                                      interp_pddh == 0 &&
++                                      interp_pddv == 0) ||
++                                     ((ddh != 0 || ddv != 0) &&
++                                      ddh == interp_pddh &&
++                                      ddv == interp_pddv));
++                                interp_pddh = ddh;
++                                interp_pddv = ddv;
++                                interp_last_dh = best_dh;
++                                interp_last_dv = best_dv;
++                                interp_vel_h = steady ? best_dh : 0;
++                                interp_vel_v = steady ? best_dv : 0;
++                                if (steady != interp_vel_announced) {
++                                    interp_vel_announced = steady;
 +                                    std::fprintf(
 +                                        stderr,
 +                                        "interp: scroll %s vel=(%d,%d)px/f\n",
-+                                        scrolling ? "start" : "stop",
++                                        steady ? "start" : "stop",
 +                                        best_dh, best_dv);
 +                                    std::fflush(stderr);
 +                                }

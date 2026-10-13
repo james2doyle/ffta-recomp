@@ -12284,7 +12284,7 @@ index 117db49..4d847fb 100644
      // DLLs are left loaded (immutable code, process-lifetime); the OS reclaims
      // them at exit. Drain any last results so counters/banner are accurate.
 diff --git a/src/runtime/runtime.cpp b/src/runtime/runtime.cpp
-index b560791..b68e241 100644
+index b560791..abcdca6 100644
 --- a/src/runtime/runtime.cpp
 +++ b/src/runtime/runtime.cpp
 @@ -34,6 +34,7 @@
@@ -12411,7 +12411,7 @@ index b560791..b68e241 100644
              for (;;) {
                  int st;
                  {
-@@ -2588,14 +2643,94 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -2588,14 +2643,98 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
          if (game_thread.joinable()) game_thread.join();
          bool save_ok = flush_save();
          write_session_diagnostics(opts, "exit", ppu.frame_count());
@@ -12438,15 +12438,15 @@ index b560791..b68e241 100644
 +    // true per-frame scroll steps, wrap-aware on the 9-bit counters,
 +    // divided by banked frames after a stale skip). The first tick of each
 +    // wait presents live_fb exact; later ticks present it shifted by half
-+    // the step (the extrapolated halfway scroll position). The dominant
++    // the step (the extrapolated halfway scroll position) but only when
++    // the step repeats the previous frame's (consistency gate — jitter,
++    // snaps, reversals, and layer flips hold exact). The dominant
 +    // (largest step) layer wins — correct for uniform camera pans,
 +    // approximate under parallax. Affine ref registers are deliberately
 +    // unread in v1 (their HOFS slots hold stale values in affine modes, so
 +    // the velocity reads zero and ticks stay exact — a safe default).
 +    // World-locked OBJs ride the same shift during a pure pan; unit motion
 +    // under a static camera stays 60 Hz (OBJ interpolation deferred).
-+    // Steps above 16 px/axis/frame are whips or cuts, not pans — those
-+    // waits hold exact.
 +    std::vector<uint8_t> interp_fb;
 +    int32_t interp_prev_hofs[4] = {0, 0, 0, 0};
 +    int32_t interp_prev_vofs[4] = {0, 0, 0, 0};
@@ -12454,6 +12454,10 @@ index b560791..b68e241 100644
 +    int32_t interp_vel_h = 0;
 +    int32_t interp_vel_v = 0;
 +    bool interp_vel_announced = false;
++    int32_t interp_last_dh = 0;
++    int32_t interp_last_dv = 0;
++    int32_t interp_pddh = 0;
++    int32_t interp_pddv = 0;
 +    auto interp_shift_blit = [](const uint8_t* src, uint8_t* dst,
 +                                uint32_t w, uint32_t h,
 +                                int32_t sh_h, int32_t sh_v) {
@@ -12507,7 +12511,7 @@ index b560791..b68e241 100644
      // MC-WS-002 capture: per-present dump of the exact composed bytes handed to
      // SDL (`live_fb`). Gated by GBARECOMP_FRAMEDUMP_DIR; START = first guest
      // frame to capture, COUNT = how many; quits after COUNT are written. This
-@@ -2851,6 +2986,40 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -2851,6 +2990,40 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
              runtime_shutdown();
              return 1;
          }
@@ -12548,7 +12552,7 @@ index b560791..b68e241 100644
          // Rebindable input: keybinds.ini (player buttons, recomp-ui generic
          // format) + config.ini [KeyMap] (system hotkeys), both next to the
          // exe. Missing files leave the built-in defaults.
-@@ -2865,7 +3034,8 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -2865,7 +3038,8 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
                                    opts.assist_fast_forward_multiplier_default);
              win.configure_touch(opts.input_frame != nullptr,
                                  opts.touch_gesture_claims,
@@ -12558,7 +12562,7 @@ index b560791..b68e241 100644
              win.set_touch_config_dir(exe_dir.c_str());
          }
          win.set_host_overlay(opts.host_overlay);
-@@ -2881,7 +3051,7 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -2881,7 +3055,7 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
              octx.bus = &bus;
              octx.ppu = &ppu;
              octx.misses_query = []() { return gbarecomp::self_heal_misses_json(); };
@@ -12567,7 +12571,7 @@ index b560791..b68e241 100644
              octx.savestate_save = [&](const std::string& p, std::string& e) {
                  return observer_request(true, p, e);
              };
-@@ -2961,6 +3131,16 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -2961,6 +3135,16 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
              RECOMP_RUNTIME_UI_STANDARD_AUDIO |
              RECOMP_RUNTIME_UI_STANDARD_VOLUME |
              RECOMP_RUNTIME_UI_STANDARD_RESUME;
@@ -12584,7 +12588,7 @@ index b560791..b68e241 100644
          if (!opts.expose_assist_tools) {
              runtime_ui_config.features |=
                  RECOMP_RUNTIME_UI_STANDARD_SAVE_STATE |
-@@ -3098,25 +3278,27 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -3098,25 +3282,27 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
      // Host-window save-state slots: the ROM path with a .stateN extension.
      // Shift+F1..F9 writes slots 1..9 and F1..F9 restores them; a runtime menu
      // may additionally expose slot 10 without changing the established
@@ -12621,7 +12625,7 @@ index b560791..b68e241 100644
      };
      auto clear_suspend_marker = [&]() {
          std::error_code ec;
-@@ -3369,6 +3551,11 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -3369,6 +3555,11 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
                                  : do_savestate_load(r->path, r->err);
                  if (!r->save && r->ok) {
                      last_presented_frame = ppu.frame_count() - 1;
@@ -12633,7 +12637,7 @@ index b560791..b68e241 100644
                      if (pacer) pacer->reset();
                  }
                  std::printf("observer_savestate_%s path=\"%s\" ok=%d\n",
-@@ -3507,8 +3694,15 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -3507,8 +3698,15 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
          fast_forward_multiplier = std::clamp(
              win.fast_forward_multiplier(), 2, 10);
  #endif
@@ -12650,7 +12654,7 @@ index b560791..b68e241 100644
          // System hotkeys (config.ini [KeyMap], rebindable in the launcher).
          if (ev.toggle_fullscreen) {
              // Toggle between windowed and the configured mode. A session
-@@ -3570,6 +3764,7 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -3570,6 +3768,7 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
                  // Force the next iteration to re-present the restored
                  // frame instead of waiting for frame_count to advance.
                  last_presented_frame = ppu.frame_count() - 1;
@@ -12658,7 +12662,7 @@ index b560791..b68e241 100644
                  // The load jumped guest time; realign the pacer so it
                  // doesn't burn the accumulated lag catching up.
                  if (pacer) pacer->reset();
-@@ -3608,6 +3803,7 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -3608,6 +3807,7 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
                      while (rewind_history.size() > target_index + 1)
                          rewind_history.pop_back();
                      last_presented_frame = ppu.frame_count() - 1;
@@ -12666,7 +12670,7 @@ index b560791..b68e241 100644
                      next_rewind_capture_frame =
                          ppu.frame_count() + rewind_interval;
                      if (pacer) pacer->reset();
-@@ -3687,12 +3883,125 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -3687,12 +3887,144 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
                  // the same frame-indexed input as headless acceptance runs.
                  if (input_replay_requested) apply_input_replay();
                  if (phase_active) fp_t4 = FramePhaseRing::now_ns();
@@ -12740,20 +12744,39 @@ index b560791..b68e241 100644
 +                                    interp_prev_vofs[layer] = v;
 +                                }
 +                                interp_have_prev = true;
-+                                if (best_mag > 32) {
-+                                    best_dh = 0;
-+                                    best_dv = 0;
-+                                }
-+                                interp_vel_h = best_dh;
-+                                interp_vel_v = best_dv;
-+                                const bool scrolling =
-+                                    (best_dh != 0 || best_dv != 0);
-+                                if (scrolling != interp_vel_announced) {
-+                                    interp_vel_announced = scrolling;
++                                // Consistency gate (fullscreen-jump fix):
++                                // shift only during SMOOTH motion: the step's
++                                // change since last frame (delta) must match
++                                // the previous change — steady (0,0,...) or
++                                // steadily ramping (+1,+1,...). A ±1 px
++                                // oscillation (deltas -1,+1,-1...), a camera
++                                // snap, a reversal, or a dominant-layer flip
++                                // all break delta-consistency and hold exact
++                                // for that wait. Cuts fail inherently (a
++                                // single discontinuous frame), so no
++                                // magnitude backstop is needed.
++                                const int32_t ddh = best_dh - interp_last_dh;
++                                const int32_t ddv = best_dv - interp_last_dv;
++                                const bool steady =
++                                    (best_dh != 0 || best_dv != 0) &&
++                                    ((ddh == 0 && ddv == 0 &&
++                                      interp_pddh == 0 &&
++                                      interp_pddv == 0) ||
++                                     ((ddh != 0 || ddv != 0) &&
++                                      ddh == interp_pddh &&
++                                      ddv == interp_pddv));
++                                interp_pddh = ddh;
++                                interp_pddv = ddv;
++                                interp_last_dh = best_dh;
++                                interp_last_dv = best_dv;
++                                interp_vel_h = steady ? best_dh : 0;
++                                interp_vel_v = steady ? best_dv : 0;
++                                if (steady != interp_vel_announced) {
++                                    interp_vel_announced = steady;
 +                                    std::fprintf(
 +                                        stderr,
 +                                        "interp: scroll %s vel=(%d,%d)px/f\n",
-+                                        scrolling ? "start" : "stop",
++                                        steady ? "start" : "stop",
 +                                        best_dh, best_dv);
 +                                    std::fflush(stderr);
 +                                }
@@ -12793,7 +12816,7 @@ index b560791..b68e241 100644
                  }
                  if (phase_active) {
                      frame_phase.record(frame, fp_t0, fp_t1, fp_t2, fp_t3,
-@@ -3985,7 +4294,7 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -3985,7 +4317,7 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
          // re-present, ~100 Hz idle). Applies to windowed play only.
          while (host_paused && !host_quit && args.window) {
              pump_host_input();
@@ -12802,7 +12825,7 @@ index b560791..b68e241 100644
              std::this_thread::sleep_for(std::chrono::milliseconds(10));
          }
          if (host_quit) break;
-@@ -4092,6 +4401,7 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -4092,6 +4424,7 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
                  pump_host_input();
                  if (phase_active) fp_t4 = FramePhaseRing::now_ns();
                  dispatches_since_pump = 0;
@@ -12810,7 +12833,7 @@ index b560791..b68e241 100644
                  last_presented_frame = frame;
                  if (present_frame) {
                      ++frames_presented;
-@@ -4101,7 +4411,7 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -4101,7 +4434,7 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
                      // Normal play presents/paces every frame. Fast-forward
                      // runs N guest frames per one paced host presentation,
                      // making its selected multiplier independent of monitor Hz.
@@ -12819,7 +12842,7 @@ index b560791..b68e241 100644
                  }
                  if (phase_active) {
                      frame_phase.record(frame, fp_t0, fp_t1, fp_t2, fp_t3,
-@@ -4260,8 +4570,10 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -4260,8 +4593,10 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
          }
      }
  

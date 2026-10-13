@@ -6288,3 +6288,23 @@ steady motion) — half-pixel shimmer risk; deadband candidate if visible
 in feel testing. Device gate note: `build_apk.py` skipped install once
 (`--no-install` unprompted — manually `adb install -r`ed); gate's
 app-private log read fails where the external log path works.
+
+## 2026-10-13 (late) — 3b jump fix: delta-consistency gate (device-driven)
+
+User report: fullscreen jumps with widescreen play on the 3b build.
+Device evidence backed a mechanism, not a widescreen interaction: the
+battle scene's VOFS flip-flops ±1 px (singles AND pairs), so the v1
+any-nonzero rule engaged the shifter on phantom motion — whole-screen
+half-pixel shimmer alternating with exact frames. Snaps confirmed too:
+a swipe pan logged (18,0)->(-126,0) (edge recenter), which v1 would have
+half-shifted 9–18 px.
+Fix: engage only during SMOOTH motion — the dominant step's delta must
+match the previous delta (steady 0,0,... or steady ramp +1,+1,...).
+Oscillation (deltas -1,+1,...), snaps, reversals, and layer flips all
+hold exact. The old magnitude cut-guard is gone (cuts fail the gate
+inherently; it would only have hurt real whips).
+Device proof (fresh-log, attributed): 10 s idle on the battle scene =
+0 scroll lines (was flip-flopping every frame); swipe pan engages with
+real velocities and each snap disengages on the same frame; burst caps
+after a snap step uniformly (~3 px, no duplicates, no jumps); process
+alive throughout. Desktop cycle + pin + all suites still green.
