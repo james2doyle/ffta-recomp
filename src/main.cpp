@@ -338,6 +338,17 @@ int ffta_main(int argc, char** argv) {
     // inert without history).
     opts.expose_assist_tools = true;
 
+    // Issue #9 strategy #1 (measurement verdict: 60 Hz motion, 30 Hz
+    // authored palette fades): offer the Graphics/LCD ghosting row in the
+    // runtime settings menu — presentation frame blending (average each
+    // presented frame with the previous one), right after Linear filter.
+    // Default off (flag + --frame-blend both default false) so faithful
+    // runs stay byte-exact; the player opts in mid-session after feeling
+    // the game. Engine side: RunOptions::expose_lcd_ghosting +
+    // HostWindow blend stage (gbarecomp-local.patch), row order
+    // (recomp-ui-local.patch).
+    opts.expose_lcd_ghosting = true;
+
     // Issue #11 (speed toggle, Phase 1): FFTA-owned touch pill. Tap the
     // top-center "FF" pill to latch the same boost the physical hold paths
     // and menu latch provide; the engine polls speed_boost_requested() once

@@ -1,3 +1,19 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 54eb771..5c78b92 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -441,6 +441,11 @@ if(GBARECOMP_RUNTIME_UI_ROOT AND
+         include("${GBARECOMP_RUNTIME_UI_ROOT}/recomp_ui.cmake")
+         recomp_target_runtime_ui_sdlrenderer2(gbarecomp_runtime)
+     endif()
++    # Shared presentation blend primitive (issue #9 strategy #1): compiled
++    # into the runtime so HostWindow blends CPU-side on cached memory. Pure
++    # arithmetic, no SDL; has its own upstream test (recomp-frame-blend).
++    target_sources(gbarecomp_runtime PRIVATE
++        "${GBARECOMP_RUNTIME_UI_ROOT}/src/common/recomp_frame_blend.c")
+ endif()
+ # Bake the gbarecomp source root so the Stage-2 runtime compiler can find the
+ # overlay shim headers (src/runtime + src/armv4t) when it invokes g++ or the
 diff --git a/oracle/main.cpp b/oracle/main.cpp
 index bc6663c..3574b4f 100644
 --- a/oracle/main.cpp
@@ -11275,10 +11291,10 @@ index 2b48ab3..42208db 100644
      // Realign the deadline to "now". Call after any non-real-time jump
      // (startup, save-state load) so the pacer doesn't try to catch up.
 diff --git a/src/runtime/host_window.cpp b/src/runtime/host_window.cpp
-index 22ca157..ec6c094 100644
+index 22ca157..19c8ea7 100644
 --- a/src/runtime/host_window.cpp
 +++ b/src/runtime/host_window.cpp
-@@ -18,6 +18,7 @@
+@@ -18,10 +18,15 @@
  
  #include "color_lut.h"
  #include "host_overlay.h"
@@ -11286,7 +11302,15 @@ index 22ca157..ec6c094 100644
  #include "presentation_layout.h"
  #include "touch_input.h"
  #if defined(GBARECOMP_RUNTIME_UI)
-@@ -374,6 +375,10 @@ struct Backend {
+ #include "recomp_runtime_ui.h"
++// Shared presentation blend primitive (issue #9 #1). Pure arithmetic, no
++// SDL — compiled into the runtime alongside this file (see
++// gbarecomp/CMakeLists.txt gbarecomp_runtime sources).
++#include "recomp_frame_blend.h"
+ #endif
+ 
+ #if defined(GBARECOMP_HAVE_SDL2)
+@@ -374,6 +379,10 @@ struct Backend {
      bool touch_controls = false;
      bool pad_visible = false;
      bool pad_choice_saved = false;
@@ -11297,7 +11321,32 @@ index 22ca157..ec6c094 100644
      // Player-placed pad toggle: centre as a fraction of the safe area, so it
      // keeps its place across rotation. Unset = bottom-right corner.
      bool toggle_pos_saved = false;
-@@ -748,6 +753,17 @@ bool pad_toggle_available(const Backend* b) {
+@@ -423,6 +432,24 @@ struct Backend {
+     // grading), so default behavior is byte-identical to upstream.
+     std::unique_ptr<runtime::ColorLut> color_lut;
+     std::vector<uint8_t> graded_fb;  // scratch RGB888 (base_w*base_h*3)
++    // Last uploaded frame (post-blend): exact display bytes for the
++    // `presented` TCP command. Updated on every present, blend on or off.
++    std::vector<uint8_t> last_upload;  // RGB888 (base_w*base_h*3)
++    // Frame-blend state (issue #9 #1): RecompFrameBlend handle + ARGB8888
++    // work buffer + RGB888 upload scratch, sized for base_w*base_h and
++    // reallocated (with a history reset) when the view size changes. The
++    // handle is created at open() and starts invalid, so boot presents the
++    // first frame as drawn. History is replaced on every blended present
++    // (apply, not holding: re-presenting an identical paused frame is
++    // avg(f,f) = f, so duplicates are harmless without special-casing).
++    // Compiled only with the runtime-UI root (which ships the shared
++    // primitive); other builds keep no-op methods below.
++#if defined(GBARECOMP_RUNTIME_UI)
++    RecompFrameBlend* frame_blend = nullptr;
++    bool frame_blend_enabled = false;
++    std::vector<uint8_t> blend_argb;  // scratch ARGB8888 (base_w*base_h*4)
++    std::vector<uint8_t> blend_rgb;   // scratch RGB888 upload (base_w*base_h*3)
++#endif
+ #if defined(GBARECOMP_RUNTIME_UI)
+     RecompRuntimeUi* runtime_ui = nullptr;
+     ImGuiContext* runtime_imgui_context = nullptr;
+@@ -748,6 +775,17 @@ bool pad_toggle_available(const Backend* b) {
      return b && b->touch_policy && (b->touch_controls || b->touch_emulation);
  }
  
@@ -11315,7 +11364,7 @@ index 22ca157..ec6c094 100644
  Backend::TouchPoint* find_touch(Backend* b, SDL_FingerID id) {
      if (!b) return nullptr;
      for (auto& touch : b->touches)
-@@ -1001,7 +1017,7 @@ private:
+@@ -1001,7 +1039,7 @@ private:
  #endif
  
  void draw_touch_pad(Backend* b, HostOverlay& ov) {
@@ -11324,7 +11373,7 @@ index 22ca157..ec6c094 100644
      const PadLayout p = compute_pad_layout(b);
      const uint16_t held = active_touch_buttons(b);
      const auto S = OverlaySpace::Drawable;
-@@ -1054,7 +1070,7 @@ void draw_touch_pad(Backend* b, HostOverlay& ov) {
+@@ -1054,7 +1092,7 @@ void draw_touch_pad(Backend* b, HostOverlay& ov) {
      pill(p.start, 3, "START", p.start.h * 0.5f);
  }
  void draw_pad_toggle(Backend* b, HostOverlay& ov) {
@@ -11333,7 +11382,7 @@ index 22ca157..ec6c094 100644
      const PadLayout p = compute_pad_layout(b);
      const auto S = OverlaySpace::Drawable;
      const PadRect& r = p.toggle;
-@@ -1348,6 +1364,29 @@ bool runtime_menu_open(const Backend* b) {
+@@ -1348,6 +1386,29 @@ bool runtime_menu_open(const Backend* b) {
  // builds) the settings menu on top. Nothing here reads or writes guest state
  // except through the game's own overlay callback.
  void draw_host_chrome(Backend* b, HostOverlay& ov, bool menu_open) {
@@ -11363,7 +11412,7 @@ index 22ca157..ec6c094 100644
      if (menu_open) return;
      if (b->host_overlay) b->host_overlay(&ov);
      draw_touch_pad(b, ov);
-@@ -1362,8 +1401,8 @@ void render_host_layers(Backend* b) {
+@@ -1362,8 +1423,8 @@ void render_host_layers(Backend* b) {
      const bool menu_open = false;
  #endif
      const bool chrome = !menu_open &&
@@ -11374,7 +11423,125 @@ index 22ca157..ec6c094 100644
      if (!chrome && !menu_open) return;
  
      // Native GBA presentation uses a 240x160 SDL logical size. Host chrome
-@@ -2508,12 +2547,16 @@ void HostWindow::set_runtime_ui(RecompRuntimeUi* ui) {
+@@ -1932,6 +1993,12 @@ bool HostWindow::open(int scale, int base_w, int base_h, const char* title,
+     b->color_lut = std::make_unique<runtime::ColorLut>(resolve_color_settings(screen));
+     if (!b->color_lut->is_passthrough())
+         b->graded_fb.resize(static_cast<std::size_t>(base_w) * base_h * 3);
++#if defined(GBARECOMP_RUNTIME_UI)
++    // Blend history starts invalid: boot presents the first frame as drawn.
++    // A NULL handle (allocation failure) is legal everywhere below and
++    // simply presents unblended frames.
++    b->frame_blend = recomp_frame_blend_create();
++#endif
+ 
+     impl_ = b;
+     open_ = true;
+@@ -2117,6 +2184,10 @@ void HostWindow::close() {
+     if (b->texture)   SDL_DestroyTexture(b->texture);
+     if (b->renderer)  SDL_DestroyRenderer(b->renderer);
+     if (b->window)    SDL_DestroyWindow(b->window);
++#if defined(GBARECOMP_RUNTIME_UI)
++    if (b->frame_blend) recomp_frame_blend_destroy(b->frame_blend);
++    b->frame_blend = nullptr;
++#endif
+     delete b;
+     impl_ = nullptr;
+     open_ = false;
+@@ -2194,6 +2265,45 @@ void HostWindow::present(const uint8_t* rgb888) {
+         b->color_lut->map_rgb888(rgb888, b->graded_fb.data(), b->base_w, b->base_h);
+         rgb888 = b->graded_fb.data();
+     }
++#if defined(GBARECOMP_RUNTIME_UI)
++    // Presentation frame blending (issue #9 #1): average with the previous
++    // presented frame when the Graphics/LCD ghosting row (or --frame-blend)
++    // is on. CPU-side on cached scratch — the shared primitive needs
++    // ordinary cached ARGB8888, never a mapped texture: RGB888 -> ARGB8888,
++    // blend in place, back to RGB888 for upload. Default off skips this
++    // block, so the upload below stays byte-identical to before.
++    if (b->frame_blend_enabled && b->frame_blend) {
++        const std::size_t px =
++            static_cast<std::size_t>(b->base_w) * b->base_h;
++        if (b->blend_argb.size() != px * 4u ||
++            b->blend_rgb.size() != px * 3u) {
++            b->blend_argb.assign(px * 4u, 0);
++            b->blend_rgb.assign(px * 3u, 0);
++            recomp_frame_blend_reset(b->frame_blend);
++        }
++        const uint8_t* src = rgb888;
++        uint8_t* argb = b->blend_argb.data();
++        for (std::size_t i = 0; i < px; ++i) {
++            argb[i * 4u + 0u] = src[i * 3u + 2u];  // B
++            argb[i * 4u + 1u] = src[i * 3u + 1u];  // G
++            argb[i * 4u + 2u] = src[i * 3u + 0u];  // R
++            argb[i * 4u + 3u] = 0xFF;              // A (opaque; untouched)
++        }
++        recomp_frame_blend_apply(b->frame_blend, argb, b->base_w, b->base_h,
++                                 static_cast<size_t>(b->base_w) * 4u);
++        uint8_t* dst = b->blend_rgb.data();
++        for (std::size_t i = 0; i < px; ++i) {
++            dst[i * 3u + 0u] = argb[i * 4u + 2u];
++            dst[i * 3u + 1u] = argb[i * 4u + 1u];
++            dst[i * 3u + 2u] = argb[i * 4u + 0u];
++        }
++        rgb888 = dst;
++    }
++#endif
++    // Remember the exact upload bytes for the `presented` TCP command.
++    b->last_upload.assign(rgb888,
++                          rgb888 + static_cast<std::size_t>(b->base_w) *
++                                   b->base_h * 3u);
+     SDL_UpdateTexture(b->texture, nullptr, rgb888, b->base_w * 3);
+     SDL_SetRenderDrawColor(b->renderer, 7, 11, 20, 255);
+     SDL_RenderClear(b->renderer);
+@@ -2478,6 +2588,47 @@ bool HostWindow::linear_filter() const {
+     return open_ && impl_ && static_cast<const Backend*>(impl_)->linear_filter;
+ }
+ 
++void HostWindow::set_frame_blend(bool enabled) {
++    if (!open_ || !impl_) return;
++#if defined(GBARECOMP_RUNTIME_UI)
++    auto* b = static_cast<Backend*>(impl_);
++    b->frame_blend_enabled = enabled;
++    if (b->frame_blend) recomp_frame_blend_reset(b->frame_blend);
++#else
++    (void)enabled;
++#endif
++}
++
++bool HostWindow::frame_blend() const {
++#if defined(GBARECOMP_RUNTIME_UI)
++    return open_ && impl_ &&
++           static_cast<const Backend*>(impl_)->frame_blend_enabled;
++#else
++    return false;
++#endif
++}
++
++void HostWindow::reset_frame_blend() {
++    if (!open_ || !impl_) return;
++#if defined(GBARECOMP_RUNTIME_UI)
++    auto* b = static_cast<Backend*>(impl_);
++    if (b->frame_blend) recomp_frame_blend_reset(b->frame_blend);
++#endif
++}
++
++bool HostWindow::copy_presented_frame(std::vector<uint8_t>& out, int& w,
++                                      int& h) const {
++    if (!open_ || !impl_) return false;
++    auto* b = static_cast<const Backend*>(impl_);
++    if (b->last_upload.size() !=
++        static_cast<std::size_t>(b->base_w) * b->base_h * 3u)
++        return false;
++    out = b->last_upload;
++    w = b->base_w;
++    h = b->base_h;
++    return true;
++}
++
+ void HostWindow::set_audio_enabled(bool enabled) {
+     if (!open_ || !impl_) return;
+     auto* b = static_cast<Backend*>(impl_);
+@@ -2508,12 +2659,16 @@ void HostWindow::set_runtime_ui(RecompRuntimeUi* ui) {
  #endif
  
  void HostWindow::configure_touch(bool policy, std::uint32_t claims,
@@ -11392,7 +11559,7 @@ index 22ca157..ec6c094 100644
      if (emulate_touch) {
          // SDL then reports the left mouse button as a touch finger
          // (touchId SDL_MOUSE_TOUCHID), exercising the real finger path.
-@@ -2583,6 +2626,10 @@ void HostWindow::set_touch_pad_visible(bool visible) {
+@@ -2583,6 +2738,10 @@ void HostWindow::set_touch_pad_visible(bool visible) {
      if (b->pad_visible == visible && b->pad_choice_saved) return;
      b->pad_visible = visible;
      b->pad_choice_saved = true;
@@ -11403,7 +11570,7 @@ index 22ca157..ec6c094 100644
      // Any finger currently on a pad button is released with the pad.
      for (auto& t : b->touches)
          if (t.active && t.pad) t.buttons = 0;
-@@ -2793,13 +2840,19 @@ HostWindow::Events HostWindow::pump() {
+@@ -2793,13 +2952,19 @@ HostWindow::Events HostWindow::pump() {
                      &te.view_x, &te.view_y);
                  TouchHub::instance().submit(te);
              };
@@ -11424,7 +11591,7 @@ index 22ca157..ec6c094 100644
                              ? pad_buttons_at(pad, px, py, b->px_per_mm) : 0;
                      // The toggle wins over the pad so it can never be buried
                      // under a button (it is small and player-movable).
-@@ -2970,6 +3023,18 @@ HostWindow::Events HostWindow::pump() {
+@@ -2970,6 +3135,18 @@ HostWindow::Events HostWindow::pump() {
              if (SDL_GameControllerGetButton(b->controller, binding.button))
                  keys &= static_cast<uint16_t>(~(1u << binding.bit));
          }
@@ -11443,7 +11610,19 @@ index 22ca157..ec6c094 100644
      }
      if (b->touch_controls) {
          const uint16_t touch_buttons = active_touch_buttons(b);
-@@ -3113,7 +3178,8 @@ void HostWindow::set_resize_driven_view(bool /*enabled*/) {}
+@@ -3106,6 +3283,11 @@ int  HostWindow::volume() const { return 100; }
+ int  HostWindow::window_scale() const { return 1; }
+ void HostWindow::set_linear_filter(bool /*enabled*/) {}
+ bool HostWindow::linear_filter() const { return false; }
++void HostWindow::set_frame_blend(bool /*enabled*/) {}
++bool HostWindow::frame_blend() const { return false; }
++void HostWindow::reset_frame_blend() {}
++bool HostWindow::copy_presented_frame(std::vector<uint8_t>& /*out*/, int& /*w*/,
++                                      int& /*h*/) const { return false; }
+ void HostWindow::set_audio_enabled(bool /*enabled*/) {}
+ bool HostWindow::audio_enabled() const { return false; }
+ void HostWindow::set_resize_driven_view(bool /*enabled*/) {}
+@@ -3113,7 +3295,8 @@ void HostWindow::set_resize_driven_view(bool /*enabled*/) {}
  void HostWindow::set_runtime_ui(RecompRuntimeUi* /*ui*/) {}
  #endif
  void HostWindow::configure_touch(bool /*policy*/, std::uint32_t /*claims*/,
@@ -11454,10 +11633,36 @@ index 22ca157..ec6c094 100644
  bool HostWindow::touch_pad_visible() const { return false; }
  void HostWindow::set_touch_pad_visible(bool /*visible*/) {}
 diff --git a/src/runtime/host_window.h b/src/runtime/host_window.h
-index 261d693..84067d7 100644
+index 261d693..130b162 100644
 --- a/src/runtime/host_window.h
 +++ b/src/runtime/host_window.h
-@@ -103,8 +103,11 @@ public:
+@@ -14,6 +14,7 @@
+ 
+ #include <cstddef>
+ #include <cstdint>
++#include <vector>
+ 
+ struct RecompRuntimeUi;
+ 
+@@ -87,6 +88,17 @@ public:
+     int  window_scale() const;
+     void set_linear_filter(bool enabled);
+     bool linear_filter() const;
++    // Presentation frame blending (issue #9 strategy #1): average each
++    // presented frame with the previous one (recomp-ui's RecompFrameBlend —
++    // the GBA LCD's own slow response, which is what makes 30 Hz palette
++    // fades read as smooth). Driven by the runtime menu's Graphics/LCD
++    // ghosting row (and --frame-blend); default off so faithful runs stay
++    // byte-exact. reset_frame_blend forgets history: call it wherever the
++    // incoming frame is not what the player was just looking at
++    // (savestate load; boot/reset start clean by construction).
++    void set_frame_blend(bool enabled);
++    bool frame_blend() const;
++    void reset_frame_blend();
+     void set_audio_enabled(bool enabled);
+     bool audio_enabled() const;
+     void set_resize_driven_view(bool enabled);
+@@ -103,8 +115,11 @@ public:
      // platform default). `emulate_touch` turns desktop mouse input into touch
      // (left = finger, right = two-finger tap, middle = three-finger tap,
      // Backspace = platform Back) for development and validation.
@@ -11470,6 +11675,20 @@ index 261d693..84067d7 100644
      // Loads/persists the player's pad choice in <dir>/config.ini [Touch].
      void set_touch_config_dir(const char* dir);
      bool touch_pad_visible() const;
+@@ -140,6 +155,13 @@ public:
+     // and present.
+     void present(const uint8_t* rgb888);
+ 
++    // Copies the most recently uploaded frame (post color-grade AND post
++    // blend — the exact bytes handed to the display) for the `presented`
++    // TCP command. Returns false when nothing has been presented yet.
++    // Recorded unconditionally (blend on or off); the copy costs one frame
++    // memcpy per present.
++    bool copy_presented_frame(std::vector<uint8_t>& out, int& w, int& h) const;
++
+     // Push `count` int16_t mono samples (32.768 kHz) into the audio
+     // output queue. Backend converts to the host device's format.
+     // No-op if audio init failed or this build has no SDL2.
 diff --git a/src/runtime/input_synth.h b/src/runtime/input_synth.h
 index d1df4da..aab700e 100644
 --- a/src/runtime/input_synth.h
@@ -11779,7 +11998,7 @@ index 117db49..4d847fb 100644
      // DLLs are left loaded (immutable code, process-lifetime); the OS reclaims
      // them at exit. Drain any last results so counters/banner are accurate.
 diff --git a/src/runtime/runtime.cpp b/src/runtime/runtime.cpp
-index b560791..93525d0 100644
+index b560791..adb07e4 100644
 --- a/src/runtime/runtime.cpp
 +++ b/src/runtime/runtime.cpp
 @@ -34,6 +34,7 @@
@@ -11802,7 +12021,40 @@ index b560791..93525d0 100644
      std::optional<gba::SaveType> save_type;
      std::size_t save_size = 0;
      int steps = 16;
-@@ -788,7 +794,8 @@ constexpr std::string_view kCliValueFlags[] = {
+@@ -179,6 +185,9 @@ struct Args {
+     bool linear_filter = false;   // --linear-filter 1: linear texture scaling
+     bool sharp_filter = false;    // --sharp-filter 1: integer prescale + linear finish
+     bool affine_filter = false;   // --affine-filter 1: game-authorized smoothing
++    bool frame_blend = false;     // --frame-blend 1: average each presented
++                                  // frame with the previous one (Graphics/LCD
++                                  // ghosting row drives the same flag)
+     float gyro_sensitivity = 0.25f; // --gyro-sensitivity 0.25..4.00
+     // [audio] shadow = true|false — arm the MP2K verified-enhancement shadow
+     // mixer (default off). GBARECOMP_AUDIO_SHADOW overrides at launch.
+@@ -265,6 +274,7 @@ int runtime_ui_get(void* opaque, const RecompRuntimeUiItem* item, int* out) {
+     else if (std::strcmp(item->key, RECOMP_RUNTIME_UI_KEY_WINDOW_SCALE) == 0) *out = c->window->window_scale();
+     else if (std::strcmp(item->key, RECOMP_RUNTIME_UI_KEY_VIEW_MODE) == 0) *out = c->view_mode;
+     else if (std::strcmp(item->key, RECOMP_RUNTIME_UI_KEY_LINEAR_FILTER) == 0) *out = c->window->linear_filter();
++    else if (std::strcmp(item->key, RECOMP_RUNTIME_UI_KEY_LCD_GHOSTING) == 0) *out = c->window->frame_blend();
+     else if (std::strcmp(item->key, RECOMP_RUNTIME_UI_KEY_AUDIO) == 0) *out = c->window->audio_enabled();
+     else if (std::strcmp(item->key, RECOMP_RUNTIME_UI_KEY_VOLUME) == 0) *out = c->window->volume();
+     else if (std::strcmp(item->key, GBARECOMP_UI_KEY_STATE_SLOT) == 0) *out = c->state_slot;
+@@ -297,6 +307,8 @@ int runtime_ui_set(void* opaque, const RecompRuntimeUiItem* item, int value) {
+         c->view_mode_dirty = true;
+     } else if (std::strcmp(item->key, RECOMP_RUNTIME_UI_KEY_LINEAR_FILTER) == 0)
+         c->window->set_linear_filter(value != 0);
++    else if (std::strcmp(item->key, RECOMP_RUNTIME_UI_KEY_LCD_GHOSTING) == 0)
++        c->window->set_frame_blend(value != 0);
+     else if (std::strcmp(item->key, RECOMP_RUNTIME_UI_KEY_AUDIO) == 0)
+         c->window->set_audio_enabled(value != 0);
+     else if (std::strcmp(item->key, RECOMP_RUNTIME_UI_KEY_VOLUME) == 0)
+@@ -784,11 +796,14 @@ bool apply_toml_file(const std::filesystem::path& path, Args* args,
+ // adding a value flag without listing it fails loudly on first use instead of
+ // silently dropping the game config (and with it the BIOS/ROM paths).
+ constexpr std::string_view kCliValueFlags[] = {
++    // Issue #9 #1: first element, clear of the recorded hunks below.
++    "--frame-blend",
+     "--config",      "--bios",          "--rom",           "--bios-sha1",
      "--rom-sha1",    "--rom-crc32",     "--steps",         "--frames",
      "--scale",       "--tcp",           "--tcp-observe",   "--dump-bmp",
      "--dump-png",    "--load-state",    "--view-width",    "--widescreen",
@@ -11812,7 +12064,7 @@ index b560791..93525d0 100644
      "--sharp-filter", "--linear-filter", "--affine-filter", "--screen",
      "--volume",
  };
-@@ -1011,6 +1018,12 @@ bool parse_cli(int argc, char** argv, Args* args, std::string* err) {
+@@ -1011,6 +1026,12 @@ bool parse_cli(int argc, char** argv, Args* args, std::string* err) {
              args->save_path = v;
              continue;
          }
@@ -11825,7 +12077,25 @@ index b560791..93525d0 100644
          if (s == "--screen") {
              const char* v = need_value("--screen");
              if (!v) return false;
-@@ -2449,6 +2462,11 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -1052,6 +1073,17 @@ bool parse_cli(int argc, char** argv, Args* args, std::string* err) {
+             args->linear_filter = lf != 0;
+             continue;
+         }
++        if (s == "--frame-blend") {
++            const char* v = need_value("--frame-blend");
++            if (!v) return false;
++            int fb = 0;
++            if (!parse_int(v, &fb)) {
++                if (err) *err = "invalid --frame-blend value (expected 0 or 1)";
++                return false;
++            }
++            args->frame_blend = fb != 0;
++            continue;
++        }
+         if (s == "--sharp-filter") {
+             const char* v = need_value("--sharp-filter");
+             if (!v) return false;
+@@ -2449,6 +2481,11 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
          bool ctl_step_ok   = true;
  
          std::thread game_thread([&]() {
@@ -11837,7 +12107,7 @@ index b560791..93525d0 100644
              for (;;) {
                  int st;
                  {
-@@ -2588,8 +2606,10 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -2588,8 +2625,10 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
          if (game_thread.joinable()) game_thread.join();
          bool save_ok = flush_save();
          write_session_diagnostics(opts, "exit", ppu.frame_count());
@@ -11849,7 +12119,45 @@ index b560791..93525d0 100644
          runtime_shutdown();
          return (ok && save_ok) ? 0 : 1;
      }
-@@ -2865,7 +2885,8 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -2851,6 +2890,37 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+             runtime_shutdown();
+             return 1;
+         }
++        // --frame-blend startup default (menu row drives the same flag at
++        // runtime; both default off so faithful runs stay byte-exact).
++        win.set_frame_blend(args.frame_blend);
++        // `presented` TCP command (issue #9 blend verification): exact bytes
++        // uploaded to the display, post color-grade and post-blend — the
++        // only way to observe the blend stage, which sits after the guest
++        // framebuffer the `screenshot` command re-renders. Wired into the
++        // --tcp-observe server where octx is built below (plain --tcp is
++        // headless: nothing is ever presented there). Anything else falls
++        // through to the shared touch/game-command extension.
++        auto presented_extension = [&](const std::string& request,
++                                       std::string& reply) -> bool {
++            if (request.find("\"presented\"") == std::string::npos)
++                return tcp_extension(request, reply);
++            std::vector<uint8_t> px;
++            int pw = 0, ph = 0;
++            if (!win.copy_presented_frame(px, pw, ph)) {
++                reply = "{\"ok\":false}";
++                return true;
++            }
++            static const char* hexd = "0123456789abcdef";
++            std::string hex;
++            hex.reserve(px.size() * 2u);
++            for (uint8_t v : px) {
++                hex.push_back(hexd[v >> 4]);
++                hex.push_back(hexd[v & 15]);
++            }
++            reply = "{\"ok\":true,\"w\":" + std::to_string(pw) + ",\"h\":" +
++                    std::to_string(ph) + ",\"data\":\"0x" + hex + "\"}";
++            return true;
++        };
+         // Rebindable input: keybinds.ini (player buttons, recomp-ui generic
+         // format) + config.ini [KeyMap] (system hotkeys), both next to the
+         // exe. Missing files leave the built-in defaults.
+@@ -2865,7 +2935,8 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
                                    opts.assist_fast_forward_multiplier_default);
              win.configure_touch(opts.input_frame != nullptr,
                                  opts.touch_gesture_claims,
@@ -11859,7 +12167,29 @@ index b560791..93525d0 100644
              win.set_touch_config_dir(exe_dir.c_str());
          }
          win.set_host_overlay(opts.host_overlay);
-@@ -3098,25 +3119,27 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -2881,7 +2952,7 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+             octx.bus = &bus;
+             octx.ppu = &ppu;
+             octx.misses_query = []() { return gbarecomp::self_heal_misses_json(); };
+-            octx.extension = tcp_extension;
++            octx.extension = presented_extension;
+             octx.savestate_save = [&](const std::string& p, std::string& e) {
+                 return observer_request(true, p, e);
+             };
+@@ -2961,6 +3032,12 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+             RECOMP_RUNTIME_UI_STANDARD_AUDIO |
+             RECOMP_RUNTIME_UI_STANDARD_VOLUME |
+             RECOMP_RUNTIME_UI_STANDARD_RESUME;
++        // Issue #9 strategy #1: the Graphics/LCD ghosting row (presentation
++        // frame blending), game-opted via RunOptions::expose_lcd_ghosting.
++        // The row sits right after Linear filter in the recomp-ui catalog.
++        if (opts.expose_lcd_ghosting)
++            runtime_ui_config.features |=
++                RECOMP_RUNTIME_UI_STANDARD_LCD_GHOSTING;
+         if (!opts.expose_assist_tools) {
+             runtime_ui_config.features |=
+                 RECOMP_RUNTIME_UI_STANDARD_SAVE_STATE |
+@@ -3098,25 +3175,27 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
      // Host-window save-state slots: the ROM path with a .stateN extension.
      // Shift+F1..F9 writes slots 1..9 and F1..F9 restores them; a runtime menu
      // may additionally expose slot 10 without changing the established
@@ -11896,7 +12226,19 @@ index b560791..93525d0 100644
      };
      auto clear_suspend_marker = [&]() {
          std::error_code ec;
-@@ -3507,8 +3530,15 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -3369,6 +3448,11 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+                                 : do_savestate_load(r->path, r->err);
+                 if (!r->save && r->ok) {
+                     last_presented_frame = ppu.frame_count() - 1;
++                    // A load swaps the scene wholesale: forget blend history
++                    // so the next present doesn't average one stale frame
++                    // into the restored picture (history would self-heal on
++                    // the following frame anyway — this skips the smear).
++                    win.reset_frame_blend();
+                     if (pacer) pacer->reset();
+                 }
+                 std::printf("observer_savestate_%s path=\"%s\" ok=%d\n",
+@@ -3507,8 +3591,15 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
          fast_forward_multiplier = std::clamp(
              win.fast_forward_multiplier(), 2, 10);
  #endif
@@ -11913,7 +12255,23 @@ index b560791..93525d0 100644
          // System hotkeys (config.ini [KeyMap], rebindable in the launcher).
          if (ev.toggle_fullscreen) {
              // Toggle between windowed and the configured mode. A session
-@@ -3687,12 +3717,16 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -3570,6 +3661,7 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+                 // Force the next iteration to re-present the restored
+                 // frame instead of waiting for frame_count to advance.
+                 last_presented_frame = ppu.frame_count() - 1;
++                win.reset_frame_blend();  // scene swap: drop blend history
+                 // The load jumped guest time; realign the pacer so it
+                 // doesn't burn the accumulated lag catching up.
+                 if (pacer) pacer->reset();
+@@ -3608,6 +3700,7 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+                     while (rewind_history.size() > target_index + 1)
+                         rewind_history.pop_back();
+                     last_presented_frame = ppu.frame_count() - 1;
++                    win.reset_frame_blend();  // scene swap: drop blend history
+                     next_rewind_capture_frame =
+                         ppu.frame_count() + rewind_interval;
+                     if (pacer) pacer->reset();
+@@ -3687,12 +3780,16 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
                  // the same frame-indexed input as headless acceptance runs.
                  if (input_replay_requested) apply_input_replay();
                  if (phase_active) fp_t4 = FramePhaseRing::now_ns();
@@ -11931,7 +12289,7 @@ index b560791..93525d0 100644
                  }
                  if (phase_active) {
                      frame_phase.record(frame, fp_t0, fp_t1, fp_t2, fp_t3,
-@@ -4092,6 +4126,7 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -4092,6 +4189,7 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
                  pump_host_input();
                  if (phase_active) fp_t4 = FramePhaseRing::now_ns();
                  dispatches_since_pump = 0;
@@ -11939,7 +12297,7 @@ index b560791..93525d0 100644
                  last_presented_frame = frame;
                  if (present_frame) {
                      ++frames_presented;
-@@ -4101,7 +4136,7 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -4101,7 +4199,7 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
                      // Normal play presents/paces every frame. Fast-forward
                      // runs N guest frames per one paced host presentation,
                      // making its selected multiplier independent of monitor Hz.
@@ -11948,7 +12306,7 @@ index b560791..93525d0 100644
                  }
                  if (phase_active) {
                      frame_phase.record(frame, fp_t0, fp_t1, fp_t2, fp_t3,
-@@ -4260,8 +4295,10 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -4260,8 +4358,10 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
          }
      }
  
@@ -11961,10 +12319,22 @@ index b560791..93525d0 100644
      return save_ok ? 0 : 1;
  }
 diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
-index cb6717c..e2e4417 100644
+index cb6717c..c514690 100644
 --- a/src/runtime/runtime.h
 +++ b/src/runtime/runtime.h
-@@ -127,6 +127,13 @@ struct RunOptions {
+@@ -123,10 +123,25 @@ struct RunOptions {
+     bool expose_assist_tools = false;
+     bool assist_tools_enabled_by_default = true;
+     std::uint8_t assist_fast_forward_multiplier_default = 4;
++    // Issue #9 strategy #1: Graphics/LCD ghosting row in the runtime
++    // settings menu (presentation frame blending). Kept above the recorded
++    // assist block (not inside it) so the per-feature reference diffs keep
++    // their context; default off everywhere so faithful runs stay byte-exact
++    // unless the player opts in mid-session. Engine side of the row +
++    // HostWindow blend stage: gbarecomp-local.patch; row order:
++    // recomp-ui-local.patch.
++    bool expose_lcd_ghosting = false;
+     std::uint8_t save_state_slot_count = 9;
      std::uint8_t rewind_history_seconds = 0;
      std::uint8_t rewind_capture_interval_frames = 15;
  
@@ -11978,7 +12348,7 @@ index cb6717c..e2e4417 100644
      // Optional game-owned content initializer. Called exactly once, after the
      // first non-native view has been authorized and applied. For a fixed view
      // that is during startup; for resize-driven view it is deferred until the
-@@ -164,6 +171,11 @@ struct RunOptions {
+@@ -164,6 +179,11 @@ struct RunOptions {
      // The player toggles it with the corner button; the choice persists.
      int touch_pad_default = -1;
  
