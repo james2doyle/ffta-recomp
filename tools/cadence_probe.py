@@ -40,10 +40,12 @@ Usage:
 
 Exit: 0 pass, 1 cadence/invariant failure, 2 setup error.
 Gate rules: parities equal and toggling on >=95% of steps, gVblankCounter
-+1 per step on >=95% of steps; with --strict, additionally zero
-every-other-frame addresses on the PRESENTED surfaces (io/oam/pal/vram +
-the display-reg shadow) — internal IWRAM staging alternation is the
-double-buffer slot write and is reported, not gated.
++1 per step on >=95% of steps; with --strict, additionally zero SUSTAINED
+every-other-frame addresses (>=6 alternating changes) on the PRESENTED
+surfaces (io/oam/pal/vram + the display-reg shadow) — internal IWRAM
+staging alternation is the double-buffer slot write and is reported, not
+gated; short alternating runs are reported as transient candidates (OAM
+slot recycling mimics strict alternation over short windows), never gated.
 """
 import argparse
 import json
@@ -227,6 +229,15 @@ def analyze(targets, rows, trace_n):
     (gaps of exactly 2 between consecutive change frames), not merely a
     ~0.5 change ratio: a byte that is static for half the run and then
     updates every frame also lands near 0.5 without being a 30 Hz gate.
+
+    OAM confounder (2026-10-13, route-B replay): a recycled OAM slot can
+    fake strict alternation over a SHORT window — the whole entry is
+    reassigned to a different sprite every step during scene recomposition
+    while one byte happens to take pairwise-equal values across consecutive
+    sprites (e.g. entry 70 byte3 = 50,50,10,10,11,11 over steps 73-79 while
+    bytes 0,1,2,4,5 jump discontinuously every step). Gating therefore
+    requires a SUSTAINED run (>=6 alternating changes); shorter runs are
+    reported as transient candidates for human review, not gated.
     """
     n = len(rows) - 1
     sched = {"steps": n, "parity_toggles": 0, "parity_disagreements": 0,
@@ -256,7 +267,11 @@ def analyze(targets, rows, trace_n):
             hist[round(cad * 20) / 20] = hist.get(round(cad * 20) / 20, 0) + 1
             gaps = [b - x for x, b in zip(steps, steps[1:])]
             if len(steps) >= 4 and all(g == 2 for g in gaps):
-                alt_steps.setdefault(tuple(steps), []).append(base + off)
+                # Sustained runs gate; short runs (OAM slot-recycling
+                # transients) are reported separately, never gated.
+                bucket = "sust" if len(steps) >= 6 else "tran"
+                alt_steps.setdefault((bucket, tuple(steps)), []).append(
+                    base + off)
             if abs(cad - 0.5) <= 0.1:
                 near.append((cad, base + off, ti, off))
         # Every-other-frame signature = strictly alternating change steps.
@@ -264,11 +279,13 @@ def analyze(targets, rows, trace_n):
         # is the normal double-buffer slot write (slot A written on even
         # steps, slot B on odd ones) — report it, don't gate it.
         alt = []
-        for steps, addrs in alt_steps.items():
+        transient = []
+        for (bucket, steps), addrs in alt_steps.items():
             for x in addrs:
-                alt.append((x, steps[0] % 2))
+                (alt if bucket == "sust" else transient).append(
+                    (x, steps[0] % 2))
         phases = {}
-        for _, ph in alt:
+        for _, ph in alt + transient:
             phases[ph] = phases.get(ph, 0) + 1
 
         def presented(x):
@@ -283,12 +300,15 @@ def analyze(targets, rows, trace_n):
                 (0x07000000 <= x < 0x07000400))
 
         gate_addrs = sorted(f"{x:#010x}" for x, _ in alt if presented(x))
+        transient_addrs = sorted(f"{x:#010x}" for x, _ in transient
+                                 if presented(x))
         internal = sum(1 for x, _ in alt if not presented(x))
+        internal += sum(1 for x, _ in transient if not presented(x))
         near.sort(key=lambda t: abs(t[0] - 0.5))
         # Traces: gated alternating addresses first (always), then the
         # nearest-to-0.5 movers.
         traces = []
-        for x, _ph in sorted(alt):
+        for x, _ph in sorted(alt + transient):
             if presented(x):
                 vals = [r["blobs"][ti][x - base] for r in rows[:120]]
                 traces.append({"addr": f"{x:#010x}", "cadence": 0.5,
@@ -300,6 +320,7 @@ def analyze(targets, rows, trace_n):
         out[name] = {"changed_bytes": len(changed_at),
                      "histogram": {f"{k:.2f}": v for k, v in sorted(hist.items())},
                      "alternating": gate_addrs,
+                     "transient_alternating": transient_addrs,
                      "internal_alternating": internal,
                      "alternating_phases": {str(k): v for k, v in
                                             sorted(phases.items())},
@@ -445,6 +466,10 @@ def main():
                   f"{', '.join(s['alternating'])}")
         else:
             print("   every-other-frame on presented surface: none")
+        if s["transient_alternating"]:
+            print(f"   transient alternation (short-run, review manually — "
+                  f"OAM slot recycling mimics this): "
+                  f"{', '.join(s['transient_alternating'])}")
         if s["internal_alternating"]:
             print(f"   internal staging alternation (double buffer): "
                   f"{s['internal_alternating']} bytes, phases "

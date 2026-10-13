@@ -5982,3 +5982,44 @@ records via play.sh --load-state game.state1; replays measured per flow).
 Acceptance: `check.py --only unit-py,cadence` ALL PASS (2/2; suite
 unchanged in behavior). Docs-only + tool-internal changes; no
 symbols/game.toml/src change, so no cycle needed.
+
+## 2026-10-13 (late) — The 30 Hz "tick" retracts: OAM slot recycling mimics alternation
+
+Follow-up to the route-B pre-finding above: the 0x07000233 "true 30 Hz
+tick" does NOT survive entry-level inspection, and the issue #9
+correction claiming it has been amended a second time.
+
+**Evidence:** a per-step dump of the full OAM entry 70 (0x07000230:8)
+over probe steps 65-95 (`/tmp/opencode/dump_entry70.py`, local-only)
+shows the flagged byte's `50,50,10,10,11,11` window (steps 73-79) is a
+scene-recomposition transient — the WHOLE entry is reassigned to a
+different sprite every step (y/x/tile all jump discontinuously:
+0c00/4c/dc08 -> 0100/41/dc08 -> ef40/37/d808 -> 1680/06/2218 ...), and
+byte3 merely takes pairwise-equal values across consecutive sprites.
+Change steps 73,75,77,79 satisfy strict alternation (gaps 2,2,2) by
+coincidence. From step 79 the slot settles onto the walking unit and x
+advances per frame (f4,f1,ed,eb,e8,e7,e5... — 60 Hz eased motion with
+ease-out repeats, not holds).
+
+**Tool fix (committed here):** gating now requires a SUSTAINED run
+(>=6 alternating changes, >=10 steps); 4-5-change runs are reported as
+`transient_alternating` candidates (always value-traced) and never gate.
+Docstring documents the slot-recycling confounder. `alternating_phases`
+now covers both classes.
+
+**300-step route-B walk verdict** (replay off battle_move_start.state,
+regions io/iwram/oam/pal): scheduler 60 Hz (parity 0.99, vblank 1.00),
+**zero sustained every-other-frame addresses on every presented
+surface**; sole transient is the known 0x07000233 artifact; PAL moves
+(141 bytes, fades/flashes) at non-half cadences. So the battle-walk
+flow is 60 Hz motion end-to-end with NO confirmed 30 Hz content yet —
+the authored-vs-mechanical classification question stays open for the
+effect-heavy flows (black magic, totema), where real animation ticks
+are expected. User records those takes via
+`tools/play.sh --load-state game.state1` (one flow per session, ~2 s
+idle after load for clean re-anchor; trace lands at
+logs/playthrough.csv, archived to inputs/cadence_<flow>.csv between
+takes).
+
+Acceptance: `check.py --only unit-py,cadence` ALL PASS (2/2). Tool-
+internal change only; no cycle needed.
