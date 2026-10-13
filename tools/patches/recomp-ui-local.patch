@@ -285,10 +285,10 @@ index 22e31f2..a95fbf6 100644
          }
  
 diff --git a/src/common/recomp_runtime_settings.c b/src/common/recomp_runtime_settings.c
-index a22b7e8..87c4a11 100644
+index a22b7e8..6f3927e 100644
 --- a/src/common/recomp_runtime_settings.c
 +++ b/src/common/recomp_runtime_settings.c
-@@ -110,6 +110,10 @@ RecompRuntimeUi *recomp_runtime_ui_create_standard(
+@@ -110,6 +110,14 @@ RecompRuntimeUi *recomp_runtime_ui_create_standard(
          add_item(items, &count, RECOMP_RUNTIME_UI_KEY_LINEAR_FILTER, "Graphics",
                   "Linear filter", "Smooth the final game image.",
                   RECOMP_RUNTIME_UI_BOOL, 0, 1, 1, NULL, 0, NULL);
@@ -296,10 +296,14 @@ index a22b7e8..87c4a11 100644
 +        add_item(items, &count, RECOMP_RUNTIME_UI_KEY_LCD_GHOSTING, "Graphics",
 +                 "LCD ghosting (frame blending)", "Simulate the original LCD response.",
 +                 RECOMP_RUNTIME_UI_BOOL, 0, 1, 1, NULL, 0, NULL);
++    if (has(f, RECOMP_RUNTIME_UI_STANDARD_FRAME_INTERP))
++        add_item(items, &count, RECOMP_RUNTIME_UI_KEY_FRAME_INTERP, "Graphics",
++                 "Frame interpolation", "Present at the display rate with smoothed motion.",
++                 RECOMP_RUNTIME_UI_BOOL, 0, 1, 1, NULL, 0, NULL);
      if (has(f, RECOMP_RUNTIME_UI_STANDARD_TEXTURE_FILTER))
          add_item(items, &count, RECOMP_RUNTIME_UI_KEY_TEXTURE_FILTER, "Graphics",
                   "Texture filtering", "Choose nearest or linear sampling.",
-@@ -128,10 +132,6 @@ RecompRuntimeUi *recomp_runtime_ui_create_standard(
+@@ -128,10 +136,6 @@ RecompRuntimeUi *recomp_runtime_ui_create_standard(
          add_item(items, &count, RECOMP_RUNTIME_UI_KEY_COLOR_CORRECTION, "Graphics",
                   "Color correction", "Use display-aware handheld color correction.",
                   RECOMP_RUNTIME_UI_BOOL, 0, 1, 1, NULL, 0, NULL);
@@ -386,6 +390,26 @@ index a182dc1..97b7518 100644
      /* recomp_runtime_ui_set_toast: shown while toast_title or toast_body is set. */
      char toast_title[96];
      char toast_body[320];
+diff --git a/src/recomp_runtime_ui.h b/src/recomp_runtime_ui.h
+index fc34558..c37e249 100644
+--- a/src/recomp_runtime_ui.h
++++ b/src/recomp_runtime_ui.h
+@@ -77,6 +77,7 @@ enum {
+ #define RECOMP_RUNTIME_UI_KEY_RESOLUTION_SCALE "graphics.resolution_scale"
+ #define RECOMP_RUNTIME_UI_KEY_COLOR_CORRECTION "graphics.color_correction"
+ #define RECOMP_RUNTIME_UI_KEY_LCD_GHOSTING     "graphics.lcd_ghosting"
++#define RECOMP_RUNTIME_UI_KEY_FRAME_INTERP     "graphics.frame_interp"
+ #define RECOMP_RUNTIME_UI_KEY_AUDIO            "audio.enabled"
+ #define RECOMP_RUNTIME_UI_KEY_VOLUME           "audio.volume"
+ #define RECOMP_RUNTIME_UI_KEY_GYRO_SENSITIVITY "input.gyro_sensitivity"
+@@ -172,6 +173,7 @@ enum {
+     RECOMP_RUNTIME_UI_STANDARD_LOAD_STATE        = UINT64_C(1) << 14,
+     RECOMP_RUNTIME_UI_STANDARD_RESET             = UINT64_C(1) << 15,
+     RECOMP_RUNTIME_UI_STANDARD_FMV_FILTER        = UINT64_C(1) << 16,
++    RECOMP_RUNTIME_UI_STANDARD_FRAME_INTERP      = UINT64_C(1) << 17,
+ };
+ 
+ typedef struct RecompRuntimeUiStandardConfig {
 diff --git a/tests/runtime_ui_imgui_test.cpp b/tests/runtime_ui_imgui_test.cpp
 index 7eaf458..ebc09cc 100644
 --- a/tests/runtime_ui_imgui_test.cpp

@@ -3,7 +3,7 @@
 @@ -52,3 +52,3 @@ void FramePacer::reset() {
  
 -void FramePacer::wait_for_next_frame() {
-+void FramePacer::wait_for_next_frame(uint64_t frames) {
++void FramePacer::wait_for_next_frame(uint64_t frames, DisplayTickFn tick) {
      if (uncapped_) {
 @@ -57,2 +57,12 @@ void FramePacer::wait_for_next_frame() {
      }
@@ -20,7 +20,7 @@
      clock::time_point now = clock::now();
 --- a/src/runtime/host_platform.h
 +++ b/src/runtime/host_platform.h
-@@ -43,3 +43,13 @@ public:
+@@ -43,3 +43,28 @@ public:
      // frame. No-op while uncapped.
 -    void wait_for_next_frame();
 +    //
@@ -33,7 +33,22 @@
 +    // count so one wait throttles all of them; frames==1 is exactly the
 +    // old behavior. Fast-forward presents one frame per wait already, so
 +    // it is unaffected. The behind-resync below still bounds real stalls.
-+    void wait_for_next_frame(uint64_t frames = 1);
++    //
++    // `tick`, when set, subdivides the wait into display-paced callbacks
++    // (issue #9 3a: decoupled presentation clock). Each tick re-presents
++    // the current frame and paces itself to the display (sleeping to its
++    // display boundary, or riding the present's own vsync block where the
++    // renderer already blocks), and receives the wait's deadline as
++    // nanoseconds on the steady clock so
++    // a slower panel can never hold the guest wait past it. The wait
++    // returns exactly at the guest deadline, so guest time is throttled
++    // identically with or without ticks — ticks only fill the would-be
++    // idle span with extra presents. Null (default) is the historical
++    // blocking wait, bit for bit. Uncapped and behind-schedule waits
++    // never tick.
++    using DisplayTickFn = std::function<void(uint64_t deadline_ns)>;
++    void wait_for_next_frame(uint64_t frames = 1,
++                             DisplayTickFn tick = nullptr);
  
 --- a/src/runtime/runtime.cpp
 +++ b/src/runtime/runtime.cpp
@@ -44,10 +59,28 @@
 +                // skip). The pacer throttles all of them.
 +                const uint64_t banked_frames = frame - last_presented_frame;
                  last_presented_frame = frame;
-@@ -3694,3 +3732,3 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -3694,3 +3732,21 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
                          host_quit = true;
 -                    if (pacer) pacer->wait_for_next_frame();
-+                    if (pacer) pacer->wait_for_next_frame(banked_frames);
++                    // Issue #9 3a: decoupled display clock. While frame
++                    // interpolation is on, the wait subdivides into
++                    // display-paced holding presents of live_fb (the guest
++                    // hasn't advanced — holding blends against unchanged
++                    // history, a clean repeat). Headless, fast-forward
++                    // (uncapped), behind-schedule, and toggle-off waits all
++                    // pass null and keep the historical blocking path.
++                    if (pacer) {
++                        if (win.frame_interp()) {
++                            pacer->wait_for_next_frame(
++                                banked_frames,
++                                [&](uint64_t deadline_ns) {
++                                    win.interp_display_tick(live_fb.data(),
++                                                            deadline_ns);
++                                });
++                        } else {
++                            pacer->wait_for_next_frame(banked_frames);
++                        }
++                    }
                  }
 @@ -4094,2 +4144,3 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
                  dispatches_since_pump = 0;

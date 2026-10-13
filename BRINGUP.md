@@ -6112,9 +6112,54 @@ watches), run twice (second run after per-window trace fix):
 Acceptance: `check.py --only unit-py,cadence` ALL PASS (2/2) on the
 final tool. Fixture + tool-internal changes only; no cycle needed.
 
-## 2026-10-13 (late) — Issue #9 strategy #1 built: LCD ghosting toggle + stage
+## 2026-10-13 (late) — Issue #9 strategy #3a built: decoupled display clock
+
+Design (locked in-session, no-renderer-surgery version): no vsync
+requirement, no renderer recreate, no rate picker. Guest stays
+pacer-clocked at 59.7275; the pacer wait subdivides into display-paced
+holding presents (tick callback). Ticks sleep to display boundaries read
+from the current mode (re-queried periodically — adaptive panels safe);
+where presents already block, the tick skips its own sleep; a slower
+panel yields at the guest deadline instead of oversleeping it. Single
+"Frame interpolation" runtime row (Graphics, after LCD ghosting);
+default off; panel rate auto-followed; no device lists anywhere. FF
+(uncapped), behind-schedule, headless, and netplay (separate
+multiplayer_runner loop) all keep the historical path by construction
+(tick=null). At 3a the row delivers judder-free multiplied presents
+(holding = clean repeats); 3b will add lerped BG re-renders behind it.
+
+Implementation:
+
+- `FramePacer::wait_for_next_frame(frames, tick=nullptr)`
+  (host_platform.h/cpp): tick branch shares resync + late-rule tail with
+  the blocking path; deadline passed to ticks as ns so slow panels yield.
+- `HostWindow::present(rgb, fresh=true)`: repeats blend against
+  UNCHANGED history; paused loop passes false. New set/frame_interp,
+  vsync_blocks, interp_display_tick + Backend pacing state
+  (boundary/period/mode counter) + mode query at open.
+- Runtime: `expose_frame_interp` knob, STANDARD_FRAME_INTERP row bit,
+  get/set branches, `--frame-interp` CLI + flag-list entry, tick lambda
+  at the PiP-hook wait, set-at-open. Non-PiP/headless path untouched.
+- recomp-ui: `graphics.frame_interp` key + STANDARD bit + catalog row.
+- Game: expose knob true (`src/main.cpp`).
+- Overlap procedure (new): same-function features cannot keep separate
+  reference files green by repositioning, so the banked-wait reference
+  was rebased as a documented superset (wait-call/signature/decl hunks
+  absorb the 3a tick lines; banked lines unchanged; README row notes it)
+  plus right-of-way moves for the knob/CLI lines. Both patch legs green.
+
+Verification: `tools/cycle.py` PASS (corpus 63134, attract `1EF4C118…`
+intact); 7/7 suites incl. route_B determinism + ui-tests; 60 Hz desktop
+smoke (25 s interp-on windowed: guest 300 f/5 s steady, mode line
+60 Hz/16.67 ms, clean quit). True feel test needs a 120 Hz device
+(pending user run).
+
+Not done: 3b (lerped re-render), launcher Video persistence, device
+validation (APK + 120 Hz feel + thermal sanity).
 
 Implementation (commits `881a9d3`, `3fa9ce2`):
+
+## 2026-10-13 (late) — Issue #9 strategy #1 built: LCD ghosting toggle + stage
 
 - **Menu row:** the standard Graphics/LCD ghosting row, reordered directly
   after Linear filter + relabeled "LCD ghosting (frame blending)"

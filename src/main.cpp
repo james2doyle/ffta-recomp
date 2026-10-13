@@ -349,6 +349,12 @@ int ffta_main(int argc, char** argv) {
     // (recomp-ui-local.patch).
     opts.expose_lcd_ghosting = true;
 
+    // Issue #9 strategy #3a: Graphics/Frame interpolation row (decoupled
+    // display clock — the pacer wait subdivides into display-paced holding
+    // presents). Default off; at 3a the row delivers judder-free
+    // multiplied presents, 3b will add lerped BG re-renders behind it.
+    opts.expose_frame_interp = true;
+
     // Issue #11 (speed toggle, Phase 1): FFTA-owned touch pill. Tap the
     // top-center "FF" pill to latch the same boost the physical hold paths
     // and menu latch provide; the engine polls speed_boost_requested() once
