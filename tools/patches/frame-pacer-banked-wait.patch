@@ -52,29 +52,124 @@
  
 --- a/src/runtime/runtime.cpp
 +++ b/src/runtime/runtime.cpp
-@@ -3689,2 +3723,6 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -3687,12 +3879,125 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+                 // the same frame-indexed input as headless acceptance runs.
+                 if (input_replay_requested) apply_input_replay();
                  if (phase_active) fp_t4 = FramePhaseRing::now_ns();
 +                // Banked frames for the pacer: this present covers every guest
 +                // frame since the last one (normally 1; 2 after a stale-frame
 +                // skip). The pacer throttles all of them.
 +                const uint64_t banked_frames = frame - last_presented_frame;
                  last_presented_frame = frame;
-@@ -3694,3 +3732,21 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+                 if (present_frame) {
+                     ++frames_presented;
+                     if (args.frames >= 0 && frames_presented >= args.frames)
                          host_quit = true;
 -                    if (pacer) pacer->wait_for_next_frame();
 +                    // Issue #9 3a: decoupled display clock. While frame
 +                    // interpolation is on, the wait subdivides into
-+                    // display-paced holding presents of live_fb (the guest
-+                    // hasn't advanced — holding blends against unchanged
-+                    // history, a clean repeat). Headless, fast-forward
-+                    // (uncapped), behind-schedule, and toggle-off waits all
-+                    // pass null and keep the historical blocking path.
++                    // display-paced presents: the first tick re-presents
++                    // live_fb exact, later ticks carry the 3b halfway
++                    // scroll shift (exact when still). Headless,
++                    // fast-forward (uncapped), behind-schedule, and
++                    // toggle-off waits all pass null and keep the
++                    // historical blocking path.
 +                    if (pacer) {
 +                        if (win.frame_interp()) {
++                            // Issue #9 3b: sample scroll velocity for this
++                            // wait's intermediate ticks (interp on only;
++                            // the off-path above is untouched).
++                            {
++                                const uint8_t* ioraw = bus.io().raw();
++                                int32_t best_dh = 0, best_dv = 0, best_mag = 0;
++                                for (int layer = 0; layer < 4; ++layer) {
++                                    const uint32_t off =
++                                        0x10u + static_cast<uint32_t>(layer) *
++                                            4u;
++                                    const int32_t h = static_cast<int32_t>(
++                                        ioraw[off] | (ioraw[off + 1u] << 8)) &
++                                        0x1FF;
++                                    const int32_t v = static_cast<int32_t>(
++                                        ioraw[off + 2u] |
++                                        (ioraw[off + 3u] << 8)) &
++                                        0x1FF;
++                                    if (interp_have_prev) {
++                                        int32_t dh =
++                                            (h - interp_prev_hofs[layer]) %
++                                            512;
++                                        if (dh > 256) dh -= 512;
++                                        else if (dh < -256) dh += 512;
++                                        int32_t dv =
++                                            (v - interp_prev_vofs[layer]) %
++                                            512;
++                                        if (dv > 256) dv -= 512;
++                                        else if (dv < -256) dv += 512;
++                                        if (banked_frames > 1) {
++                                            const int32_t k =
++                                                static_cast<int32_t>(
++                                                    banked_frames > 15
++                                                    ? 15
++                                                    : banked_frames);
++                                            dh /= k;
++                                            dv /= k;
++                                        }
++                                        const int32_t mag =
++                                            (dh < 0 ? -dh : dh) +
++                                            (dv < 0 ? -dv : dv);
++                                        if (mag > best_mag) {
++                                            best_mag = mag;
++                                            best_dh = dh;
++                                            best_dv = dv;
++                                        }
++                                    }
++                                    interp_prev_hofs[layer] = h;
++                                    interp_prev_vofs[layer] = v;
++                                }
++                                interp_have_prev = true;
++                                if (best_mag > 32) {
++                                    best_dh = 0;
++                                    best_dv = 0;
++                                }
++                                interp_vel_h = best_dh;
++                                interp_vel_v = best_dv;
++                                const bool scrolling =
++                                    (best_dh != 0 || best_dv != 0);
++                                if (scrolling != interp_vel_announced) {
++                                    interp_vel_announced = scrolling;
++                                    std::fprintf(
++                                        stderr,
++                                        "interp: scroll %s vel=(%d,%d)px/f\n",
++                                        scrolling ? "start" : "stop",
++                                        best_dh, best_dv);
++                                    std::fflush(stderr);
++                                }
++                            }
++                            const uint32_t iw = ppu.render_width();
++                            const uint32_t ih = ppu.render_height();
++                            const std::size_t ibytes =
++                                static_cast<std::size_t>(iw) * ih * 3u;
++                            if (!interp_fb.empty() &&
++                                interp_fb.size() != ibytes)
++                                interp_fb.clear();
++                            const bool do_shift =
++                                (interp_vel_h != 0 || interp_vel_v != 0) &&
++                                ibytes > 0 && ibytes == live_fb.size();
++                            if (do_shift && interp_fb.size() != ibytes)
++                                interp_fb.assign(ibytes, 0);
++                            uint64_t tick_index = 0;
++                            const int32_t sh_h = interp_vel_h;
++                            const int32_t sh_v = interp_vel_v;
 +                            pacer->wait_for_next_frame(
 +                                banked_frames,
 +                                [&](uint64_t deadline_ns) {
-+                                    win.interp_display_tick(live_fb.data(),
++                                    const uint8_t* frame = live_fb.data();
++                                    if (tick_index++ != 0 && do_shift) {
++                                        interp_shift_blit(live_fb.data(),
++                                                          interp_fb.data(),
++                                                          iw, ih, sh_h, sh_v);
++                                        frame = interp_fb.data();
++                                    }
++                                    win.interp_display_tick(frame,
 +                                                            deadline_ns);
 +                                });
 +                        } else {
@@ -82,6 +177,8 @@
 +                        }
 +                    }
                  }
+                 if (phase_active) {
+                     frame_phase.record(frame, fp_t0, fp_t1, fp_t2, fp_t3,
 @@ -4094,2 +4144,3 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
                  dispatches_since_pump = 0;
 +                const uint64_t banked_frames = frame - last_presented_frame;

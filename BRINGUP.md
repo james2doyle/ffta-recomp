@@ -6245,3 +6245,46 @@ rebuild fixed it — the guard worked as designed.
   external save path was already correct — no fix needed).
 - Open: feel verdict (user holds the phone), thermal/battery sanity (no
   harness — user-reported).
+
+## 2026-10-13 (late) — 3b v1 built, then a use-after-scope crash found on device
+
+**3b v1 design** (runtime-only, same Frame-interpolation toggle, no
+renderer surgery — consistent with the 3a no-surgery lock): at each
+presented frame sample BG HOFS/VOFS velocity (dominant layer, 9-bit
+wrap-aware, /banked after skips, cut-guard above 16 px/axis); the wait's
+first tick presents live_fb exact, later ticks present it screen-shifted
+by half the step (integer-bilinear, edge-clamped) — the extrapolated
+halfway scroll position. Velocity transitions log
+(`interp: scroll start/stop vel=(h,v)px/f`). Blending interaction falls
+out: shifted frames arrive with fresh=false, so they ride the existing
+holding-blend path (clean repeats stay clean, trails stay trailed).
+Affine refs unread in v1 (stale HOFS slots read zero → exact ticks, a
+safe default); unit motion under a static camera stays 60 Hz.
+
+**Crash (my bug, device-found):** the 3b state (`interp_fb`, prev
+arrays, blit lambda) was declared INSIDE the `if (window &&
+present_in_place)` block that registers the hook — but the hook (which
+captures them by reference) lives until function return, past the
+block's end. Use-after-scope: first frames survive on stale stack
+contents (device proved it — ticks at ~115/s + velocity lines + working
+screenshots for minutes), then stack reuse corrupts the vector object
+and `interp_fb.assign(ibytes, 0)` memsets a wild pointer. Tombstone:
+guest `gf_vblank_wait_loop` → `runtime_should_yield+772` (the PiP hook
+fires from inside the yield) → `__memset_aarch64` SEGV, len 0x29b80 =
+170,880 = exactly the widescreen framebuffer (356×160×3) — the length
+named the culprit. Identical fault twice, 9 s apart; interp-off run
+survived (block never executes). Repro on demand: interp-ON relaunch
+dead within 90 s.
+**Fix:** state moved to function scope beside `live_fb` (same lifetime
+as the hook); the stale-lifetime comment replaced with the rule.
+Desktop cycle PASS (corpus 63134, attract pin intact), patches green
+both legs (wait-site hunk unaffected — the move is outside it),
+ui-tests/unit-py/cadence green. Fixed APK in validation.
+**Rule (also to dev-gotchas):** hook-captured state is declared at the
+hook owner's scope — never inside the registering block.
+Side note: battle scenes show a ±1 px VOFS start/stop flip-flop every
+frame in the velocity log (effect oscillation or staging phase, not
+steady motion) — half-pixel shimmer risk; deadband candidate if visible
+in feel testing. Device gate note: `build_apk.py` skipped install once
+(`--no-install` unprompted — manually `adb install -r`ed); gate's
+app-private log read fails where the external log path works.
