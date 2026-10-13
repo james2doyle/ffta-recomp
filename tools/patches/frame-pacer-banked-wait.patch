@@ -52,7 +52,7 @@
  
 --- a/src/runtime/runtime.cpp
 +++ b/src/runtime/runtime.cpp
-@@ -3687,12 +3877,81 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -3687,12 +3880,88 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
                  // the same frame-indexed input as headless acceptance runs.
                  if (input_replay_requested) apply_input_replay();
                  if (phase_active) fp_t4 = FramePhaseRing::now_ns();
@@ -95,10 +95,10 @@
 +                                // True midpoint: shift the CURRENT frame
 +                                // back by half the measured step (the blit
 +                                // takes half-pixel units, so odd steps stay
-+                                // exact). No engagement logic — every
-+                                // nonzero-step wait midpoints; still frames
-+                                // are bit-identical, oscillation midpoints
-+                                // land sub-pixel, snaps halve.
++                                // exact), then pin screen-locked chrome:
++                                // pixels unchanged since the previous guest
++                                // frame keep exact bytes instead of riding
++                                // the world shift (HUD shimmer fix).
 +                                show_mid = false;
 +                                if (step_dh != 0 || step_dv != 0) {
 +                                    const uint32_t iw = ppu.render_width();
@@ -114,9 +114,16 @@
 +                                        shift_blit(
 +                                            live_fb.data(), interp_fb.data(),
 +                                            iw, ih, -step_dh, -step_dv);
++                                        if (interp_prev.size() == ibytes)
++                                            select_static(interp_prev.data(),
++                                                          live_fb.data(),
++                                                          interp_fb.data(),
++                                                          ibytes);
 +                                        show_mid = true;
 +                                    }
 +                                }
++                                interp_prev.assign(live_fb.begin(),
++                                                   live_fb.end());
 +                            }
 +                            uint64_t tick_index = 0;
 +                            pacer->wait_for_next_frame(

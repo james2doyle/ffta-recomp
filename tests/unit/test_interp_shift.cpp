@@ -204,6 +204,24 @@ int run_interp_shift_tests() {
         shift_blit(src.data(), dst.data(), 1, 3, 0, 2);
         SHIFT_CHECK(dst[0] == 20 && dst[3] == 30 && dst[6] == 30);
     }
+    {
+        // HUD pin: static pixels keep exact bytes, moved pixels keep the
+        // shifted image. prev=[A,X] cur=[A,Y] shifted=[S,T] -> [A,T].
+        const uint8_t prev[6] = {10, 10, 10, 20, 20, 20};
+        const uint8_t cur[6] = {10, 10, 10, 30, 30, 30};
+        uint8_t mid[6] = {1, 2, 3, 4, 5, 6};
+        gbarecomp::interp_shift::select_static(prev, cur, mid, 6);
+        SHIFT_CHECK(mid[0] == 10 && mid[1] == 10 && mid[2] == 10);
+        SHIFT_CHECK(mid[3] == 4 && mid[4] == 5 && mid[5] == 6);
+    }
+    {
+        // All static: shifted image fully replaced by exact (in place).
+        const uint8_t prev[3] = {9, 9, 9};
+        const uint8_t cur[3] = {9, 9, 9};
+        uint8_t mid[3] = {1, 2, 3};
+        gbarecomp::interp_shift::select_static(prev, cur, mid, 3);
+        SHIFT_CHECK(mid[0] == 9 && mid[1] == 9 && mid[2] == 9);
+    }
 
     if (shift_failures) {
         std::printf("interp shift: %d failure(s)\n", shift_failures);

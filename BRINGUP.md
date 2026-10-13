@@ -6352,3 +6352,18 @@ the user's read). Later frame changes with d=0 are the blue-tile fade
 midpoints halve each leg and cannot overshoot; the maneuver's violence
 is authored in the camera code. Remaining softener for cuts is
 ghosting trails, not interpolation.
+
+## 2026-10-13 (late) — HUD pin: static-pixel mask (shimmer fix)
+
+User report: tons of X shifting while panning. Diagnosis by code
+inspection (structural, not captured): the full-frame midpoint drags
+screen-locked chrome (clock, panels, menus) along with the world,
+oscillating it at display rate during every pan. Fix: after building
+the shifted midpoint, restore exact bytes for pixels byte-identical
+between the previous and current guest frames (`select_static` in
+interp_shift.h — HUD/menus stay glued while the world midpoints
+beneath; flat world areas match either way). +1 framebuffer
+(`interp_prev`, stored per present while interp is on) and one
+in-place select pass per midpoint. Unit-tested (static/moved/mixed +
+all-static). Aliased poll telemetry couldn't resolve this either way;
+feel verdict with the user.
