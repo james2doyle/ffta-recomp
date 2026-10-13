@@ -6339,3 +6339,16 @@ Device: midpoint build installed, survives, ticks subdivide; A-trace
 via the `presented` hook (14 ms polls — undersamples 8.3 ms ticks, so
 midpoints alias in/out, but the whip landing + settle + tiles-in all
 resolve). A/full-pan feel verdict still with the user.
+
+## 2026-10-13 (late) — A-whip exoneration: commanded-vs-presented map
+
+Interleaved BG2HOFS polls + presented-frame polls across the A→Move
+transition (midpoint build): 36→72→90→108→108→126→136→0→0→215→215.
+The game whips right ~100 px, snaps back -136, settles at its anchor —
+every presented change coincides with a commanded scroll write; zero
+phantom motion from the midpoint path (X axis only throughout, matching
+the user's read). Later frame changes with d=0 are the blue-tile fade
+(OAM/palette — presented exact, correctly). Conclusion stands:
+midpoints halve each leg and cannot overshoot; the maneuver's violence
+is authored in the camera code. Remaining softener for cuts is
+ghosting trails, not interpolation.
