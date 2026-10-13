@@ -6308,3 +6308,34 @@ Device proof (fresh-log, attributed): 10 s idle on the battle scene =
 real velocities and each snap disengages on the same frame; burst caps
 after a snap step uniformly (~3 px, no duplicates, no jumps); process
 alive throughout. Desktop cycle + pin + all suites still green.
+
+## 2026-10-13 (late) — 3b redesign: true midpoints (no prediction) + unit tests
+
+User's A-repro ("big jump on A", then "brief shake during the
+transition, never continuous") instrumented to the frame: the Move
+transition whips +18,+18 then snaps -126 in consecutive guest frames
+(scroll regs; identical with interp on AND off — the A/B diffs matched
+to 0.15). The v2 extrapolator engaged on the repeated +18 and showed a
++9 frame immediately before the -126 snap: tracked right, then yanked
+back — whiplash no retail behaves that way. Fix by construction, not
+tuning: non-first ticks now show the CURRENT frame shifted BACK by half
+the MEASURED prev→cur step (midpoint, sh=-d). No future term exists
+anywhere, so overshoot is impossible: whips midpoint smoothly, snaps
+halve, oscillation lands sub-pixel, still frames are bit-identical,
+60 Hz panels take one tick and behave exactly as before. Deleted: the
+whole snap/flip/announce gate, velocity state, banked division (banked
+waits hold exact). Net code shrank (reference hunk 150→81 lines).
+Stale-post-load midpoint (one 8 ms frame under a flash) accepted.
+Sign convention (sh=-d) verified on paper twice; the first device
+validation predates it.
+User asked for tests — added `tests/unit/test_interp_shift.cpp`
+(step fold/wrap/dominant-tie, blit identity/±1px/half/edge/1x1/column,
+midpoint sign pin) wired into ffta_unit_tests with the same
+pristine-checkout skip policy as the pacer/stick suites; helpers live
+in the tracked host_platform.h (no new-file export problem). The suite
+caught one real bug on arrival: my hand-computed half-pixel
+expectation used wrong weights (code was right).
+Device: midpoint build installed, survives, ticks subdivide; A-trace
+via the `presented` hook (14 ms polls — undersamples 8.3 ms ticks, so
+midpoints alias in/out, but the whip landing + settle + tiles-in all
+resolve). A/full-pan feel verdict still with the user.

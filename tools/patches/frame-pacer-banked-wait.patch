@@ -52,7 +52,7 @@
  
 --- a/src/runtime/runtime.cpp
 +++ b/src/runtime/runtime.cpp
-@@ -3687,12 +3887,144 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -3687,12 +3877,81 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
                  // the same frame-indexed input as headless acceptance runs.
                  if (input_replay_requested) apply_input_replay();
                  if (phase_active) fp_t4 = FramePhaseRing::now_ns();
@@ -76,118 +76,55 @@
 +                    // historical blocking path.
 +                    if (pacer) {
 +                        if (win.frame_interp()) {
-+                            // Issue #9 3b: sample scroll velocity for this
-+                            // wait's intermediate ticks (interp on only;
-+                            // the off-path above is untouched).
++                            // Issue #9 3b: true-midpoint intermediates (see
++                            // function-scope note). Interp on only; the
++                            // off-path below is untouched.
++                            bool show_mid = false;
 +                            {
-+                                const uint8_t* ioraw = bus.io().raw();
-+                                int32_t best_dh = 0, best_dv = 0, best_mag = 0;
-+                                for (int layer = 0; layer < 4; ++layer) {
-+                                    const uint32_t off =
-+                                        0x10u + static_cast<uint32_t>(layer) *
-+                                            4u;
-+                                    const int32_t h = static_cast<int32_t>(
-+                                        ioraw[off] | (ioraw[off + 1u] << 8)) &
-+                                        0x1FF;
-+                                    const int32_t v = static_cast<int32_t>(
-+                                        ioraw[off + 2u] |
-+                                        (ioraw[off + 3u] << 8)) &
-+                                        0x1FF;
-+                                    if (interp_have_prev) {
-+                                        int32_t dh =
-+                                            (h - interp_prev_hofs[layer]) %
-+                                            512;
-+                                        if (dh > 256) dh -= 512;
-+                                        else if (dh < -256) dh += 512;
-+                                        int32_t dv =
-+                                            (v - interp_prev_vofs[layer]) %
-+                                            512;
-+                                        if (dv > 256) dv -= 512;
-+                                        else if (dv < -256) dv += 512;
-+                                        if (banked_frames > 1) {
-+                                            const int32_t k =
-+                                                static_cast<int32_t>(
-+                                                    banked_frames > 15
-+                                                    ? 15
-+                                                    : banked_frames);
-+                                            dh /= k;
-+                                            dv /= k;
-+                                        }
-+                                        const int32_t mag =
-+                                            (dh < 0 ? -dh : dh) +
-+                                            (dv < 0 ? -dv : dv);
-+                                        if (mag > best_mag) {
-+                                            best_mag = mag;
-+                                            best_dh = dh;
-+                                            best_dv = dv;
-+                                        }
-+                                    }
-+                                    interp_prev_hofs[layer] = h;
-+                                    interp_prev_vofs[layer] = v;
-+                                }
++                                using namespace gbarecomp::interp_shift;
++                                uint8_t cur_io[kScrollSnapshotBytes];
++                                std::memcpy(cur_io, bus.io().raw() + 0x10u,
++                                            kScrollSnapshotBytes);
++                                int32_t step_dh = 0, step_dv = 0;
++                                if (interp_have_prev && banked_frames <= 1)
++                                    dominant_step(interp_prev_io, cur_io,
++                                                  &step_dh, &step_dv);
++                                std::memcpy(interp_prev_io, cur_io,
++                                            kScrollSnapshotBytes);
 +                                interp_have_prev = true;
-+                                // Consistency gate (fullscreen-jump fix):
-+                                // shift only during SMOOTH motion: the step's
-+                                // change since last frame (delta) must match
-+                                // the previous change — steady (0,0,...) or
-+                                // steadily ramping (+1,+1,...). A ±1 px
-+                                // oscillation (deltas -1,+1,-1...), a camera
-+                                // snap, a reversal, or a dominant-layer flip
-+                                // all break delta-consistency and hold exact
-+                                // for that wait. Cuts fail inherently (a
-+                                // single discontinuous frame), so no
-+                                // magnitude backstop is needed.
-+                                const int32_t ddh = best_dh - interp_last_dh;
-+                                const int32_t ddv = best_dv - interp_last_dv;
-+                                const bool steady =
-+                                    (best_dh != 0 || best_dv != 0) &&
-+                                    ((ddh == 0 && ddv == 0 &&
-+                                      interp_pddh == 0 &&
-+                                      interp_pddv == 0) ||
-+                                     ((ddh != 0 || ddv != 0) &&
-+                                      ddh == interp_pddh &&
-+                                      ddv == interp_pddv));
-+                                interp_pddh = ddh;
-+                                interp_pddv = ddv;
-+                                interp_last_dh = best_dh;
-+                                interp_last_dv = best_dv;
-+                                interp_vel_h = steady ? best_dh : 0;
-+                                interp_vel_v = steady ? best_dv : 0;
-+                                if (steady != interp_vel_announced) {
-+                                    interp_vel_announced = steady;
-+                                    std::fprintf(
-+                                        stderr,
-+                                        "interp: scroll %s vel=(%d,%d)px/f\n",
-+                                        steady ? "start" : "stop",
-+                                        best_dh, best_dv);
-+                                    std::fflush(stderr);
++                                // True midpoint: shift the CURRENT frame
++                                // back by half the measured step (the blit
++                                // takes half-pixel units, so odd steps stay
++                                // exact). No engagement logic — every
++                                // nonzero-step wait midpoints; still frames
++                                // are bit-identical, oscillation midpoints
++                                // land sub-pixel, snaps halve.
++                                show_mid = false;
++                                if (step_dh != 0 || step_dv != 0) {
++                                    const uint32_t iw = ppu.render_width();
++                                    const uint32_t ih = ppu.render_height();
++                                    const std::size_t ibytes =
++                                        static_cast<std::size_t>(iw) * ih * 3u;
++                                    if (ibytes > 0 &&
++                                        ibytes == live_fb.size()) {
++                                        using namespace gbarecomp::
++                                            interp_shift;
++                                        if (interp_fb.size() != ibytes)
++                                            interp_fb.assign(ibytes, 0);
++                                        shift_blit(
++                                            live_fb.data(), interp_fb.data(),
++                                            iw, ih, -step_dh, -step_dv);
++                                        show_mid = true;
++                                    }
 +                                }
 +                            }
-+                            const uint32_t iw = ppu.render_width();
-+                            const uint32_t ih = ppu.render_height();
-+                            const std::size_t ibytes =
-+                                static_cast<std::size_t>(iw) * ih * 3u;
-+                            if (!interp_fb.empty() &&
-+                                interp_fb.size() != ibytes)
-+                                interp_fb.clear();
-+                            const bool do_shift =
-+                                (interp_vel_h != 0 || interp_vel_v != 0) &&
-+                                ibytes > 0 && ibytes == live_fb.size();
-+                            if (do_shift && interp_fb.size() != ibytes)
-+                                interp_fb.assign(ibytes, 0);
 +                            uint64_t tick_index = 0;
-+                            const int32_t sh_h = interp_vel_h;
-+                            const int32_t sh_v = interp_vel_v;
 +                            pacer->wait_for_next_frame(
 +                                banked_frames,
 +                                [&](uint64_t deadline_ns) {
 +                                    const uint8_t* frame = live_fb.data();
-+                                    if (tick_index++ != 0 && do_shift) {
-+                                        interp_shift_blit(live_fb.data(),
-+                                                          interp_fb.data(),
-+                                                          iw, ih, sh_h, sh_v);
++                                    if (tick_index++ != 0 && show_mid)
 +                                        frame = interp_fb.data();
-+                                    }
 +                                    win.interp_display_tick(frame,
 +                                                            deadline_ns);
 +                                });

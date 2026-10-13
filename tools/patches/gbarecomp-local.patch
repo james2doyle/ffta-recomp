@@ -11298,18 +11298,149 @@ index 99c7813..751f4ce 100644
          std::this_thread::yield();
      }
 diff --git a/src/runtime/host_platform.h b/src/runtime/host_platform.h
-index 2b48ab3..d33b98c 100644
+index 2b48ab3..3f7a501 100644
 --- a/src/runtime/host_platform.h
 +++ b/src/runtime/host_platform.h
-@@ -5,6 +5,7 @@
+@@ -5,11 +5,138 @@
  
  #include <chrono>
  #include <cstddef>
++#include <cstdint>
 +#include <functional>
  #include <string>
  #include <vector>
  
-@@ -41,7 +42,32 @@ public:
+ namespace gbarecomp {
+ 
++// ── InterpShift (issue #9 3b) ────────────────────────────────────────
++// True-midpoint display interpolation, pure arithmetic: no SDL, no
++// window, no guest state — unit-tested in ffta_unit_tests without a
++// display. runtime.cpp wires these to buffers; all policy lives here.
++//
++// Model: the camera step between two presented frames is measured from
++// the BG scroll registers; a non-first display tick shows the current
++// frame shifted BACK by half that step (the true halfway position).
++// Measured, never predicted: steady motion midpoints smoothly, snaps
++// halve, oscillation lands sub-pixel, still frames are bit-identical.
++namespace interp_shift {
++
++// Scroll snapshot: HOFS/VOFS per BG layer (GBA IO 0x10..0x1F).
++inline constexpr std::size_t kScrollSnapshotBytes = 16;
++
++// Wrap-aware 9-bit scroll delta, folded to [-256, 256].
++inline int32_t fold_scroll_delta(int32_t d) {
++    d %= 512;
++    if (d > 256)
++        d -= 512;
++    else if (d < -256)
++        d += 512;
++    return d;
++}
++
++// Dominant scroll step prev → cur (16-byte snapshots as above). The
++// largest |dh|+|dv| layer wins (ties → lowest layer); all still →
++// (0,0). Affine layers hold stale HOFS slots in affine modes, so they
++// read static and never win — the safe default.
++inline void dominant_step(const uint8_t prev[kScrollSnapshotBytes],
++                          const uint8_t cur[kScrollSnapshotBytes],
++                          int32_t* out_dh, int32_t* out_dv) {
++    int32_t best_dh = 0, best_dv = 0, best_m = 0;
++    for (unsigned layer = 0; layer < 4; ++layer) {
++        const unsigned off = layer * 4u;
++        const int32_t h =
++            static_cast<int32_t>(cur[off] | (cur[off + 1u] << 8)) & 0x1FF;
++        const int32_t v =
++            static_cast<int32_t>(cur[off + 2u] | (cur[off + 3u] << 8)) &
++            0x1FF;
++        const int32_t ph =
++            static_cast<int32_t>(prev[off] | (prev[off + 1u] << 8)) & 0x1FF;
++        const int32_t pv =
++            static_cast<int32_t>(prev[off + 2u] | (prev[off + 3u] << 8)) &
++            0x1FF;
++        const int32_t dh = fold_scroll_delta(h - ph);
++        const int32_t dv = fold_scroll_delta(v - pv);
++        const int32_t m = (dh < 0 ? -dh : dh) + (dv < 0 ? -dv : dv);
++        if (m > best_m) {
++            best_m = m;
++            best_dh = dh;
++            best_dv = dv;
++        }
++    }
++    *out_dh = best_dh;
++    *out_dv = best_dv;
++}
++
++// Half-pixel screen shift for the midpoint: dst[x,y] samples src at
++// (x + sh_h/2, y + sh_v/2). Integer bilinear, edge-clamped (the
++// uncovered 1-2 px strip replicates the edge — invisible under motion).
++// A camera step of +d (content moved d px against the scroll direction)
++// midpoints with sh = -d.
++inline void shift_blit(const uint8_t* src, uint8_t* dst, uint32_t w,
++                       uint32_t h, int32_t sh_h, int32_t sh_v) {
++    for (uint32_t y = 0; y < h; ++y) {
++        int32_t sy = static_cast<int32_t>(y) * 2 + sh_v;
++        int32_t y0 = sy / 2;
++        int32_t fy = sy % 2;
++        if (fy < 0) {
++            fy += 2;
++            y0 -= 1;
++        }
++        if (y0 < 0) {
++            y0 = 0;
++            fy = 0;
++        }
++        if (y0 >= static_cast<int32_t>(h) - 1) {
++            y0 = static_cast<int32_t>(h) - 1;
++            fy = 0;
++        }
++        const int32_t y1 =
++            y0 + 1 >= static_cast<int32_t>(h) ? y0 : y0 + 1;
++        for (uint32_t x = 0; x < w; ++x) {
++            int32_t sx = static_cast<int32_t>(x) * 2 + sh_h;
++            int32_t x0 = sx / 2;
++            int32_t fx = sx % 2;
++            if (fx < 0) {
++                fx += 2;
++                x0 -= 1;
++            }
++            if (x0 < 0) {
++                x0 = 0;
++                fx = 0;
++            }
++            if (x0 >= static_cast<int32_t>(w) - 1) {
++                x0 = static_cast<int32_t>(w) - 1;
++                fx = 0;
++            }
++            const int32_t x1 =
++                x0 + 1 >= static_cast<int32_t>(w) ? x0 : x0 + 1;
++            const uint8_t* p00 =
++                src + (static_cast<std::size_t>(y0) * w + x0) * 3u;
++            const uint8_t* p10 =
++                src + (static_cast<std::size_t>(y0) * w + x1) * 3u;
++            const uint8_t* p01 =
++                src + (static_cast<std::size_t>(y1) * w + x0) * 3u;
++            const uint8_t* p11 =
++                src + (static_cast<std::size_t>(y1) * w + x1) * 3u;
++            uint8_t* d = dst + (static_cast<std::size_t>(y) * w + x) * 3u;
++            const int32_t w00 = (2 - fx) * (2 - fy);
++            const int32_t w10 = fx * (2 - fy);
++            const int32_t w01 = (2 - fx) * fy;
++            const int32_t w11 = fx * fy;
++            for (int c = 0; c < 3; ++c) {
++                const int32_t v =
++                    w00 * p00[c] + w10 * p10[c] + w01 * p01[c] + w11 * p11[c];
++                d[c] = static_cast<uint8_t>((v + 2) / 4);
++            }
++        }
++    }
++}
++
++}  // namespace interp_shift
++
+ // Read an entire file into memory. Returns empty vector + sets `error`
+ // on failure. Used for ROM and BIOS loading.
+ std::vector<unsigned char> read_file(const std::string& path,
+@@ -41,7 +168,32 @@ public:
  
      // Block until the next frame's deadline. Call once per presented
      // frame. No-op while uncapped.
@@ -12284,7 +12415,7 @@ index 117db49..4d847fb 100644
      // DLLs are left loaded (immutable code, process-lifetime); the OS reclaims
      // them at exit. Drain any last results so counters/banner are accurate.
 diff --git a/src/runtime/runtime.cpp b/src/runtime/runtime.cpp
-index b560791..abcdca6 100644
+index b560791..4826dc0 100644
 --- a/src/runtime/runtime.cpp
 +++ b/src/runtime/runtime.cpp
 @@ -34,6 +34,7 @@
@@ -12411,7 +12542,7 @@ index b560791..abcdca6 100644
              for (;;) {
                  int st;
                  {
-@@ -2588,14 +2643,98 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -2588,14 +2643,88 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
          if (game_thread.joinable()) game_thread.join();
          bool save_ok = flush_save();
          write_session_diagnostics(opts, "exit", ppu.frame_count());
@@ -12426,38 +12557,28 @@ index b560791..abcdca6 100644
  
      HostWindow win;
      std::vector<uint8_t> live_fb;
-+    // Issue #9 3b: scroll-velocity screen-shift interpolation. This state
++    // Issue #9 3b: true-midpoint screen-shift interpolation. This state
 +    // MUST live at function scope beside live_fb: the present-in-place hook
 +    // below captures it by reference and outlives the `if` block that
 +    // registers the hook (declaring it there was a use-after-scope crash:
 +    // stale stack contents survive the first frames, then reuse corrupts
 +    // the vector object and assign() memsets a wild pointer — device
 +    // tombstone 2026-10-13). Hook cleared before return, so locals die
-+    // last. Velocity is sampled from the BG HOFS/VOFS registers at each
-+    // presented frame (end of VBlank — a consistent point, so deltas are
-+    // true per-frame scroll steps, wrap-aware on the 9-bit counters,
-+    // divided by banked frames after a stale skip). The first tick of each
-+    // wait presents live_fb exact; later ticks present it shifted by half
-+    // the step (the extrapolated halfway scroll position) but only when
-+    // the step repeats the previous frame's (consistency gate — jitter,
-+    // snaps, reversals, and layer flips hold exact). The dominant
-+    // (largest step) layer wins — correct for uniform camera pans,
-+    // approximate under parallax. Affine ref registers are deliberately
-+    // unread in v1 (their HOFS slots hold stale values in affine modes, so
-+    // the velocity reads zero and ticks stay exact — a safe default).
-+    // World-locked OBJs ride the same shift during a pure pan; unit motion
-+    // under a static camera stays 60 Hz (OBJ interpolation deferred).
++    // last. The dominant BG layer's scroll step is measured between the
++    // previous and current presented frames (end of VBlank — a consistent
++    // point; wrap-aware on the 9-bit counters). Non-first ticks show the
++    // current frame shifted BACK by half that measured step: the true
++    // halfway position, never a prediction — whips midpoint smoothly,
++    // snaps halve, oscillation lands sub-pixel, still frames are
++    // bit-identical. Dominant layer wins (parallax backgrounds ride
++    // along, approximately); affine layers read stale HOFS slots (step 0
++    // → exact, a safe default). World-locked OBJs ride along on pure
++    // pans; unit motion under a static camera stays 60 Hz. The shift and
++    // step logic live in interp_shift.h with unit tests (no window
++    // needed); this site only wires buffers.
 +    std::vector<uint8_t> interp_fb;
-+    int32_t interp_prev_hofs[4] = {0, 0, 0, 0};
-+    int32_t interp_prev_vofs[4] = {0, 0, 0, 0};
++    uint8_t interp_prev_io[gbarecomp::interp_shift::kScrollSnapshotBytes] = {};
 +    bool interp_have_prev = false;
-+    int32_t interp_vel_h = 0;
-+    int32_t interp_vel_v = 0;
-+    bool interp_vel_announced = false;
-+    int32_t interp_last_dh = 0;
-+    int32_t interp_last_dv = 0;
-+    int32_t interp_pddh = 0;
-+    int32_t interp_pddv = 0;
 +    auto interp_shift_blit = [](const uint8_t* src, uint8_t* dst,
 +                                uint32_t w, uint32_t h,
 +                                int32_t sh_h, int32_t sh_v) {
@@ -12511,7 +12632,7 @@ index b560791..abcdca6 100644
      // MC-WS-002 capture: per-present dump of the exact composed bytes handed to
      // SDL (`live_fb`). Gated by GBARECOMP_FRAMEDUMP_DIR; START = first guest
      // frame to capture, COUNT = how many; quits after COUNT are written. This
-@@ -2851,6 +2990,40 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -2851,6 +2980,40 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
              runtime_shutdown();
              return 1;
          }
@@ -12552,7 +12673,7 @@ index b560791..abcdca6 100644
          // Rebindable input: keybinds.ini (player buttons, recomp-ui generic
          // format) + config.ini [KeyMap] (system hotkeys), both next to the
          // exe. Missing files leave the built-in defaults.
-@@ -2865,7 +3038,8 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -2865,7 +3028,8 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
                                    opts.assist_fast_forward_multiplier_default);
              win.configure_touch(opts.input_frame != nullptr,
                                  opts.touch_gesture_claims,
@@ -12562,7 +12683,7 @@ index b560791..abcdca6 100644
              win.set_touch_config_dir(exe_dir.c_str());
          }
          win.set_host_overlay(opts.host_overlay);
-@@ -2881,7 +3055,7 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -2881,7 +3045,7 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
              octx.bus = &bus;
              octx.ppu = &ppu;
              octx.misses_query = []() { return gbarecomp::self_heal_misses_json(); };
@@ -12571,7 +12692,7 @@ index b560791..abcdca6 100644
              octx.savestate_save = [&](const std::string& p, std::string& e) {
                  return observer_request(true, p, e);
              };
-@@ -2961,6 +3135,16 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -2961,6 +3125,16 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
              RECOMP_RUNTIME_UI_STANDARD_AUDIO |
              RECOMP_RUNTIME_UI_STANDARD_VOLUME |
              RECOMP_RUNTIME_UI_STANDARD_RESUME;
@@ -12588,7 +12709,7 @@ index b560791..abcdca6 100644
          if (!opts.expose_assist_tools) {
              runtime_ui_config.features |=
                  RECOMP_RUNTIME_UI_STANDARD_SAVE_STATE |
-@@ -3098,25 +3282,27 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -3098,25 +3272,27 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
      // Host-window save-state slots: the ROM path with a .stateN extension.
      // Shift+F1..F9 writes slots 1..9 and F1..F9 restores them; a runtime menu
      // may additionally expose slot 10 without changing the established
@@ -12625,7 +12746,7 @@ index b560791..abcdca6 100644
      };
      auto clear_suspend_marker = [&]() {
          std::error_code ec;
-@@ -3369,6 +3555,11 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -3369,6 +3545,11 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
                                  : do_savestate_load(r->path, r->err);
                  if (!r->save && r->ok) {
                      last_presented_frame = ppu.frame_count() - 1;
@@ -12637,7 +12758,7 @@ index b560791..abcdca6 100644
                      if (pacer) pacer->reset();
                  }
                  std::printf("observer_savestate_%s path=\"%s\" ok=%d\n",
-@@ -3507,8 +3698,15 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -3507,8 +3688,15 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
          fast_forward_multiplier = std::clamp(
              win.fast_forward_multiplier(), 2, 10);
  #endif
@@ -12654,7 +12775,7 @@ index b560791..abcdca6 100644
          // System hotkeys (config.ini [KeyMap], rebindable in the launcher).
          if (ev.toggle_fullscreen) {
              // Toggle between windowed and the configured mode. A session
-@@ -3570,6 +3768,7 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -3570,6 +3758,7 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
                  // Force the next iteration to re-present the restored
                  // frame instead of waiting for frame_count to advance.
                  last_presented_frame = ppu.frame_count() - 1;
@@ -12662,7 +12783,7 @@ index b560791..abcdca6 100644
                  // The load jumped guest time; realign the pacer so it
                  // doesn't burn the accumulated lag catching up.
                  if (pacer) pacer->reset();
-@@ -3608,6 +3807,7 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -3608,6 +3797,7 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
                      while (rewind_history.size() > target_index + 1)
                          rewind_history.pop_back();
                      last_presented_frame = ppu.frame_count() - 1;
@@ -12670,7 +12791,7 @@ index b560791..abcdca6 100644
                      next_rewind_capture_frame =
                          ppu.frame_count() + rewind_interval;
                      if (pacer) pacer->reset();
-@@ -3687,12 +3887,144 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -3687,12 +3877,81 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
                  // the same frame-indexed input as headless acceptance runs.
                  if (input_replay_requested) apply_input_replay();
                  if (phase_active) fp_t4 = FramePhaseRing::now_ns();
@@ -12694,118 +12815,55 @@ index b560791..abcdca6 100644
 +                    // historical blocking path.
 +                    if (pacer) {
 +                        if (win.frame_interp()) {
-+                            // Issue #9 3b: sample scroll velocity for this
-+                            // wait's intermediate ticks (interp on only;
-+                            // the off-path above is untouched).
++                            // Issue #9 3b: true-midpoint intermediates (see
++                            // function-scope note). Interp on only; the
++                            // off-path below is untouched.
++                            bool show_mid = false;
 +                            {
-+                                const uint8_t* ioraw = bus.io().raw();
-+                                int32_t best_dh = 0, best_dv = 0, best_mag = 0;
-+                                for (int layer = 0; layer < 4; ++layer) {
-+                                    const uint32_t off =
-+                                        0x10u + static_cast<uint32_t>(layer) *
-+                                            4u;
-+                                    const int32_t h = static_cast<int32_t>(
-+                                        ioraw[off] | (ioraw[off + 1u] << 8)) &
-+                                        0x1FF;
-+                                    const int32_t v = static_cast<int32_t>(
-+                                        ioraw[off + 2u] |
-+                                        (ioraw[off + 3u] << 8)) &
-+                                        0x1FF;
-+                                    if (interp_have_prev) {
-+                                        int32_t dh =
-+                                            (h - interp_prev_hofs[layer]) %
-+                                            512;
-+                                        if (dh > 256) dh -= 512;
-+                                        else if (dh < -256) dh += 512;
-+                                        int32_t dv =
-+                                            (v - interp_prev_vofs[layer]) %
-+                                            512;
-+                                        if (dv > 256) dv -= 512;
-+                                        else if (dv < -256) dv += 512;
-+                                        if (banked_frames > 1) {
-+                                            const int32_t k =
-+                                                static_cast<int32_t>(
-+                                                    banked_frames > 15
-+                                                    ? 15
-+                                                    : banked_frames);
-+                                            dh /= k;
-+                                            dv /= k;
-+                                        }
-+                                        const int32_t mag =
-+                                            (dh < 0 ? -dh : dh) +
-+                                            (dv < 0 ? -dv : dv);
-+                                        if (mag > best_mag) {
-+                                            best_mag = mag;
-+                                            best_dh = dh;
-+                                            best_dv = dv;
-+                                        }
-+                                    }
-+                                    interp_prev_hofs[layer] = h;
-+                                    interp_prev_vofs[layer] = v;
-+                                }
++                                using namespace gbarecomp::interp_shift;
++                                uint8_t cur_io[kScrollSnapshotBytes];
++                                std::memcpy(cur_io, bus.io().raw() + 0x10u,
++                                            kScrollSnapshotBytes);
++                                int32_t step_dh = 0, step_dv = 0;
++                                if (interp_have_prev && banked_frames <= 1)
++                                    dominant_step(interp_prev_io, cur_io,
++                                                  &step_dh, &step_dv);
++                                std::memcpy(interp_prev_io, cur_io,
++                                            kScrollSnapshotBytes);
 +                                interp_have_prev = true;
-+                                // Consistency gate (fullscreen-jump fix):
-+                                // shift only during SMOOTH motion: the step's
-+                                // change since last frame (delta) must match
-+                                // the previous change — steady (0,0,...) or
-+                                // steadily ramping (+1,+1,...). A ±1 px
-+                                // oscillation (deltas -1,+1,-1...), a camera
-+                                // snap, a reversal, or a dominant-layer flip
-+                                // all break delta-consistency and hold exact
-+                                // for that wait. Cuts fail inherently (a
-+                                // single discontinuous frame), so no
-+                                // magnitude backstop is needed.
-+                                const int32_t ddh = best_dh - interp_last_dh;
-+                                const int32_t ddv = best_dv - interp_last_dv;
-+                                const bool steady =
-+                                    (best_dh != 0 || best_dv != 0) &&
-+                                    ((ddh == 0 && ddv == 0 &&
-+                                      interp_pddh == 0 &&
-+                                      interp_pddv == 0) ||
-+                                     ((ddh != 0 || ddv != 0) &&
-+                                      ddh == interp_pddh &&
-+                                      ddv == interp_pddv));
-+                                interp_pddh = ddh;
-+                                interp_pddv = ddv;
-+                                interp_last_dh = best_dh;
-+                                interp_last_dv = best_dv;
-+                                interp_vel_h = steady ? best_dh : 0;
-+                                interp_vel_v = steady ? best_dv : 0;
-+                                if (steady != interp_vel_announced) {
-+                                    interp_vel_announced = steady;
-+                                    std::fprintf(
-+                                        stderr,
-+                                        "interp: scroll %s vel=(%d,%d)px/f\n",
-+                                        steady ? "start" : "stop",
-+                                        best_dh, best_dv);
-+                                    std::fflush(stderr);
++                                // True midpoint: shift the CURRENT frame
++                                // back by half the measured step (the blit
++                                // takes half-pixel units, so odd steps stay
++                                // exact). No engagement logic — every
++                                // nonzero-step wait midpoints; still frames
++                                // are bit-identical, oscillation midpoints
++                                // land sub-pixel, snaps halve.
++                                show_mid = false;
++                                if (step_dh != 0 || step_dv != 0) {
++                                    const uint32_t iw = ppu.render_width();
++                                    const uint32_t ih = ppu.render_height();
++                                    const std::size_t ibytes =
++                                        static_cast<std::size_t>(iw) * ih * 3u;
++                                    if (ibytes > 0 &&
++                                        ibytes == live_fb.size()) {
++                                        using namespace gbarecomp::
++                                            interp_shift;
++                                        if (interp_fb.size() != ibytes)
++                                            interp_fb.assign(ibytes, 0);
++                                        shift_blit(
++                                            live_fb.data(), interp_fb.data(),
++                                            iw, ih, -step_dh, -step_dv);
++                                        show_mid = true;
++                                    }
 +                                }
 +                            }
-+                            const uint32_t iw = ppu.render_width();
-+                            const uint32_t ih = ppu.render_height();
-+                            const std::size_t ibytes =
-+                                static_cast<std::size_t>(iw) * ih * 3u;
-+                            if (!interp_fb.empty() &&
-+                                interp_fb.size() != ibytes)
-+                                interp_fb.clear();
-+                            const bool do_shift =
-+                                (interp_vel_h != 0 || interp_vel_v != 0) &&
-+                                ibytes > 0 && ibytes == live_fb.size();
-+                            if (do_shift && interp_fb.size() != ibytes)
-+                                interp_fb.assign(ibytes, 0);
 +                            uint64_t tick_index = 0;
-+                            const int32_t sh_h = interp_vel_h;
-+                            const int32_t sh_v = interp_vel_v;
 +                            pacer->wait_for_next_frame(
 +                                banked_frames,
 +                                [&](uint64_t deadline_ns) {
 +                                    const uint8_t* frame = live_fb.data();
-+                                    if (tick_index++ != 0 && do_shift) {
-+                                        interp_shift_blit(live_fb.data(),
-+                                                          interp_fb.data(),
-+                                                          iw, ih, sh_h, sh_v);
++                                    if (tick_index++ != 0 && show_mid)
 +                                        frame = interp_fb.data();
-+                                    }
 +                                    win.interp_display_tick(frame,
 +                                                            deadline_ns);
 +                                });
@@ -12816,7 +12874,7 @@ index b560791..abcdca6 100644
                  }
                  if (phase_active) {
                      frame_phase.record(frame, fp_t0, fp_t1, fp_t2, fp_t3,
-@@ -3985,7 +4317,7 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -3985,7 +4244,7 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
          // re-present, ~100 Hz idle). Applies to windowed play only.
          while (host_paused && !host_quit && args.window) {
              pump_host_input();
@@ -12825,7 +12883,7 @@ index b560791..abcdca6 100644
              std::this_thread::sleep_for(std::chrono::milliseconds(10));
          }
          if (host_quit) break;
-@@ -4092,6 +4424,7 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -4092,6 +4351,7 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
                  pump_host_input();
                  if (phase_active) fp_t4 = FramePhaseRing::now_ns();
                  dispatches_since_pump = 0;
@@ -12833,7 +12891,7 @@ index b560791..abcdca6 100644
                  last_presented_frame = frame;
                  if (present_frame) {
                      ++frames_presented;
-@@ -4101,7 +4434,7 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -4101,7 +4361,7 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
                      // Normal play presents/paces every frame. Fast-forward
                      // runs N guest frames per one paced host presentation,
                      // making its selected multiplier independent of monitor Hz.
@@ -12842,7 +12900,7 @@ index b560791..abcdca6 100644
                  }
                  if (phase_active) {
                      frame_phase.record(frame, fp_t0, fp_t1, fp_t2, fp_t3,
-@@ -4260,8 +4593,10 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -4260,8 +4520,10 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
          }
      }
  
