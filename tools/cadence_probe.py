@@ -287,9 +287,9 @@ def analyze(targets, rows, trace_n):
         for (bucket, steps), addrs in alt_steps.items():
             for x in addrs:
                 (alt if bucket == "sust" else transient).append(
-                    (x, steps[0] % 2))
+                    (x, steps[0] % 2, len(steps)))
         phases = {}
-        for _, ph in alt + transient:
+        for _, ph, _cnt in alt + transient:
             phases[ph] = phases.get(ph, 0) + 1
 
         def presented(x):
@@ -303,19 +303,21 @@ def analyze(targets, rows, trace_n):
                 (0x06000000 <= x < 0x06018000) or
                 (0x07000000 <= x < 0x07000400))
 
-        gate_addrs = sorted(f"{x:#010x}" for x, _ in alt if presented(x))
-        transient_addrs = sorted(f"{x:#010x}" for x, _ in transient
+        gate_addrs = sorted(f"{x:#010x}" for x, _, _ in alt if presented(x))
+        transient_addrs = sorted(f"{x:#010x}" for x, _, _ in transient
                                  if presented(x))
-        internal = sum(1 for x, _ in alt if not presented(x))
-        internal += sum(1 for x, _ in transient if not presented(x))
+        internal = sum(1 for x, _, _ in alt if not presented(x))
+        internal += sum(1 for x, _, _ in transient if not presented(x))
         near.sort(key=lambda t: abs(t[0] - 0.5))
         # Traces: gated alternating addresses first (always), then the
         # nearest-to-0.5 movers.
         traces = []
-        for x, _ph in sorted(alt + transient):
+        for x, _ph, cnt in sorted(alt + transient):
             if presented(x):
                 vals = [r["blobs"][ti][x - base] for r in rows[:120]]
-                traces.append({"addr": f"{x:#010x}", "cadence": 0.5,
+                traces.append({"addr": f"{x:#010x}",
+                               "cadence": round(cnt / max(1, n), 3),
+                               "changes": cnt,
                                "values": [f"{v:02x}" for v in vals]})
         for cad, addr, ti2, off in near[:trace_n]:
             vals = [r["blobs"][ti2][off] for r in rows[:80]]
