@@ -285,7 +285,7 @@ index 22e31f2..a95fbf6 100644
          }
  
 diff --git a/src/common/recomp_runtime_settings.c b/src/common/recomp_runtime_settings.c
-index a22b7e8..5c3042d 100644
+index a22b7e8..87c4a11 100644
 --- a/src/common/recomp_runtime_settings.c
 +++ b/src/common/recomp_runtime_settings.c
 @@ -110,6 +110,10 @@ RecompRuntimeUi *recomp_runtime_ui_create_standard(
@@ -294,7 +294,7 @@ index a22b7e8..5c3042d 100644
                   RECOMP_RUNTIME_UI_BOOL, 0, 1, 1, NULL, 0, NULL);
 +    if (has(f, RECOMP_RUNTIME_UI_STANDARD_LCD_GHOSTING))
 +        add_item(items, &count, RECOMP_RUNTIME_UI_KEY_LCD_GHOSTING, "Graphics",
-+                 "LCD ghosting", "Simulate the original LCD response.",
++                 "LCD ghosting (frame blending)", "Simulate the original LCD response.",
 +                 RECOMP_RUNTIME_UI_BOOL, 0, 1, 1, NULL, 0, NULL);
      if (has(f, RECOMP_RUNTIME_UI_STANDARD_TEXTURE_FILTER))
          add_item(items, &count, RECOMP_RUNTIME_UI_KEY_TEXTURE_FILTER, "Graphics",
