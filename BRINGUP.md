@@ -6111,3 +6111,62 @@ watches), run twice (second run after per-window trace fix):
 
 Acceptance: `check.py --only unit-py,cadence` ALL PASS (2/2) on the
 final tool. Fixture + tool-internal changes only; no cycle needed.
+
+## 2026-10-13 (late) — Issue #9 strategy #1 built: LCD ghosting toggle + stage
+
+Implementation (commits `881a9d3`, `3fa9ce2`):
+
+- **Menu row:** the standard Graphics/LCD ghosting row, reordered directly
+  after Linear filter + relabeled "LCD ghosting (frame blending)"
+  (`recomp-ui-local.patch`; key `graphics.lcd_ghosting` unchanged, so
+  dispatch/persistence/tests keyed on it are unaffected). Offered only
+  when the game sets the new `RunOptions::expose_lcd_ghosting`.
+- **Present stage** (`gbarecomp-local.patch`): `HostWindow` flag +
+  CPU-side blend on cached scratch via recomp-ui's shared
+  `RecompFrameBlend` (compiled into `gbarecomp_runtime`; RGB888→ARGB8888,
+  `apply()`, back to RGB888 for upload — ~3 passes over ≤448×160, trivial).
+  `--frame-blend 0|1` mirrors the flag for scripted runs. History resets
+  on the savestate-load dispatches (menu/hotkey/observer/rewind); boot
+  starts invalid (first frame as drawn); view-size change reallocs +
+  resets. `apply()` everywhere, no holding variant: re-presenting an
+  identical paused frame is avg(f,f)=f, so duplicates need no
+  special-casing. The paused-loop duplicate present and FF-decimated
+  presents are therefore correct by construction; TCP-dev loads (no `win`
+  scope at that dispatch) self-heal in one frame.
+- **Game:** `opts.expose_lcd_ghosting = true` (`src/main.cpp`). Default
+  off everywhere (flag, CLI, menu initial state) — faithful runs stay
+  byte-exact unless the player opts in mid-session.
+- **Right-of-way:** new framework code yields to the recorded reference
+  diffs — first placement (knob inside assist block, flag mid-list) broke
+  `speed-toggle-ff-seam` + `android-external-state-dir` reverse checks;
+  moved clear of their context (knob above the assist block, flag first
+  in the CLI list) and the `patches` suite is green including both
+  reference files and all three consolidated replays.
+- **Not done:** launcher Video persistence (`frame_blend` config key +
+  `has_frame_blend` gate — the natural follow-up so the choice survives
+  relaunch), fade-routine RE (optional rigor), TCP `run_frames` in
+  `--tcp-observe` (step callback unwired there; deterministic flows stay
+  on plain `--tcp` or manual play).
+
+Verification:
+
+- Default-off byte-exact: `tools/cycle.py` PASS (corpus 63134, attract
+  `1EF4C118…` unchanged); `ui-tests` PASS with reorder+relabel.
+- Stage live, both enablement paths user-tested (`--frame-blend 1` AND
+  the menu toggle): eyewitness motion trails on fast pans (photo) plus
+  the `presented` TCP hook (exact post-blend upload bytes; menu chrome is
+  drawn after upload so the hook is blind to it — game pixels only).
+
+Menu-episode postmortem (no code bug — environment, all of it):
+
+- Down/Esc "dead", stuck overlay, xdotool blindness: Wayland session
+  (only a mutter guard window visible to X11 tools) + GNOME's
+  interactive screenshot overlay (raised by ydotool-PrintScreen attempts)
+  grabbing all keys. Logout/in cleared it; on the clean session every
+  key works, the row toggles, Esc dismisses (two-level: section→list→
+  close, plus a second press closes). The `ev.quit`-on-Escape pump branch
+  never fires while the menu is open (menu consumes the event first).
+- Lessons: verify input-path pollution before suspecting menu code;
+  never drive keys or OS screenshots on the player's session again —
+  TCP for driving, `presented` hook for pixels; my earlier hang was
+  `import` awaiting a manual window click, not TCP.
