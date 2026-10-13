@@ -27,7 +27,7 @@ entry, not the play entry. For when-to-run-what (workflows, gates, CI), see
 | `desktop_accept.py` | Headless free-run acceptance scoring (`--mode tcp` / `--mode window`) |
 | `coverage_report.py` | Coverage report, three lenses |
 | `framediff.py` / `dualrun.py` | Oracle frame-diff / lockstep differential runs |
-| `cadence_probe.py` | Render-path update-cadence gate (the compute-at-60/read-at-30 detector): pauses the pacer on `--tcp`, steps exactly one VBlank at a time, asserts the 60 Hz scheduler invariants (frame_step parities, `gVblankCounter`) and no every-other-frame consumer on the presented surfaces (io/oam/pal/vram + display-reg shadow; IWRAM staging alternation is the double-buffer slot write and only reported). `--strict`, `--regions`, `--json`; `check.py --only cadence` |
+| `cadence_probe.py` | Render-path update-cadence gate (the compute-at-60/read-at-30 detector): pauses the pacer on `--tcp`, steps exactly one VBlank at a time, asserts the 60 Hz scheduler invariants (frame_step parities, `gVblankCounter`) and no every-other-frame consumer on the presented surfaces (io/oam/pal/vram + display-reg shadow; IWRAM staging alternation is the double-buffer slot write and only reported). Drives flows with `--replay <input-trace>` (format: `reference/dev-gotchas.md` § Input trace format) or `--script "step:buttons,…"`, adds `--watch addr:len`, `--strict`, `--regions`, `--json`; `check.py --only cadence` |
 | `ringscan.py` | Instruction-ring query (`--file`, `--pc`, `--reg-range`) |
 | `keyprobe.py` | Live debug-port inspector |
 | `trace_split.py` | Split mid-session reload traces |

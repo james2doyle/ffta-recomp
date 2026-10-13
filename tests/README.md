@@ -122,7 +122,7 @@ Notes:
 
 | Artifact | What it is |
 |---|---|
-| `logs/playthrough.csv` | exact `(frame, keys)` trace — replayable with `GBARECOMP_INPUT_REPLAY` |
+| `logs/playthrough.csv` | exact `(frame, keys)` trace — replayable with `GBARECOMP_INPUT_REPLAY` (format: `reference/dev-gotchas.md` § Input trace format) |
 | `logs/playtest_misses.frag` | TOML proposals for every code miss — journaled to disk the moment each miss is recorded (a hang or kill cannot lose it); rewritten with final counts at clean exit |
 | `recomp_cache/…` | each miss healed on the fly into native code — the game keeps running; the frag is the offline seed queue |
 
@@ -254,7 +254,7 @@ instruments everything:
 
 | Artifact | What it is |
 |---|---|
-| `logs/playthrough.csv` | your exact input trace — replayable (`GBARECOMP_INPUT_REPLAY`) |
+| `logs/playthrough.csv` | your exact input trace — replayable (`GBARECOMP_INPUT_REPLAY`; format: `reference/dev-gotchas.md` § Input trace format) |
 | `logs/playtest_misses.frag` | TOML proposals — **journaled live as misses occur** (an unclean close/kill no longer loses them) and rewritten with final counts at a clean exit; play.sh archives the previous session's as `saves/frag_prev_*.frag` |
 | `recomp_cache/<sha>/gcc/<plat>/<abi>/` | completed heals: `<PC>_<hash>_<t\|a>.{c,dll,log}` |
 | `saves/` | archived previous-session savestates + traces, battery save |

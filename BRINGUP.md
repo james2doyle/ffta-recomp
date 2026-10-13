@@ -5937,3 +5937,48 @@ PASS — regen 63134 discovered/emitted (corpus unchanged), dispatch
 sanity OK, build OK, attract gate PASS frames=1200 sha256
 1EF4C118A8438CADE6E5847DC6716A7A800D157A568DECB272F2F7052EF321C1.
 Commit after this entry.
+
+## 2026-10-13 — Input-trace format documented; cadence_probe learns --replay (route-B pre-finding)
+
+Two follow-ups to the late-12/13 audit work, both aimed at measuring
+logic-driven animation cadence (the last unknown for the issue #9
+strategy ladder):
+
+**Input trace format documented** (`reference/dev-gotchas.md` § "Input
+trace format (`gbarecomp-keyinput-v1`)", pointers from tests/README).
+Distilled from `gbarecomp/src/runtime/runtime.cpp` (write ~3450, parser
+~3240, apply ~3290): change-only `<frame>,0x<keys>` rows (`%llu,0x%04X`),
+composed KEYINPUT (host keys + touch-policy synthesis), active-low 10-bit
+(`0x03FF` idle), rows hold until the next; replay = last event with
+`frame <= ppu.frame_count()` per frame, nothing before the first event;
+parser demands monotonic frames (why `trace_split.py` exists — a
+mid-session savestate load makes the frame column jump) and `keys <=
+0x03FF`. Recorded by `GBARECOMP_INPUT_RECORD` (play.sh ->
+logs/playthrough.csv), replayed by `GBARECOMP_INPUT_REPLAY` (headless
+`--frames` loop ONLY — TCP stepping never applies events).
+`GBARECOMP_ASSIST_SCRIPT` is a different format (action script).
+
+**`tools/cadence_probe.py` extended:** `--replay <trace>` re-drives a
+recorded flow over the TCP surface by re-anchoring its events onto probe
+steps (first non-idle input -> step 8; the guest is quiescent while idle),
+`--script "step:buttons,..."` for hand schedules, `--watch addr:len` for
+targeted reads (ewram region added for watch resolution), and gated
+alternating addresses always get value traces.
+
+**Route-B pre-finding** (replaying the frozen
+`saves/regress/battle_move_trace.csv` off `battle_move_start.state`, 120
+steps): **unit sprite positions interpolate per frame** (OAM x eased
+6d,70,74,78,7c,7f,82,83,85,86... — 60 Hz) and the camera scrolls at 60
+(BG2HOFS 80,7e,7c,7a,78,76,73,70,6c,68,64... eased), internal staging
+alternates in antiphase (25 bytes, phases 15/10 — the double buffer).
+But ONE OAM byte ticked at a true 30 Hz: 0x07000233 (entry 70, attr1
+high byte = x bit8/hflip/size) held 50,50,10,10,11,11 — a 2-frame
+sprite-shape animation. First live confirmation that ffta mixes 60 Hz
+motion with 30 Hz effect-animation ticks — exactly the category inter-
+frame blending (issue #9 option 1) smooths and a cheat-class patch
+(option 6) could target. Full walk/magic/totema takes to follow (user
+records via play.sh --load-state game.state1; replays measured per flow).
+
+Acceptance: `check.py --only unit-py,cadence` ALL PASS (2/2; suite
+unchanged in behavior). Docs-only + tool-internal changes; no
+symbols/game.toml/src change, so no cycle needed.
