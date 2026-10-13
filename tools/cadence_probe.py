@@ -242,6 +242,15 @@ def analyze(targets, rows, trace_n):
     bytes 0,1,2,4,5 jump discontinuously every step). Gating therefore
     requires a SUSTAINED run (>=6 alternating changes); shorter runs are
     reported as transient candidates for human review, not gated.
+
+    Dilution caveat (2026-10-13, totema 2600-step replay): full-history
+    alternation misses a LOCALIZED burst (e.g. a 20-step palette fade)
+    when the same byte changes again anywhere later in a long run — the
+    totema fade flagged 8 palette bytes over 1800 steps and zero over
+    2600. Maximal gap-2 subruns (>=6 changes) are therefore reported
+    separately as burst_alternating with their step window (reported, not
+    gated); long measurement runs must be read through bursts, not just
+    the gate.
     """
     n = len(rows) - 1
     sched = {"steps": n, "parity_toggles": 0, "parity_disagreements": 0,
@@ -265,6 +274,7 @@ def analyze(targets, rows, trace_n):
                     changed_at.setdefault(off, []).append(si)
         hist = {}
         alt_steps = {}
+        bursts = []
         near = []
         for off, steps in changed_at.items():
             cad = len(steps) / max(1, n)
@@ -276,6 +286,20 @@ def analyze(targets, rows, trace_n):
                 bucket = "sust" if len(steps) >= 6 else "tran"
                 alt_steps.setdefault((bucket, tuple(steps)), []).append(
                     base + off)
+            # Burst runs: maximal consecutive gap-2 subruns. Full-history
+            # alternation dilutes when a localized burst (e.g. a 20-step
+            # palette fade) is followed by later changes to the same byte
+            # anywhere in a long run — the subrun still counts.
+            run = [steps[0]]
+            for prev_, cur in zip(steps, steps[1:]):
+                if cur - prev_ == 2:
+                    run.append(cur)
+                else:
+                    if len(run) >= 6:
+                        bursts.append((base + off, run[0], run[-1], len(run)))
+                    run = [cur]
+            if len(run) >= 6:
+                bursts.append((base + off, run[0], run[-1], len(run)))
             if abs(cad - 0.5) <= 0.1:
                 near.append((cad, base + off, ti, off))
         # Every-other-frame signature = strictly alternating change steps.
@@ -319,6 +343,15 @@ def analyze(targets, rows, trace_n):
                                "cadence": round(cnt / max(1, n), 3),
                                "changes": cnt,
                                "values": [f"{v:02x}" for v in vals]})
+        for x, start, end, cnt in sorted(bursts):
+            if presented(x) and f"{x:#010x}" not in {
+                    t["addr"] for t in traces}:
+                vals = [r["blobs"][ti][x - base]
+                        for r in rows[max(0, start - 2):end + 6]]
+                traces.append({"addr": f"{x:#010x}",
+                               "cadence": round(cnt / max(1, end - start + 1), 3),
+                               "changes": cnt, "window": [start, end],
+                               "values": [f"{v:02x}" for v in vals]})
         for cad, addr, ti2, off in near[:trace_n]:
             vals = [r["blobs"][ti2][off] for r in rows[:80]]
             traces.append({"addr": f"{addr:#010x}", "cadence": round(cad, 3),
@@ -327,6 +360,9 @@ def analyze(targets, rows, trace_n):
                      "histogram": {f"{k:.2f}": v for k, v in sorted(hist.items())},
                      "alternating": gate_addrs,
                      "transient_alternating": transient_addrs,
+                     "burst_alternating": sorted(
+                         f"{x:#010x}@{s}-{e}" for x, s, e, _ in bursts
+                         if presented(x)),
                      "internal_alternating": internal,
                      "alternating_phases": {str(k): v for k, v in
                                             sorted(phases.items())},
@@ -476,12 +512,18 @@ def main():
             print(f"   transient alternation (short-run, review manually — "
                   f"OAM slot recycling mimics this): "
                   f"{', '.join(s['transient_alternating'])}")
+        if s["burst_alternating"]:
+            print(f"   burst alternation (localized gap-2 run, addr@first-last "
+                  f"step — survives later changes to the same byte): "
+                  f"{', '.join(s['burst_alternating'])}")
         if s["internal_alternating"]:
             print(f"   internal staging alternation (double buffer): "
                   f"{s['internal_alternating']} bytes, phases "
                   f"{s['alternating_phases']}")
         for t in s["traces"]:
-            print(f"   trace {t['addr']} cad={t['cadence']:.2f}: "
+            tag = (f"@{t['window'][0]}-{t['window'][1]}"
+                   if "window" in t else "")
+            print(f"   trace {t['addr']}{tag} cad={t['cadence']:.2f}: "
                   + " ".join(t["values"]))
 
     if a.json:

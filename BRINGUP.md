@@ -6023,3 +6023,52 @@ takes).
 
 Acceptance: `check.py --only unit-py,cadence` ALL PASS (2/2). Tool-
 internal change only; no cycle needed.
+
+## 2026-10-13 (late) — Totema take: first CONFIRMED 30 Hz content (palette fade)
+
+User-recorded take `inputs/cadence_totema.csv` (Down,A,A,A over 458
+frames off game.state1, committed). 1800-step replay (regions io/oam/pal
++ watches display-reg shadow / 0x02002C10 / unit records):
+
+- **Summon verified from data:** menu nav (steps 8-186) -> camera swoop +
+  OAM recomposition (~326-437, BG2 scroll 215->260->263->224->215 snap)
+  -> palette fade burst (437-456) -> long hold with slow pan (scroll
+  ->136, VOFS dip to -55 around 1240-1520) -> finale starting ~1640
+  (still busy at step 1800; the 2600-step extension captured the rest —
+  see mirror note below).
+- **8 BG-palette bytes pass the SUSTAINED gate**
+  (0x0500000c/2c/4c/6d/76/8f/98/af): 10 changes, gaps all exactly 2,
+  values ramping monotonically
+  83->63->43->22->02->e2->c2->a2->81->61->41 with each held exactly 2
+  steps, all 8 bytes in lockstep (`/tmp/opencode/totema_timeline.py`
+  timeline, local-only). Palette-level confirmation holds: a coherent
+  multi-byte ramp cannot be slot recycling (palettes have no slots).
+  **First confirmed 30 Hz animation content in the game** — a fade
+  advancing every 2 frames (~20 frames / 0.33 s).
+- **Classification: authored fade cadence (high confidence).** No palette
+  staging double-buffer exists in the render path (late-12 audit), so
+  there is no writer that could sample a 60 Hz fade computation at 30 —
+  the 2-frame hold comes from the fade routine's own tick. Full rigor
+  would be finding the fade routine via a guest watchpoint (open,
+  optional). Ladder consequence: blending (#1) smooths it for free; a
+  #6 patch would halve the fade step and tick every frame — same
+  duration, double smoothness.
+- **Falsified:** 0x02002C10 is NOT the camera (0 bytes over 1800 steps
+  while BG scroll moved 215->99 and panned throughout — role was
+  unpinned, now rejected); unit-record watch nearly quiet (1 byte —
+  units stand still during the cinematic, or the struct base is off;
+  not resolved, not needed).
+- Context: the fade is short; the summon's ~20 s holds show NO 30 Hz
+  content (static palette, sparse OAM, slow pans). 30 Hz content so far
+  is confined to fade steps — exactly what inter-frame blending erases.
+- **Finale mirror (2600-step timeline):** steps 1928-1947 fade back UP
+  through the exact reverse ramp
+  (41->61->81->a2->c2->e2->02->22->43->63->83, 2-frame holds, same 8
+  bytes in lockstep), palette restored to 83/4e, scene-return pans +
+  OAM recomposition (~1980-2260), quiet battle scene by ~2260. Full
+  byte histories: 83x438, fade-out ramp, 41x1473 (~24.5 s dark hold),
+  fade-in ramp, 83x653. The 2600-step full-history gate flags ZERO —
+  dilution confirmed live (20 changes/byte split by a 1473-step gap) —
+  which motivated the burst_alternating detector (implemented +
+  unit-tested this session via synthetic rows; live validation pending
+  on the black-magic take).
