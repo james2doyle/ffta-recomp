@@ -205,6 +205,10 @@ def collect(sock, frames, keyinput, targets, script):
     """Step one VBlank at a time; return per-step snapshots."""
     out = []
     for i in range(frames):
+        if i and i % 100 == 0:
+            print(f"cadence_probe: step {i}/{frames} ...", file=sys.stderr,
+                  flush=True)
+    for i in range(frames):
         keys = keyinput
         for fr, kv in script:
             if fr <= i:
