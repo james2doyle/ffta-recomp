@@ -6053,11 +6053,14 @@ frames off game.state1, committed). 1800-step replay (regions io/oam/pal
   optional). Ladder consequence: blending (#1) smooths it for free; a
   #6 patch would halve the fade step and tick every frame — same
   duration, double smoothness.
-- **Falsified:** 0x02002C10 is NOT the camera (0 bytes over 1800 steps
-  while BG scroll moved 215->99 and panned throughout — role was
-  unpinned, now rejected); unit-record watch nearly quiet (1 byte —
-  units stand still during the cinematic, or the struct base is off;
-  not resolved, not needed).
+- **Watch-address correction:** 0x02002C10 is `gWorldMapCamera` — a
+  *committed* symbol (data TSV § gWorldMapCamera), static as expected in
+  a battle scene. The earlier draft of this entry called it "rejected";
+  that was wrong — the battle camera is a different, still-unpinned
+  address (BG scroll proves it moves). Lesson recorded: check the symbol
+  table before declaring a quiet watch address dead. Unit-record watch
+  nearly quiet (1 byte — units stand still during the cinematic, or the
+  struct base is off; not resolved, not needed).
 - Context: the fade is short; the summon's ~20 s holds show NO 30 Hz
   content (static palette, sparse OAM, slow pans). 30 Hz content so far
   is confined to fade steps — exactly what inter-frame blending erases.

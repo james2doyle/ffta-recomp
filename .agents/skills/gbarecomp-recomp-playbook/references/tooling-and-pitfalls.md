@@ -98,6 +98,21 @@ Run this after every play session; it is the whole loop in order.
   next person "fixes" a correct gate. Encode both as unit tests: stamp
   token agreement across the scripts that write/read it, and the input set
   never regressing to emitted-file mtimes.
+- **Measuring update cadence? Change-ratio is not cadence, bytes are not
+  sprites, and full-history gates dilute.** Judge every-other-frame
+  rhythms by strict alternation of *change steps* (gaps of exactly 2),
+  never a ~0.5 change ratio (static-then-live mimics it). Confirm
+  byte-level flags at identity level before claiming anything: a
+  multiplexed hardware slot (e.g. OAM entries reassigned across sprites
+  every frame during scene recomposition) fakes strict alternation over
+  short windows while sibling state jumps discontinuously — the unit of
+  analysis is the sprite/entry, not the byte. And full-history
+  alternation misses localized bursts (a 20-step palette fade followed by
+  later changes to the same byte flags over 1800 steps, vanishes over
+  2600): detect maximal gap-2 subruns with step windows alongside the
+  gate, and read long runs through the windows. (Specimen:
+  `tools/cadence_probe.py` — sustained gate + transient candidates +
+  burst windows.)
 - **Cross-dependency prefixes are static-only by construction, not by
   flag.** Libraries whose build systems ignore `BUILD_SHARED_LIBS` (zlib
   being the specimen: it builds `libz.dll` regardless) leave import libs

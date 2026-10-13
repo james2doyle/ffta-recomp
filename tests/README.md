@@ -363,7 +363,19 @@ GBARECOMP_INPUT_REPLAY=logs/playthrough.csv ./build/FFTARecomp ...` — expect
   `--regions`, `--traces`, `--json` for RE work. Verdict this guards:
   BRINGUP § 2026-10-12 (late 12) — ffta's render path is 60 Hz end to end,
   there is no every-other-frame read gate to patch (unlike MKSC's affine
-  track).
+  track). Measurement mode (walk/magic/summon takes): `--replay
+  inputs/cadence_<flow>.csv --frames N --regions io,oam,pal --watch
+  <addr:len,...>` re-drives a recorded flow (first non-idle input lands
+  at step 8; traces are change-only, so extend `--frames` well past the
+  last input to cover animation tails). On long runs read
+  `burst_alternating` (localized gap-2 subruns with step windows, every
+  window value-traced) alongside the gate — full-history alternation
+  dilutes when a burst is followed by later changes to the same byte —
+  and confirm byte-level flags at sprite/entry level before claiming
+  anything (recycled OAM slots mimic strict alternation over short
+  windows). Measured verdicts: BRINGUP late-13 entries + issue #9
+  (60 Hz motion everywhere; 30 Hz content confined to authored
+  palette-fade ticks).
 - **Full gate:** `.venv/bin/python tools/check.py` — host unit tests
   (C++ + Python), patch validity, the device-free Android checks, the
   attract gate, the widescreen smoke,
