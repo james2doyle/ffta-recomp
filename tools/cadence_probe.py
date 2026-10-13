@@ -344,8 +344,9 @@ def analyze(targets, rows, trace_n):
                                "changes": cnt,
                                "values": [f"{v:02x}" for v in vals]})
         for x, start, end, cnt in sorted(bursts):
-            if presented(x) and f"{x:#010x}" not in {
-                    t["addr"] for t in traces}:
+            # Every window gets its own trace: the same byte often bursts
+            # twice (fade-out, then fade-in) and the directions differ.
+            if presented(x):
                 vals = [r["blobs"][ti][x - base]
                         for r in rows[max(0, start - 2):end + 6]]
                 traces.append({"addr": f"{x:#010x}",

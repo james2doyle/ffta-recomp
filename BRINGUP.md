@@ -6062,7 +6062,6 @@ frames off game.state1, committed). 1800-step replay (regions io/oam/pal
   content (static palette, sparse OAM, slow pans). 30 Hz content so far
   is confined to fade steps — exactly what inter-frame blending erases.
 - **Finale mirror (2600-step timeline):** steps 1928-1947 fade back UP
-  through the exact reverse ramp
   (41->61->81->a2->c2->e2->02->22->43->63->83, 2-frame holds, same 8
   bytes in lockstep), palette restored to 83/4e, scene-return pans +
   OAM recomposition (~1980-2260), quiet battle scene by ~2260. Full
@@ -6072,3 +6071,40 @@ frames off game.state1, committed). 1800-step replay (regions io/oam/pal
   which motivated the burst_alternating detector (implemented +
   unit-tested this session via synthetic rows; live validation pending
   on the black-magic take).
+
+## 2026-10-13 (late) — Black-magic take: same fade engine, two verses; synthesis
+
+User-recorded take `inputs/cadence_blackmagic.csv` (27 events: Down/A
+nav with B back-outs + Left cursor moves over 738 frames off
+game.state1, committed). 1500-step replay (io/oam/pal + shadow/unit
+watches), run twice (second run after per-window trace fix):
+
+- **Burst detector live-validated:** full-history gate finds ZERO, but
+  `burst_alternating` reports 26 localized windows, all palette —
+  exactly the shape the synthetic test predicted.
+- **Verse 1 (steps 705-723): fade OUT.** The same 8 totema bytes
+  (0x0500000c/2c/4c/6d/76/8f/98/af) ramp 83->41 with 2-frame holds,
+  plus neighboring bytes (6f/71/91/93/b1/b3) ramping in adjacent
+  windows (704-714, 711-723). Same fade engine, same cadence.
+- **Verse 2 (steps 958-976): fade back IN.** Same 8 bytes reversed
+  (41->61->81->a2->c2->e2->02->22->43->63->83, 2-holds); byte 0x3f
+  ascends 2d->4f alongside (mostly 2-holds with a few 1-holds mid-run).
+  Spell structure: cast -> fade to dark -> ~230-step (~4 s) effect hold
+  -> fade back -> aftermath. Per-window traces (tool fix this session:
+  every burst window traced, not just the first per address) confirm
+  both directions.
+- **No OAM/IO burst or sustained flags anywhere in 1500 steps:**
+  spell sprites and scroll run at 60 Hz; only palette fades tick at 30.
+- **Synthesis across all three flows** (route-B walk, totema, black
+  magic): render pipeline 60 Hz end-to-end; sprite/scroll motion 60 Hz
+  per-frame; 30 Hz content confined to authored palette-fade ticks in
+  ~20-step bursts (totema ~40/2600 steps ≈ 1.5%, magic ~40/1500 ≈
+  2.7%). Decision rule fires: no mechanical compute/read split anywhere
+  -> option #6 dead as a general measure (only conceivable as a narrow
+  fade-routine opt-in: halve step + tick every frame = same duration,
+  smoother — low value for 0.3 s fades). Recommendation stands:
+  #1 inter-frame blending (erases fade steps for free) + #2 VRR sync,
+  then #3 scroll/affine re-render. Measurement program complete.
+
+Acceptance: `check.py --only unit-py,cadence` ALL PASS (2/2) on the
+final tool. Fixture + tool-internal changes only; no cycle needed.
