@@ -11344,7 +11344,7 @@ index 2b48ab3..d33b98c 100644
      // Realign the deadline to "now". Call after any non-real-time jump
      // (startup, save-state load) so the pacer doesn't try to catch up.
 diff --git a/src/runtime/host_window.cpp b/src/runtime/host_window.cpp
-index 22ca157..0d57877 100644
+index 22ca157..3098278 100644
 --- a/src/runtime/host_window.cpp
 +++ b/src/runtime/host_window.cpp
 @@ -6,6 +6,7 @@
@@ -11387,7 +11387,7 @@ index 22ca157..0d57877 100644
      // Player-placed pad toggle: centre as a fraction of the safe area, so it
      // keeps its place across rotation. Unset = bottom-right corner.
      bool toggle_pos_saved = false;
-@@ -423,6 +434,36 @@ struct Backend {
+@@ -423,6 +434,41 @@ struct Backend {
      // grading), so default behavior is byte-identical to upstream.
      std::unique_ptr<runtime::ColorLut> color_lut;
      std::vector<uint8_t> graded_fb;  // scratch RGB888 (base_w*base_h*3)
@@ -11418,13 +11418,18 @@ index 22ca157..0d57877 100644
 +    uint64_t interp_tick_ns = 0;
 +    uint64_t interp_period_ns = 0;
 +    unsigned interp_mode_counter = 0;
++    // Tick-rate observability (remote device validation): count ticks and
++    // report presents/sec every ~5 s of ticking. Counting only — the rate
++    // decision stays in the pacing above.
++    uint64_t interp_tick_count = 0;
++    uint64_t interp_rate_window_ns = 0;
 +    std::vector<uint8_t> blend_argb;  // scratch ARGB8888 (base_w*base_h*4)
 +    std::vector<uint8_t> blend_rgb;   // scratch RGB888 upload (base_w*base_h*3)
 +#endif
  #if defined(GBARECOMP_RUNTIME_UI)
      RecompRuntimeUi* runtime_ui = nullptr;
      ImGuiContext* runtime_imgui_context = nullptr;
-@@ -478,6 +519,41 @@ void destroy_sharp_texture(Backend* b) {
+@@ -478,6 +524,41 @@ void destroy_sharp_texture(Backend* b) {
      b->sharp_texture_h = 0;
  }
  
@@ -11466,7 +11471,7 @@ index 22ca157..0d57877 100644
  bool ensure_sharp_texture(Backend* b, int factor) {
      if (!b || !b->renderer || factor < 2) return false;
      const int width = b->base_w * factor;
-@@ -748,6 +824,17 @@ bool pad_toggle_available(const Backend* b) {
+@@ -748,6 +829,17 @@ bool pad_toggle_available(const Backend* b) {
      return b && b->touch_policy && (b->touch_controls || b->touch_emulation);
  }
  
@@ -11484,7 +11489,7 @@ index 22ca157..0d57877 100644
  Backend::TouchPoint* find_touch(Backend* b, SDL_FingerID id) {
      if (!b) return nullptr;
      for (auto& touch : b->touches)
-@@ -1001,7 +1088,7 @@ private:
+@@ -1001,7 +1093,7 @@ private:
  #endif
  
  void draw_touch_pad(Backend* b, HostOverlay& ov) {
@@ -11493,7 +11498,7 @@ index 22ca157..0d57877 100644
      const PadLayout p = compute_pad_layout(b);
      const uint16_t held = active_touch_buttons(b);
      const auto S = OverlaySpace::Drawable;
-@@ -1054,7 +1141,7 @@ void draw_touch_pad(Backend* b, HostOverlay& ov) {
+@@ -1054,7 +1146,7 @@ void draw_touch_pad(Backend* b, HostOverlay& ov) {
      pill(p.start, 3, "START", p.start.h * 0.5f);
  }
  void draw_pad_toggle(Backend* b, HostOverlay& ov) {
@@ -11502,7 +11507,7 @@ index 22ca157..0d57877 100644
      const PadLayout p = compute_pad_layout(b);
      const auto S = OverlaySpace::Drawable;
      const PadRect& r = p.toggle;
-@@ -1348,6 +1435,29 @@ bool runtime_menu_open(const Backend* b) {
+@@ -1348,6 +1440,29 @@ bool runtime_menu_open(const Backend* b) {
  // builds) the settings menu on top. Nothing here reads or writes guest state
  // except through the game's own overlay callback.
  void draw_host_chrome(Backend* b, HostOverlay& ov, bool menu_open) {
@@ -11532,7 +11537,7 @@ index 22ca157..0d57877 100644
      if (menu_open) return;
      if (b->host_overlay) b->host_overlay(&ov);
      draw_touch_pad(b, ov);
-@@ -1362,8 +1472,8 @@ void render_host_layers(Backend* b) {
+@@ -1362,8 +1477,8 @@ void render_host_layers(Backend* b) {
      const bool menu_open = false;
  #endif
      const bool chrome = !menu_open &&
@@ -11543,7 +11548,7 @@ index 22ca157..0d57877 100644
      if (!chrome && !menu_open) return;
  
      // Native GBA presentation uses a 240x160 SDL logical size. Host chrome
-@@ -1796,6 +1906,12 @@ bool HostWindow::open(int scale, int base_w, int base_h, const char* title,
+@@ -1796,6 +1911,12 @@ bool HostWindow::open(int scale, int base_w, int base_h, const char* title,
      {
          SDL_RendererInfo info{};
          if (SDL_GetRendererInfo(b->renderer, &info) == 0) {
@@ -11556,7 +11561,7 @@ index 22ca157..0d57877 100644
              std::fprintf(stderr,
                           "host_window: renderer=%s flags=0x%08x vsync=%s%s "
                           "scaler=%s\n",
-@@ -1808,6 +1924,9 @@ bool HostWindow::open(int scale, int base_w, int base_h, const char* title,
+@@ -1808,6 +1929,9 @@ bool HostWindow::open(int scale, int base_w, int base_h, const char* title,
              std::fflush(stderr);
          }
          log_display_mode(b->window, "open");
@@ -11566,7 +11571,7 @@ index 22ca157..0d57877 100644
      }
      b->cadence.init();
  #if defined(__ANDROID__)
-@@ -1932,6 +2051,12 @@ bool HostWindow::open(int scale, int base_w, int base_h, const char* title,
+@@ -1932,6 +2056,12 @@ bool HostWindow::open(int scale, int base_w, int base_h, const char* title,
      b->color_lut = std::make_unique<runtime::ColorLut>(resolve_color_settings(screen));
      if (!b->color_lut->is_passthrough())
          b->graded_fb.resize(static_cast<std::size_t>(base_w) * base_h * 3);
@@ -11579,7 +11584,7 @@ index 22ca157..0d57877 100644
  
      impl_ = b;
      open_ = true;
-@@ -2117,6 +2242,10 @@ void HostWindow::close() {
+@@ -2117,6 +2247,10 @@ void HostWindow::close() {
      if (b->texture)   SDL_DestroyTexture(b->texture);
      if (b->renderer)  SDL_DestroyRenderer(b->renderer);
      if (b->window)    SDL_DestroyWindow(b->window);
@@ -11590,7 +11595,7 @@ index 22ca157..0d57877 100644
      delete b;
      impl_ = nullptr;
      open_ = false;
-@@ -2184,7 +2313,7 @@ bool HostWindow::drawable_size(int* width, int* height) const {
+@@ -2184,7 +2318,7 @@ bool HostWindow::drawable_size(int* width, int* height) const {
             *width > 0 && *height > 0;
  }
  
@@ -11599,7 +11604,7 @@ index 22ca157..0d57877 100644
      if (!open_ || !impl_ || !rgb888) return;
      auto* b = static_cast<Backend*>(impl_);
      // Present-time color grading (opt-in). Raw is passthrough: the raw
-@@ -2194,6 +2323,58 @@ void HostWindow::present(const uint8_t* rgb888) {
+@@ -2194,6 +2328,58 @@ void HostWindow::present(const uint8_t* rgb888) {
          b->color_lut->map_rgb888(rgb888, b->graded_fb.data(), b->base_w, b->base_h);
          rgb888 = b->graded_fb.data();
      }
@@ -11658,7 +11663,7 @@ index 22ca157..0d57877 100644
      SDL_UpdateTexture(b->texture, nullptr, rgb888, b->base_w * 3);
      SDL_SetRenderDrawColor(b->renderer, 7, 11, 20, 255);
      SDL_RenderClear(b->renderer);
-@@ -2478,6 +2659,116 @@ bool HostWindow::linear_filter() const {
+@@ -2478,6 +2664,133 @@ bool HostWindow::linear_filter() const {
      return open_ && impl_ && static_cast<const Backend*>(impl_)->linear_filter;
  }
  
@@ -11728,6 +11733,23 @@ index 22ca157..0d57877 100644
 +            b->interp_tick_ns += b->interp_period_ns;
 +        } while (b->interp_tick_ns <= after_ns);
 +    }
++    // Presents/sec report (~5 s windows): the only remote proof the tick
++    // loop is actually subdividing waits at display rate.
++    if (++b->interp_tick_count == 1u)
++        b->interp_rate_window_ns = after_ns;
++    else if (b->interp_tick_count >= 600u) {
++        const uint64_t span_ns = after_ns - b->interp_rate_window_ns;
++        if (span_ns > 0u) {
++            std::fprintf(stderr,
++                         "host_window: interp ticks=%llu rate=%.1f/s\n",
++                         static_cast<unsigned long long>(
++                             b->interp_tick_count),
++                         static_cast<double>(b->interp_tick_count) *
++                         1e9 / static_cast<double>(span_ns));
++            std::fflush(stderr);
++        }
++        b->interp_tick_count = 0;
++    }
 +}
 +#endif
 +
@@ -11775,7 +11797,7 @@ index 22ca157..0d57877 100644
  void HostWindow::set_audio_enabled(bool enabled) {
      if (!open_ || !impl_) return;
      auto* b = static_cast<Backend*>(impl_);
-@@ -2508,12 +2799,16 @@ void HostWindow::set_runtime_ui(RecompRuntimeUi* ui) {
+@@ -2508,12 +2821,16 @@ void HostWindow::set_runtime_ui(RecompRuntimeUi* ui) {
  #endif
  
  void HostWindow::configure_touch(bool policy, std::uint32_t claims,
@@ -11793,7 +11815,7 @@ index 22ca157..0d57877 100644
      if (emulate_touch) {
          // SDL then reports the left mouse button as a touch finger
          // (touchId SDL_MOUSE_TOUCHID), exercising the real finger path.
-@@ -2583,6 +2878,10 @@ void HostWindow::set_touch_pad_visible(bool visible) {
+@@ -2583,6 +2900,10 @@ void HostWindow::set_touch_pad_visible(bool visible) {
      if (b->pad_visible == visible && b->pad_choice_saved) return;
      b->pad_visible = visible;
      b->pad_choice_saved = true;
@@ -11804,7 +11826,7 @@ index 22ca157..0d57877 100644
      // Any finger currently on a pad button is released with the pad.
      for (auto& t : b->touches)
          if (t.active && t.pad) t.buttons = 0;
-@@ -2793,13 +3092,19 @@ HostWindow::Events HostWindow::pump() {
+@@ -2793,13 +3114,19 @@ HostWindow::Events HostWindow::pump() {
                      &te.view_x, &te.view_y);
                  TouchHub::instance().submit(te);
              };
@@ -11825,7 +11847,7 @@ index 22ca157..0d57877 100644
                              ? pad_buttons_at(pad, px, py, b->px_per_mm) : 0;
                      // The toggle wins over the pad so it can never be buried
                      // under a button (it is small and player-movable).
-@@ -2970,6 +3275,18 @@ HostWindow::Events HostWindow::pump() {
+@@ -2970,6 +3297,18 @@ HostWindow::Events HostWindow::pump() {
              if (SDL_GameControllerGetButton(b->controller, binding.button))
                  keys &= static_cast<uint16_t>(~(1u << binding.bit));
          }
@@ -11844,7 +11866,7 @@ index 22ca157..0d57877 100644
      }
      if (b->touch_controls) {
          const uint16_t touch_buttons = active_touch_buttons(b);
-@@ -3106,6 +3423,16 @@ int  HostWindow::volume() const { return 100; }
+@@ -3106,6 +3445,16 @@ int  HostWindow::volume() const { return 100; }
  int  HostWindow::window_scale() const { return 1; }
  void HostWindow::set_linear_filter(bool /*enabled*/) {}
  bool HostWindow::linear_filter() const { return false; }
@@ -11861,7 +11883,7 @@ index 22ca157..0d57877 100644
  void HostWindow::set_audio_enabled(bool /*enabled*/) {}
  bool HostWindow::audio_enabled() const { return false; }
  void HostWindow::set_resize_driven_view(bool /*enabled*/) {}
-@@ -3113,7 +3440,8 @@ void HostWindow::set_resize_driven_view(bool /*enabled*/) {}
+@@ -3113,7 +3462,8 @@ void HostWindow::set_resize_driven_view(bool /*enabled*/) {}
  void HostWindow::set_runtime_ui(RecompRuntimeUi* /*ui*/) {}
  #endif
  void HostWindow::configure_touch(bool /*policy*/, std::uint32_t /*claims*/,

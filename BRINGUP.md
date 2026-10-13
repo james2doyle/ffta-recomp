@@ -6215,3 +6215,33 @@ Menu-episode postmortem (no code bug — environment, all of it):
   never drive keys or OS screenshots on the player's session again —
   TCP for driving, `presented` hook for pixels; my earlier hang was
   `import` awaiting a manual window click, not TCP.
+
+## 2026-10-13 (late) — 3a device validation (Mi 11, 120 Hz)
+
+APK via `build_apk.py` (clean 39.2 MiB, content guard OK, installed,
+device gate passed). Note: an incremental rebuild skipped the symbol
+strip (71.6 MiB, guard correctly FAILed packaging sanity); clean
+rebuild fixed it — the guard worked as designed.
+
+- Panel: 1440×3200, modes 120 + 60, ACTIVE at 120 (`renderFrameRate
+  120.00001`); peak setting Infinity (adaptive — auto-follow design
+  handles switches). Renderer opengles2, vsync=no → timer-paced ticks.
+- Drive findings: TCP `set_keyinput` on live sessions is overwritten by
+  the host input pump within a frame (read-back 0x03FF 200 ms after set;
+  edges sometimes land, holds never) — reliable device motion is
+  touch-swipe long-presses on the pad (dpad geometry from the pad layout
+  log line). Screenshot-gate every precondition (load→menu-open proof→
+  B→menu-closed proof→pan); blind sleeps hid a sequencing failure twice.
+- Mechanism proven remotely: `interp ticks=600 rate=100–111/s`
+  (~1.74 presents/guest frame at 120 Hz — the expected subdivision
+  shape), guest clock steady throughout, zero crashes/anomalies over
+  ~15 min of interp-on device time with pans + loads. Stills crisp
+  (blend off in this session, as designed — 3a alone doesn't smear).
+  Tick-rate logging added to the patch for exactly this observability.
+- Hygiene: `debug-args.txt` scrubbed post-run (a stuck
+  `--frame-interp 1` would haunt later play) + forward removed. Staging
+  note: `/sdcard` run-as reads are permission-denied on this API level;
+  `/data/local/tmp` works (press_test already does this; trace_replay's
+  external save path was already correct — no fix needed).
+- Open: feel verdict (user holds the phone), thermal/battery sanity (no
+  harness — user-reported).
