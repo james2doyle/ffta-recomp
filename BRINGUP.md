@@ -6429,3 +6429,27 @@ docs/frame-interpolation.md (design + porting doc, indexed in
 docs/README.md + AGENTS.md). Device scratch state (debug-args.txt,
 tcp:19850 forward, /data/local/tmp/game.state1) cleaned up after QA;
 interp remains togglable via the persisted Graphics menu row.
+
+## 2026-10-14 — Issue #9 review remediation (FF blocking path, history resets, vsync clamp, race lock, doc corrections)
+
+Branch review (frame-improvements vs main) found doc/behavior drift; all fixed
+in this commit. Full gate 17/17 PASS, attract pin unchanged (1EF4C118...).
+
+- Fast-forward now keeps the historical blocking wait (pre-#9 behavior): the
+  interp branch is skipped while `fast_forward_active`, and interp history is
+  dropped on every non-interp present, so the first present after a menu toggle
+  or FF release measures no step across the gap.
+- Interp history now also dropped at the three blend-reset sites (observer
+  load, load dispatch, rewind) — same discontinuity hygiene as the blend feature.
+- `last_upload` copies (`presented` TCP) are mutex-guarded against the present
+  thread.
+- `interp_display_tick` clamps vsync-blocked presents to the guest deadline.
+- Dead code removed: unused `interp_shift_blit` duplicate, mangled comment,
+  dead store, caller-less `vsync_blocks`.
+- Unit tests: vertical half-pixel/negative-odd/diagonal blit kernels and the
+  ±256 wrap-tie consensus pinned.
+- Docs corrected: Graphics rows are not persisted (Android: debug-args remains
+  the only carrier for the interp flag); frame blending IS exposed (LCD ghosting
+  row); FF claim now matches code; mid semantics wording fixed; veto threshold
+  envelope documented.
+

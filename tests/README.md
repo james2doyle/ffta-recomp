@@ -376,6 +376,11 @@ GBARECOMP_INPUT_REPLAY=logs/playthrough.csv ./build/FFTARecomp ...` — expect
   windows). Measured verdicts: BRINGUP late-13 entries + issue #9
   (60 Hz motion everywhere; 30 Hz content confined to authored
   palette-fade ticks).
+
+  The committed `inputs/cadence_blackmagic.csv` and
+  `inputs/cadence_totema.csv` are evidence fixtures for the BRINGUP
+  2026-10-13 cadence verdicts — nothing gates on them; replay them only
+  to reproduce those measurements.
 - **Full gate:** `.venv/bin/python tools/check.py` — host unit tests
   (C++ + Python), patch validity, the device-free Android checks, the
   attract gate, the widescreen smoke,

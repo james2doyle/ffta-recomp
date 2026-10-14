@@ -11539,7 +11539,7 @@ index 2b48ab3..b79ac88 100644
      // Realign the deadline to "now". Call after any non-real-time jump
      // (startup, save-state load) so the pacer doesn't try to catch up.
 diff --git a/src/runtime/host_window.cpp b/src/runtime/host_window.cpp
-index 22ca157..3098278 100644
+index 22ca157..13bb1b2 100644
 --- a/src/runtime/host_window.cpp
 +++ b/src/runtime/host_window.cpp
 @@ -6,6 +6,7 @@
@@ -11550,9 +11550,11 @@ index 22ca157..3098278 100644
  #include <cmath>
  #include <cstdint>
  #include <cstdio>
-@@ -14,14 +15,20 @@
+@@ -13,15 +14,22 @@
+ #include <cstring>
  #include <fstream>
  #include <memory>
++#include <mutex>
  #include <string>
 +#include <thread>
  #include <vector>
@@ -11571,7 +11573,7 @@ index 22ca157..3098278 100644
  #endif
  
  #if defined(GBARECOMP_HAVE_SDL2)
-@@ -374,6 +381,10 @@ struct Backend {
+@@ -374,6 +382,10 @@ struct Backend {
      bool touch_controls = false;
      bool pad_visible = false;
      bool pad_choice_saved = false;
@@ -11582,13 +11584,14 @@ index 22ca157..3098278 100644
      // Player-placed pad toggle: centre as a fraction of the safe area, so it
      // keeps its place across rotation. Unset = bottom-right corner.
      bool toggle_pos_saved = false;
-@@ -423,6 +434,41 @@ struct Backend {
+@@ -423,6 +435,42 @@ struct Backend {
      // grading), so default behavior is byte-identical to upstream.
      std::unique_ptr<runtime::ColorLut> color_lut;
      std::vector<uint8_t> graded_fb;  // scratch RGB888 (base_w*base_h*3)
 +    // Last uploaded frame (post-blend): exact display bytes for the
 +    // `presented` TCP command. Updated on every present, blend on or off.
 +    std::vector<uint8_t> last_upload;  // RGB888 (base_w*base_h*3)
++    mutable std::mutex last_upload_mu;  // presents vs `presented` copies
 +    // Frame-blend state (issue #9 #1): RecompFrameBlend handle + ARGB8888
 +    // work buffer + RGB888 upload scratch, sized for base_w*base_h and
 +    // reallocated (with a history reset) when the view size changes. The
@@ -11624,7 +11627,7 @@ index 22ca157..3098278 100644
  #if defined(GBARECOMP_RUNTIME_UI)
      RecompRuntimeUi* runtime_ui = nullptr;
      ImGuiContext* runtime_imgui_context = nullptr;
-@@ -478,6 +524,41 @@ void destroy_sharp_texture(Backend* b) {
+@@ -478,6 +526,41 @@ void destroy_sharp_texture(Backend* b) {
      b->sharp_texture_h = 0;
  }
  
@@ -11666,7 +11669,7 @@ index 22ca157..3098278 100644
  bool ensure_sharp_texture(Backend* b, int factor) {
      if (!b || !b->renderer || factor < 2) return false;
      const int width = b->base_w * factor;
-@@ -748,6 +829,17 @@ bool pad_toggle_available(const Backend* b) {
+@@ -748,6 +831,17 @@ bool pad_toggle_available(const Backend* b) {
      return b && b->touch_policy && (b->touch_controls || b->touch_emulation);
  }
  
@@ -11684,7 +11687,7 @@ index 22ca157..3098278 100644
  Backend::TouchPoint* find_touch(Backend* b, SDL_FingerID id) {
      if (!b) return nullptr;
      for (auto& touch : b->touches)
-@@ -1001,7 +1093,7 @@ private:
+@@ -1001,7 +1095,7 @@ private:
  #endif
  
  void draw_touch_pad(Backend* b, HostOverlay& ov) {
@@ -11693,7 +11696,7 @@ index 22ca157..3098278 100644
      const PadLayout p = compute_pad_layout(b);
      const uint16_t held = active_touch_buttons(b);
      const auto S = OverlaySpace::Drawable;
-@@ -1054,7 +1146,7 @@ void draw_touch_pad(Backend* b, HostOverlay& ov) {
+@@ -1054,7 +1148,7 @@ void draw_touch_pad(Backend* b, HostOverlay& ov) {
      pill(p.start, 3, "START", p.start.h * 0.5f);
  }
  void draw_pad_toggle(Backend* b, HostOverlay& ov) {
@@ -11702,7 +11705,7 @@ index 22ca157..3098278 100644
      const PadLayout p = compute_pad_layout(b);
      const auto S = OverlaySpace::Drawable;
      const PadRect& r = p.toggle;
-@@ -1348,6 +1440,29 @@ bool runtime_menu_open(const Backend* b) {
+@@ -1348,6 +1442,29 @@ bool runtime_menu_open(const Backend* b) {
  // builds) the settings menu on top. Nothing here reads or writes guest state
  // except through the game's own overlay callback.
  void draw_host_chrome(Backend* b, HostOverlay& ov, bool menu_open) {
@@ -11732,7 +11735,7 @@ index 22ca157..3098278 100644
      if (menu_open) return;
      if (b->host_overlay) b->host_overlay(&ov);
      draw_touch_pad(b, ov);
-@@ -1362,8 +1477,8 @@ void render_host_layers(Backend* b) {
+@@ -1362,8 +1479,8 @@ void render_host_layers(Backend* b) {
      const bool menu_open = false;
  #endif
      const bool chrome = !menu_open &&
@@ -11743,7 +11746,7 @@ index 22ca157..3098278 100644
      if (!chrome && !menu_open) return;
  
      // Native GBA presentation uses a 240x160 SDL logical size. Host chrome
-@@ -1796,6 +1911,12 @@ bool HostWindow::open(int scale, int base_w, int base_h, const char* title,
+@@ -1796,6 +1913,12 @@ bool HostWindow::open(int scale, int base_w, int base_h, const char* title,
      {
          SDL_RendererInfo info{};
          if (SDL_GetRendererInfo(b->renderer, &info) == 0) {
@@ -11756,7 +11759,7 @@ index 22ca157..3098278 100644
              std::fprintf(stderr,
                           "host_window: renderer=%s flags=0x%08x vsync=%s%s "
                           "scaler=%s\n",
-@@ -1808,6 +1929,9 @@ bool HostWindow::open(int scale, int base_w, int base_h, const char* title,
+@@ -1808,6 +1931,9 @@ bool HostWindow::open(int scale, int base_w, int base_h, const char* title,
              std::fflush(stderr);
          }
          log_display_mode(b->window, "open");
@@ -11766,7 +11769,7 @@ index 22ca157..3098278 100644
      }
      b->cadence.init();
  #if defined(__ANDROID__)
-@@ -1932,6 +2056,12 @@ bool HostWindow::open(int scale, int base_w, int base_h, const char* title,
+@@ -1932,6 +2058,12 @@ bool HostWindow::open(int scale, int base_w, int base_h, const char* title,
      b->color_lut = std::make_unique<runtime::ColorLut>(resolve_color_settings(screen));
      if (!b->color_lut->is_passthrough())
          b->graded_fb.resize(static_cast<std::size_t>(base_w) * base_h * 3);
@@ -11779,7 +11782,7 @@ index 22ca157..3098278 100644
  
      impl_ = b;
      open_ = true;
-@@ -2117,6 +2247,10 @@ void HostWindow::close() {
+@@ -2117,6 +2249,10 @@ void HostWindow::close() {
      if (b->texture)   SDL_DestroyTexture(b->texture);
      if (b->renderer)  SDL_DestroyRenderer(b->renderer);
      if (b->window)    SDL_DestroyWindow(b->window);
@@ -11790,7 +11793,7 @@ index 22ca157..3098278 100644
      delete b;
      impl_ = nullptr;
      open_ = false;
-@@ -2184,7 +2318,7 @@ bool HostWindow::drawable_size(int* width, int* height) const {
+@@ -2184,7 +2320,7 @@ bool HostWindow::drawable_size(int* width, int* height) const {
             *width > 0 && *height > 0;
  }
  
@@ -11799,7 +11802,7 @@ index 22ca157..3098278 100644
      if (!open_ || !impl_ || !rgb888) return;
      auto* b = static_cast<Backend*>(impl_);
      // Present-time color grading (opt-in). Raw is passthrough: the raw
-@@ -2194,6 +2328,58 @@ void HostWindow::present(const uint8_t* rgb888) {
+@@ -2194,6 +2330,65 @@ void HostWindow::present(const uint8_t* rgb888) {
          b->color_lut->map_rgb888(rgb888, b->graded_fb.data(), b->base_w, b->base_h);
          rgb888 = b->graded_fb.data();
      }
@@ -11852,13 +11855,20 @@ index 22ca157..3098278 100644
 +    }
 +#endif
 +    // Remember the exact upload bytes for the `presented` TCP command.
-+    b->last_upload.assign(rgb888,
-+                          rgb888 + static_cast<std::size_t>(b->base_w) *
-+                                   b->base_h * 3u);
++    // (2026-10-14 review: the observer thread copies this vector
++    // concurrently via copy_presented_frame; assign() can reallocate
++    // mid-copy. Guard both sides -- same discipline as the savestate
++    // request path.)
++    {
++        std::lock_guard<std::mutex> lk(b->last_upload_mu);
++        b->last_upload.assign(rgb888,
++                              rgb888 + static_cast<std::size_t>(b->base_w) *
++                                       b->base_h * 3u);
++    }
      SDL_UpdateTexture(b->texture, nullptr, rgb888, b->base_w * 3);
      SDL_SetRenderDrawColor(b->renderer, 7, 11, 20, 255);
      SDL_RenderClear(b->renderer);
-@@ -2478,6 +2664,133 @@ bool HostWindow::linear_filter() const {
+@@ -2478,6 +2673,141 @@ bool HostWindow::linear_filter() const {
      return open_ && impl_ && static_cast<const Backend*>(impl_)->linear_filter;
  }
  
@@ -11883,15 +11893,6 @@ index 22ca157..3098278 100644
 +#endif
 +}
 +
-+bool HostWindow::vsync_blocks() const {
-+#if defined(GBARECOMP_RUNTIME_UI)
-+    return open_ && impl_ &&
-+           static_cast<const Backend*>(impl_)->interp_vsync;
-+#else
-+    return false;
-+#endif
-+}
-+
 +void HostWindow::interp_display_tick(const uint8_t* rgb888,
 +                                     uint64_t deadline_ns) {
 +#if defined(GBARECOMP_RUNTIME_UI)
@@ -11903,6 +11904,22 @@ index 22ca157..3098278 100644
 +    if (b->interp_tick_ns == 0 ||
 +        now_ns >= b->interp_tick_ns + b->interp_period_ns * 2u)
 +        b->interp_tick_ns = now_ns;  // (re)anchor when unset or far adrift
++    // 2026-10-14 review: a vsync-blocked present lands one full display
++    // period from now; if that is past the guest deadline, presenting
++    // would hand the guest an extra display period (the pacer's tick
++    // loop exits only once a tick crosses the deadline -- measured ~40 Hz
++    // guest at 120 Hz vsync). The non-vsync path already clamps its
++    // sleep to the deadline; clamp the present the same way: hold the
++    // last presented frame and sleep out the remainder.
++    if (b->interp_vsync && b->interp_period_ns > 0 &&
++        now_ns + b->interp_period_ns > deadline_ns) {
++        const uint64_t wake_ns =
++            deadline_ns > now_ns ? deadline_ns : now_ns;
++        if (wake_ns > now_ns)
++            std::this_thread::sleep_for(
++                std::chrono::nanoseconds(wake_ns - now_ns));
++        return;
++    }
 +    if (!b->interp_vsync) {
 +        if (b->interp_period_ns == 0) {
 +            // Display rate unknown: 1 ms pacing keeps CPU use bounded
@@ -11980,6 +11997,7 @@ index 22ca157..3098278 100644
 +                                      int& h) const {
 +    if (!open_ || !impl_) return false;
 +    auto* b = static_cast<const Backend*>(impl_);
++    std::lock_guard<std::mutex> lk(b->last_upload_mu);
 +    if (b->last_upload.size() !=
 +        static_cast<std::size_t>(b->base_w) * b->base_h * 3u)
 +        return false;
@@ -11992,7 +12010,7 @@ index 22ca157..3098278 100644
  void HostWindow::set_audio_enabled(bool enabled) {
      if (!open_ || !impl_) return;
      auto* b = static_cast<Backend*>(impl_);
-@@ -2508,12 +2821,16 @@ void HostWindow::set_runtime_ui(RecompRuntimeUi* ui) {
+@@ -2508,12 +2838,16 @@ void HostWindow::set_runtime_ui(RecompRuntimeUi* ui) {
  #endif
  
  void HostWindow::configure_touch(bool policy, std::uint32_t claims,
@@ -12010,7 +12028,7 @@ index 22ca157..3098278 100644
      if (emulate_touch) {
          // SDL then reports the left mouse button as a touch finger
          // (touchId SDL_MOUSE_TOUCHID), exercising the real finger path.
-@@ -2583,6 +2900,10 @@ void HostWindow::set_touch_pad_visible(bool visible) {
+@@ -2583,6 +2917,10 @@ void HostWindow::set_touch_pad_visible(bool visible) {
      if (b->pad_visible == visible && b->pad_choice_saved) return;
      b->pad_visible = visible;
      b->pad_choice_saved = true;
@@ -12021,7 +12039,7 @@ index 22ca157..3098278 100644
      // Any finger currently on a pad button is released with the pad.
      for (auto& t : b->touches)
          if (t.active && t.pad) t.buttons = 0;
-@@ -2793,13 +3114,19 @@ HostWindow::Events HostWindow::pump() {
+@@ -2793,13 +3131,19 @@ HostWindow::Events HostWindow::pump() {
                      &te.view_x, &te.view_y);
                  TouchHub::instance().submit(te);
              };
@@ -12042,7 +12060,7 @@ index 22ca157..3098278 100644
                              ? pad_buttons_at(pad, px, py, b->px_per_mm) : 0;
                      // The toggle wins over the pad so it can never be buried
                      // under a button (it is small and player-movable).
-@@ -2970,6 +3297,18 @@ HostWindow::Events HostWindow::pump() {
+@@ -2970,6 +3314,18 @@ HostWindow::Events HostWindow::pump() {
              if (SDL_GameControllerGetButton(b->controller, binding.button))
                  keys &= static_cast<uint16_t>(~(1u << binding.bit));
          }
@@ -12061,24 +12079,19 @@ index 22ca157..3098278 100644
      }
      if (b->touch_controls) {
          const uint16_t touch_buttons = active_touch_buttons(b);
-@@ -3106,6 +3445,16 @@ int  HostWindow::volume() const { return 100; }
+@@ -3106,14 +3462,18 @@ int  HostWindow::volume() const { return 100; }
  int  HostWindow::window_scale() const { return 1; }
  void HostWindow::set_linear_filter(bool /*enabled*/) {}
  bool HostWindow::linear_filter() const { return false; }
+-void HostWindow::set_audio_enabled(bool /*enabled*/) {}
+-bool HostWindow::audio_enabled() const { return false; }
 +void HostWindow::set_frame_blend(bool /*enabled*/) {}
 +bool HostWindow::frame_blend() const { return false; }
 +void HostWindow::reset_frame_blend() {}
 +void HostWindow::set_frame_interp(bool /*enabled*/) {}
 +bool HostWindow::frame_interp() const { return false; }
-+bool HostWindow::vsync_blocks() const { return false; }
-+void HostWindow::interp_display_tick(const uint8_t* /*rgb888*/,
-+                                     uint64_t /*deadline_ns*/) {}
-+bool HostWindow::copy_presented_frame(std::vector<uint8_t>& /*out*/, int& /*w*/,
-+                                      int& /*h*/) const { return false; }
- void HostWindow::set_audio_enabled(bool /*enabled*/) {}
- bool HostWindow::audio_enabled() const { return false; }
  void HostWindow::set_resize_driven_view(bool /*enabled*/) {}
-@@ -3113,7 +3462,8 @@ void HostWindow::set_resize_driven_view(bool /*enabled*/) {}
+ #if defined(GBARECOMP_RUNTIME_UI)
  void HostWindow::set_runtime_ui(RecompRuntimeUi* /*ui*/) {}
  #endif
  void HostWindow::configure_touch(bool /*policy*/, std::uint32_t /*claims*/,
@@ -12088,8 +12101,14 @@ index 22ca157..3098278 100644
  void HostWindow::set_touch_config_dir(const char* /*dir*/) {}
  bool HostWindow::touch_pad_visible() const { return false; }
  void HostWindow::set_touch_pad_visible(bool /*visible*/) {}
+@@ -3144,4 +3504,4 @@ HostWindow::Events HostWindow::pump() {
+ 
+ }  // namespace gbarecomp
+ 
+-#endif  // GBARECOMP_HAVE_SDL2
++#endif
 diff --git a/src/runtime/host_window.h b/src/runtime/host_window.h
-index 261d693..7b8b1b2 100644
+index 261d693..410430a 100644
 --- a/src/runtime/host_window.h
 +++ b/src/runtime/host_window.h
 @@ -14,6 +14,7 @@
@@ -12100,7 +12119,7 @@ index 261d693..7b8b1b2 100644
  
  struct RecompRuntimeUi;
  
-@@ -87,6 +88,34 @@ public:
+@@ -87,6 +88,32 @@ public:
      int  window_scale() const;
      void set_linear_filter(bool enabled);
      bool linear_filter() const;
@@ -12120,12 +12139,10 @@ index 261d693..7b8b1b2 100644
 +    // interpolation row, and --frame-interp). No vsync requirement: ticks
 +    // sleep to display boundaries read from the current display mode
 +    // (re-queried periodically, so adaptive-refresh panels just work);
-+    // where presents already block on the display the tick skips its own
-+    // sleep. vsync_blocks reports the latter (display-pacing decision +
-+    // logs); default off.
++     // where presents already block on the display the tick skips its own
++     // sleep; default off.
 +    void set_frame_interp(bool enabled);
 +    bool frame_interp() const;
-+    bool vsync_blocks() const;
 +    // One display-clock tick for the pacer wait: sleep until the next
 +    // display boundary (or deadline_ns, whichever comes first — a slower
 +    // panel must never hold the guest wait past its deadline), then
@@ -12135,7 +12152,7 @@ index 261d693..7b8b1b2 100644
      void set_audio_enabled(bool enabled);
      bool audio_enabled() const;
      void set_resize_driven_view(bool enabled);
-@@ -103,8 +132,11 @@ public:
+@@ -103,8 +130,11 @@ public:
      // platform default). `emulate_touch` turns desktop mouse input into touch
      // (left = finger, right = two-finger tap, middle = three-finger tap,
      // Backspace = platform Back) for development and validation.
@@ -12148,7 +12165,7 @@ index 261d693..7b8b1b2 100644
      // Loads/persists the player's pad choice in <dir>/config.ini [Touch].
      void set_touch_config_dir(const char* dir);
      bool touch_pad_visible() const;
-@@ -137,8 +169,19 @@ public:
+@@ -137,8 +167,19 @@ public:
      int  fast_forward_multiplier() const;
  
      // Upload one base_w x base_h RGB888 frame (the dimensions passed to open())
@@ -12479,7 +12496,7 @@ index 117db49..4d847fb 100644
      // DLLs are left loaded (immutable code, process-lifetime); the OS reclaims
      // them at exit. Drain any last results so counters/banner are accurate.
 diff --git a/src/runtime/runtime.cpp b/src/runtime/runtime.cpp
-index b560791..889f6e4 100644
+index b560791..82495f0 100644
 --- a/src/runtime/runtime.cpp
 +++ b/src/runtime/runtime.cpp
 @@ -34,6 +34,7 @@
@@ -12606,7 +12623,7 @@ index b560791..889f6e4 100644
              for (;;) {
                  int st;
                  {
-@@ -2588,14 +2643,91 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -2588,14 +2643,42 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
          if (game_thread.joinable()) game_thread.join();
          bool save_ok = flush_save();
          write_session_diagnostics(opts, "exit", ppu.frame_count());
@@ -12640,66 +12657,17 @@ index b560791..889f6e4 100644
 +    // pans; unit motion under a static camera stays 60 Hz. Screen-locked
 +    // chrome (pixels unchanged since the previous guest frame) keeps
 +    // exact bytes instead of riding the world shift (HUD shimmer fix).
-+    // The shift, step, and pin logic live in interp_shift.h with unit
-+    // needed); this site only wires buffers.
++    // The shift, step, and pin logic live in the interp_shift
++    // namespace (host_platform.h) with unit tests; this site only
++    // wires buffers.
 +    std::vector<uint8_t> interp_fb;
 +    std::vector<uint8_t> interp_prev;
 +    uint8_t interp_prev_io[gbarecomp::interp_shift::kScrollSnapshotBytes] = {};
 +    bool interp_have_prev = false;
-+    auto interp_shift_blit = [](const uint8_t* src, uint8_t* dst,
-+                                uint32_t w, uint32_t h,
-+                                int32_t sh_h, int32_t sh_v) {
-+        // Half-pixel units: dst[x,y] samples src at (x + sh_h/2,
-+        // y + sh_v/2). Integer bilinear, edge-clamped (the uncovered
-+        // 1-2 px strip replicates the edge — invisible under motion).
-+        for (uint32_t y = 0; y < h; ++y) {
-+            int32_t sy = static_cast<int32_t>(y) * 2 + sh_v;
-+            int32_t y0 = sy / 2;
-+            int32_t fy = sy % 2;
-+            if (fy < 0) { fy += 2; y0 -= 1; }
-+            if (y0 < 0) { y0 = 0; fy = 0; }
-+            if (y0 >= static_cast<int32_t>(h) - 1) {
-+                y0 = static_cast<int32_t>(h) - 1; fy = 0;
-+            }
-+            const int32_t y1 = y0 + 1 >= static_cast<int32_t>(h)
-+                ? y0 : y0 + 1;
-+            for (uint32_t x = 0; x < w; ++x) {
-+                int32_t sx = static_cast<int32_t>(x) * 2 + sh_h;
-+                int32_t x0 = sx / 2;
-+                int32_t fx = sx % 2;
-+                if (fx < 0) { fx += 2; x0 -= 1; }
-+                if (x0 < 0) { x0 = 0; fx = 0; }
-+                if (x0 >= static_cast<int32_t>(w) - 1) {
-+                    x0 = static_cast<int32_t>(w) - 1; fx = 0;
-+                }
-+                const int32_t x1 = x0 + 1 >= static_cast<int32_t>(w)
-+                    ? x0 : x0 + 1;
-+                const uint8_t* p00 =
-+                    src + (static_cast<std::size_t>(y0) * w + x0) * 3u;
-+                const uint8_t* p10 =
-+                    src + (static_cast<std::size_t>(y0) * w + x1) * 3u;
-+                const uint8_t* p01 =
-+                    src + (static_cast<std::size_t>(y1) * w + x0) * 3u;
-+                const uint8_t* p11 =
-+                    src + (static_cast<std::size_t>(y1) * w + x1) * 3u;
-+                uint8_t* d =
-+                    dst + (static_cast<std::size_t>(y) * w + x) * 3u;
-+                const int32_t w00 = (2 - fx) * (2 - fy);
-+                const int32_t w10 = fx * (2 - fy);
-+                const int32_t w01 = (2 - fx) * fy;
-+                const int32_t w11 = fx * fy;
-+                for (int c = 0; c < 3; ++c) {
-+                    const int32_t v = w00 * p00[c] + w10 * p10[c] +
-+                        w01 * p01[c] + w11 * p11[c];
-+                    d[c] = static_cast<uint8_t>((v + 2) / 4);
-+                }
-+            }
-+        }
-+    };
      // MC-WS-002 capture: per-present dump of the exact composed bytes handed to
      // SDL (`live_fb`). Gated by GBARECOMP_FRAMEDUMP_DIR; START = first guest
      // frame to capture, COUNT = how many; quits after COUNT are written. This
-@@ -2851,6 +2983,40 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -2851,6 +2934,40 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
              runtime_shutdown();
              return 1;
          }
@@ -12740,7 +12708,7 @@ index b560791..889f6e4 100644
          // Rebindable input: keybinds.ini (player buttons, recomp-ui generic
          // format) + config.ini [KeyMap] (system hotkeys), both next to the
          // exe. Missing files leave the built-in defaults.
-@@ -2865,7 +3031,8 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -2865,7 +2982,8 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
                                    opts.assist_fast_forward_multiplier_default);
              win.configure_touch(opts.input_frame != nullptr,
                                  opts.touch_gesture_claims,
@@ -12750,7 +12718,7 @@ index b560791..889f6e4 100644
              win.set_touch_config_dir(exe_dir.c_str());
          }
          win.set_host_overlay(opts.host_overlay);
-@@ -2881,7 +3048,7 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -2881,7 +2999,7 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
              octx.bus = &bus;
              octx.ppu = &ppu;
              octx.misses_query = []() { return gbarecomp::self_heal_misses_json(); };
@@ -12759,7 +12727,7 @@ index b560791..889f6e4 100644
              octx.savestate_save = [&](const std::string& p, std::string& e) {
                  return observer_request(true, p, e);
              };
-@@ -2961,6 +3128,16 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -2961,6 +3079,16 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
              RECOMP_RUNTIME_UI_STANDARD_AUDIO |
              RECOMP_RUNTIME_UI_STANDARD_VOLUME |
              RECOMP_RUNTIME_UI_STANDARD_RESUME;
@@ -12776,7 +12744,7 @@ index b560791..889f6e4 100644
          if (!opts.expose_assist_tools) {
              runtime_ui_config.features |=
                  RECOMP_RUNTIME_UI_STANDARD_SAVE_STATE |
-@@ -3098,25 +3275,27 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -3098,25 +3226,27 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
      // Host-window save-state slots: the ROM path with a .stateN extension.
      // Shift+F1..F9 writes slots 1..9 and F1..F9 restores them; a runtime menu
      // may additionally expose slot 10 without changing the established
@@ -12813,7 +12781,7 @@ index b560791..889f6e4 100644
      };
      auto clear_suspend_marker = [&]() {
          std::error_code ec;
-@@ -3369,6 +3548,11 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -3369,6 +3499,13 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
                                  : do_savestate_load(r->path, r->err);
                  if (!r->save && r->ok) {
                      last_presented_frame = ppu.frame_count() - 1;
@@ -12822,10 +12790,12 @@ index b560791..889f6e4 100644
 +                    // into the restored picture (history would self-heal on
 +                    // the following frame anyway — this skips the smear).
 +                    win.reset_frame_blend();
++                    interp_have_prev = false;  // scene swap: drop interp
++                                                  // history too
                      if (pacer) pacer->reset();
                  }
                  std::printf("observer_savestate_%s path=\"%s\" ok=%d\n",
-@@ -3507,8 +3691,15 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -3507,8 +3644,15 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
          fast_forward_multiplier = std::clamp(
              win.fast_forward_multiplier(), 2, 10);
  #endif
@@ -12842,23 +12812,27 @@ index b560791..889f6e4 100644
          // System hotkeys (config.ini [KeyMap], rebindable in the launcher).
          if (ev.toggle_fullscreen) {
              // Toggle between windowed and the configured mode. A session
-@@ -3570,6 +3761,7 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -3570,6 +3714,9 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
                  // Force the next iteration to re-present the restored
                  // frame instead of waiting for frame_count to advance.
                  last_presented_frame = ppu.frame_count() - 1;
 +                win.reset_frame_blend();  // scene swap: drop blend history
++                interp_have_prev = false;  // scene swap: drop interp
++                                              // history too
                  // The load jumped guest time; realign the pacer so it
                  // doesn't burn the accumulated lag catching up.
                  if (pacer) pacer->reset();
-@@ -3608,6 +3800,7 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -3608,6 +3755,9 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
                      while (rewind_history.size() > target_index + 1)
                          rewind_history.pop_back();
                      last_presented_frame = ppu.frame_count() - 1;
 +                    win.reset_frame_blend();  // scene swap: drop blend history
++                    interp_have_prev = false;  // scene swap: drop interp
++                                                  // history too
                      next_rewind_capture_frame =
                          ppu.frame_count() + rewind_interval;
                      if (pacer) pacer->reset();
-@@ -3687,12 +3880,111 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -3687,12 +3837,121 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
                  // the same frame-indexed input as headless acceptance runs.
                  if (input_replay_requested) apply_input_replay();
                  if (phase_active) fp_t4 = FramePhaseRing::now_ns();
@@ -12873,15 +12847,26 @@ index b560791..889f6e4 100644
                          host_quit = true;
 -                    if (pacer) pacer->wait_for_next_frame();
 +                    // Issue #9 3a: decoupled display clock. While frame
-+                    // interpolation is on, the wait subdivides into
-+                    // display-paced presents: the first tick re-presents
-+                    // live_fb exact, later ticks carry the 3b halfway
-+                    // scroll shift (exact when still). Headless,
-+                    // fast-forward (uncapped), behind-schedule, and
-+                    // toggle-off waits all pass null and keep the
-+                    // historical blocking path.
++                    // interpolation is on (and fast-forward is not), the
++                    // wait subdivides into display-paced presents: the first
++                    // tick re-presents live_fb exact, later ticks carry the
++                    // 3b halfway scroll shift (exact when still). Headless,
++                    // behind-schedule, toggle-off, and fast-forward waits all
++                    // pass null and keep the historical blocking path (FF =
++                    // the pre-#9 behavior: decimated presents, no interp
++                    // machinery -- its decimated-stream midpoints were never
++                    // device-validated, so FF holds exact frames).
 +                    if (pacer) {
-+                        if (win.frame_interp()) {
++                        // 2026-10-14 review: interp history is dead while
++                        // interp is off or FF is on. Drop it every such
++                        // present so the first present after any
++                        // discontinuity (menu toggle, FF release) seeds
++                        // fresh snapshots instead of measuring a step
++                        // across the gap.
++                        const bool interp_on =
++                            win.frame_interp() && !fast_forward_active;
++                        if (!interp_on) interp_have_prev = false;
++                        if (interp_on) {
 +                            // Issue #9 3b: true-midpoint intermediates (see
 +                            // function-scope note). Interp on only; the
 +                            // off-path below is untouched.
@@ -12905,7 +12890,6 @@ index b560791..889f6e4 100644
 +                                // pixels unchanged since the previous guest
 +                                // frame keep exact bytes instead of riding
 +                                // the world shift (HUD shimmer fix).
-+                                show_mid = false;
 +                                if (step_dh != 0 || step_dv != 0) {
 +                                    const uint32_t iw = ppu.render_width();
 +                                    const uint32_t ih = ppu.render_height();
@@ -12971,7 +12955,7 @@ index b560791..889f6e4 100644
                  }
                  if (phase_active) {
                      frame_phase.record(frame, fp_t0, fp_t1, fp_t2, fp_t3,
-@@ -3985,7 +4277,7 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -3985,7 +4244,7 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
          // re-present, ~100 Hz idle). Applies to windowed play only.
          while (host_paused && !host_quit && args.window) {
              pump_host_input();
@@ -12980,7 +12964,7 @@ index b560791..889f6e4 100644
              std::this_thread::sleep_for(std::chrono::milliseconds(10));
          }
          if (host_quit) break;
-@@ -4092,6 +4384,7 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -4092,6 +4351,7 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
                  pump_host_input();
                  if (phase_active) fp_t4 = FramePhaseRing::now_ns();
                  dispatches_since_pump = 0;
@@ -12988,7 +12972,7 @@ index b560791..889f6e4 100644
                  last_presented_frame = frame;
                  if (present_frame) {
                      ++frames_presented;
-@@ -4101,7 +4394,7 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -4101,7 +4361,7 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
                      // Normal play presents/paces every frame. Fast-forward
                      // runs N guest frames per one paced host presentation,
                      // making its selected multiplier independent of monitor Hz.
@@ -12997,7 +12981,7 @@ index b560791..889f6e4 100644
                  }
                  if (phase_active) {
                      frame_phase.record(frame, fp_t0, fp_t1, fp_t2, fp_t3,
-@@ -4260,8 +4553,10 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -4260,8 +4520,10 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
          }
      }
  

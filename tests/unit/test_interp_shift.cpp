@@ -183,6 +183,20 @@ int run_interp_shift_tests() {
         SHIFT_CHECK(dh == 0 && dv == 0);
     }
 
+    {
+        // Wrap tie: +256 and -256 are different movers (the ambiguous
+        // 9-bit wrap point) — consensus must reject, not average.
+        uint8_t prev[kScrollSnapshotBytes] = {};
+        uint8_t cur[kScrollSnapshotBytes] = {};
+        set_scroll(prev, 0, 0, 0);
+        set_scroll(cur, 0, 256, 0);
+        set_scroll(prev, 1, 256, 0);
+        set_scroll(cur, 1, 0, 0);
+        int32_t dh = 7, dv = 7;
+        step(prev, cur, &dh, &dv);
+        SHIFT_CHECK(dh == 0 && dv == 0);
+    }
+
     // Blit: 4x1 row [10,20,30,40] (RGB triples), rest of channels equal.
     auto make_row = []() {
         std::vector<uint8_t> px(4 * 1 * 3);
@@ -229,9 +243,11 @@ int run_interp_shift_tests() {
         auto src = make_row();
         std::vector<uint8_t> dst(12, 0);
         shift_blit(src.data(), dst.data(), 4, 1, 100, 0);
-        SHIFT_CHECK(dst[0] == 40 && dst[9] == 40);
+        SHIFT_CHECK(dst[0] == 40 && dst[3] == 40 && dst[6] == 40 &&
+                    dst[9] == 40);
         shift_blit(src.data(), dst.data(), 4, 1, -100, 0);
-        SHIFT_CHECK(dst[0] == 10 && dst[9] == 10);
+        SHIFT_CHECK(dst[0] == 10 && dst[3] == 10 && dst[6] == 10 &&
+                    dst[9] == 10);
     }
     {
         // 1x1 image: every shift is the identity (clamp both axes).
@@ -249,6 +265,43 @@ int run_interp_shift_tests() {
         std::vector<uint8_t> dst(9, 0);
         shift_blit(src.data(), dst.data(), 1, 3, 0, 2);
         SHIFT_CHECK(dst[0] == 20 && dst[3] == 30 && dst[6] == 30);
+    }
+    {
+         // Vertical half pixel: sh_v=+1 on [10,20,30] blends rows —
+         // (2*10+2*20+2)/4=15, (2*20+2*30+2)/4=25, bottom edge holds 30.
+         std::vector<uint8_t> src(1 * 3 * 3);
+         for (int y = 0; y < 3; ++y)
+             src[y * 3 + 0u] = src[y * 3 + 1u] = src[y * 3 + 2u] =
+                 static_cast<uint8_t>(10 * (y + 1));
+         std::vector<uint8_t> dst(9, 0);
+         shift_blit(src.data(), dst.data(), 1, 3, 0, 1);
+         SHIFT_CHECK(dst[0] == 15 && dst[3] == 25 && dst[6] == 30);
+    }
+    {
+         // Negative odd vertical shift: sh_v=-1 clamps the top edge and
+         // blends below it: [10, (10+20) avg = 15, (20+30) avg = 25].
+         std::vector<uint8_t> src(1 * 3 * 3);
+         for (int y = 0; y < 3; ++y)
+             src[y * 3 + 0u] = src[y * 3 + 1u] = src[y * 3 + 2u] =
+                 static_cast<uint8_t>(10 * (y + 1));
+         std::vector<uint8_t> dst(9, 0);
+         shift_blit(src.data(), dst.data(), 1, 3, 0, -1);
+         SHIFT_CHECK(dst[0] == 10 && dst[3] == 15 && dst[6] == 25);
+    }
+    {
+         // Diagonal negative half-pixel on 2x2 [[10,20],[30,40]]:
+         // (0,0) clamps to 10; (1,0) blends 10/20 -> 15; (0,1) blends
+         // 10/30 -> 20; (1,1) blends all four -> 25. Both negative-
+         // remainder corrections fire on a real image.
+         std::vector<uint8_t> src(2 * 2 * 3);
+         const int vals[4] = {10, 20, 30, 40};
+         for (int i = 0; i < 4; ++i)
+             src[i * 3 + 0u] = src[i * 3 + 1u] = src[i * 3 + 2u] =
+                 static_cast<uint8_t>(vals[i]);
+         std::vector<uint8_t> dst(2 * 2 * 3, 0);
+         shift_blit(src.data(), dst.data(), 2, 2, -1, -1);
+         SHIFT_CHECK(dst[0] == 10 && dst[3] == 15);
+         SHIFT_CHECK(dst[6] == 20 && dst[9] == 25);
     }
     {
         // HUD pin: static pixels keep exact bytes, moved pixels keep the

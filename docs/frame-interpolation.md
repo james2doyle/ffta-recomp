@@ -9,9 +9,11 @@ game. Dated evidence and the full decision history live in
 in [reference/dev-gotchas.md](../reference/dev-gotchas.md).
 
 Toggle: **Graphics → Frame interpolation** in the runtime settings menu
-(persisted), or `--frame-interp 1` on the command line (Android: staged
-`debug-args.txt`). Builds without the runtime UI keep no-op stubs, so
-headless acceptance runs are unaffected.
+(per-session; nothing persists the row across relaunches yet) or
+`--frame-interp 1` on the command line (Android: staged `debug-args.txt` —
+currently the only way the choice survives a relaunch on device). Builds
+without the runtime UI keep no-op stubs, so headless acceptance runs are
+unaffected.
 
 ## The problem
 
@@ -32,8 +34,9 @@ The fix has three pieces:
    present per guest frame.
 2. **True-midpoint intermediates (3b)** — holding presents are not
    duplicates: a non-first tick shows the current guest frame shifted
-   back by half the measured camera step, so a scrolling world lands on
-   its true halfway position every panel refresh.
+   back by half the measured camera step — the halfway position between
+   the previous and current guest frames, displayed after the current
+   one (measured, never predicted).
 3. **Motion guards** — three rules that refuse to fabricate motion when
    the register evidence is ambiguous. This is where all the
    game-specific pain is (see [Guards](#guards-why-each-one-exists)).
@@ -66,9 +69,15 @@ gains an optional tick callback:
    the next round.
 
 The wait callback passes null everywhere else — headless runs,
-fast-forward (uncapped), behind-schedule resyncs, and toggle-off waits
-keep the historical blocking path bit-for-bit. Guest-time bookkeeping is
-identical in both paths; only how the wait is spent differs.
+fast-forward, behind-schedule resyncs, and toggle-off waits keep the
+historical blocking path bit-for-bit. (Fast-forward is decimated
+presents under capped waits — the pacer's uncapped mode is unreachable
+in this fork — and it interpolates nothing: FF is exactly the pre-#9
+presentation, chosen because its decimated-stream midpoints were never
+device-validated.) Interp history is dropped whenever interpolation is
+off or FF is on, and at savestate loads and rewinds, so no step is ever
+measured across a discontinuity. Guest-time bookkeeping is identical in
+both paths; only how the wait is spent differs.
 
 ### The interp_shift API (host_platform.h)
 
@@ -173,6 +182,13 @@ interpolate — no midpoint. When frames really are identical the veto is
 a no-op (a midpoint of identical frames is the same frame), so the
 threshold is safe to be generous.
 
+The threshold is also hard to defeat by accident: normal battle sprite
+animation moves the sampled mean by ~0.1 (one 16×16 sprite changing
+30/255 ≈ 0.135), so defeating the veto takes dense screen-wide change —
+a fullscreen palette fade, say — coinciding with an all-layer
+compensated rebase while the camera is static. Unobserved in FFTA; the
+guard errs toward no midpoint.
+
 ### The HUD pin
 
 The midpoint shifts the whole composed frame. Any pixel that is
@@ -207,7 +223,7 @@ there.
 
 | Approach | Verdict | Reason |
 |---|---|---|
-| Frame blending (`recomp_frame_blend`) | Wired, not exposed | Averages consecutive frames — works with no camera signal at all, but every shown frame is a two-frame mix: ghost trails on cuts, blur on stills. The primitive is upstream (`recomp-ui`) and the host wiring exists, but FFTA's settings menu does not expose it; the right fallback for a game with no measurable camera. |
+| Frame blending (`recomp_frame_blend`) | Exposed, not persisted | Averages consecutive frames — works with no camera signal at all, but every shown frame is a two-frame mix: ghost trails on cuts, blur on stills. Exposed as Graphics → LCD ghosting (frame blending) (`RunOptions::expose_lcd_ghosting`); the choice does not survive relaunch (no config key — the natural follow-up). The right fallback for a game with no measurable camera. |
 | VRR / adaptive-sync presentation | Skipped | Solves the aliasing only on VRR panels; adds a second validation surface. |
 | 60 Hz compute / 30 Hz read pipeline split | Dead | The 30 Hz content is palette fades — a clocking problem does not exist there. |
 | Per-layer host compositing | Rejected for scope | Principled (shift each layer by its own delta), but requires re-compositing layers outside the PPU. `select_static` already covers the common case — static layers — for free. |

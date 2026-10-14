@@ -1,3 +1,16 @@
+diff --git a/src/common/backends/imgui/launcher_imgui.cpp b/src/common/backends/imgui/launcher_imgui.cpp
+index 6a25fc1..5606cf2 100644
+--- a/src/common/backends/imgui/launcher_imgui.cpp
++++ b/src/common/backends/imgui/launcher_imgui.cpp
+@@ -4169,7 +4169,7 @@ void draw_display_controls(LauncherModel* m, const LauncherTheme& th) {
+     // interpolation pass); Presentation target only matters once frame
+     // interpolation is actually on.
+     if (m->has_frame_interp && m->s.renderer) {
+-        row_label_right("Frame interpolation", th, cb);
++        row_label_right("Frame interpolation (experimental)", th, cb);
+         bool fi = m->s.frame_interp != 0;
+         if (ImGui::Checkbox("##fi", &fi)) launcher_model_toggle_frame_interp(m);
+         if (m->s.frame_interp) {
 diff --git a/src/common/backends/imgui/runtime_ui_imgui.cpp b/src/common/backends/imgui/runtime_ui_imgui.cpp
 index 22e31f2..a95fbf6 100644
 --- a/src/common/backends/imgui/runtime_ui_imgui.cpp
@@ -284,8 +297,21 @@ index 22e31f2..a95fbf6 100644
              ImGui::EndChild();
          }
  
+diff --git a/src/common/launcher_i18n.cpp b/src/common/launcher_i18n.cpp
+index c3b13dd..c85aba2 100644
+--- a/src/common/launcher_i18n.cpp
++++ b/src/common/launcher_i18n.cpp
+@@ -142,7 +142,7 @@ static const LauncherI18nEntry kItalian[] = {
+     {"Bicubic", "Bicubico"},
+     {"Perspective textures", "Texture prospettiche"},
+     {"Screen model", "Modello schermo"},
+-    {"Frame interpolation", "Interpolazione frame"},
++    {"Frame interpolation (experimental)", "Interpolazione frame (sperimentale)"},
+     {"Presentation target", "Target presentazione"},
+     {"VSync", "VSync"},
+     {"Skip FMVs", "Salta FMV"},
 diff --git a/src/common/recomp_runtime_settings.c b/src/common/recomp_runtime_settings.c
-index a22b7e8..6f3927e 100644
+index a22b7e8..d2fb301 100644
 --- a/src/common/recomp_runtime_settings.c
 +++ b/src/common/recomp_runtime_settings.c
 @@ -110,6 +110,14 @@ RecompRuntimeUi *recomp_runtime_ui_create_standard(
@@ -298,7 +324,7 @@ index a22b7e8..6f3927e 100644
 +                 RECOMP_RUNTIME_UI_BOOL, 0, 1, 1, NULL, 0, NULL);
 +    if (has(f, RECOMP_RUNTIME_UI_STANDARD_FRAME_INTERP))
 +        add_item(items, &count, RECOMP_RUNTIME_UI_KEY_FRAME_INTERP, "Graphics",
-+                 "Frame interpolation", "Present at the display rate with smoothed motion.",
++                 "Frame interpolation (experimental)", "Present at the display rate with smoothed motion.",
 +                 RECOMP_RUNTIME_UI_BOOL, 0, 1, 1, NULL, 0, NULL);
      if (has(f, RECOMP_RUNTIME_UI_STANDARD_TEXTURE_FILTER))
          add_item(items, &count, RECOMP_RUNTIME_UI_KEY_TEXTURE_FILTER, "Graphics",

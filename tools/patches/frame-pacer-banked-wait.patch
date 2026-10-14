@@ -52,7 +52,7 @@
  
 --- a/src/runtime/runtime.cpp
 +++ b/src/runtime/runtime.cpp
-@@ -3687,12 +3880,111 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -3687,12 +3837,121 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
                  // the same frame-indexed input as headless acceptance runs.
                  if (input_replay_requested) apply_input_replay();
                  if (phase_active) fp_t4 = FramePhaseRing::now_ns();
@@ -67,15 +67,26 @@
                          host_quit = true;
 -                    if (pacer) pacer->wait_for_next_frame();
 +                    // Issue #9 3a: decoupled display clock. While frame
-+                    // interpolation is on, the wait subdivides into
-+                    // display-paced presents: the first tick re-presents
-+                    // live_fb exact, later ticks carry the 3b halfway
-+                    // scroll shift (exact when still). Headless,
-+                    // fast-forward (uncapped), behind-schedule, and
-+                    // toggle-off waits all pass null and keep the
-+                    // historical blocking path.
++                    // interpolation is on (and fast-forward is not), the
++                    // wait subdivides into display-paced presents: the first
++                    // tick re-presents live_fb exact, later ticks carry the
++                    // 3b halfway scroll shift (exact when still). Headless,
++                    // behind-schedule, toggle-off, and fast-forward waits all
++                    // pass null and keep the historical blocking path (FF =
++                    // the pre-#9 behavior: decimated presents, no interp
++                    // machinery -- its decimated-stream midpoints were never
++                    // device-validated, so FF holds exact frames).
 +                    if (pacer) {
-+                        if (win.frame_interp()) {
++                        // 2026-10-14 review: interp history is dead while
++                        // interp is off or FF is on. Drop it every such
++                        // present so the first present after any
++                        // discontinuity (menu toggle, FF release) seeds
++                        // fresh snapshots instead of measuring a step
++                        // across the gap.
++                        const bool interp_on =
++                            win.frame_interp() && !fast_forward_active;
++                        if (!interp_on) interp_have_prev = false;
++                        if (interp_on) {
 +                            // Issue #9 3b: true-midpoint intermediates (see
 +                            // function-scope note). Interp on only; the
 +                            // off-path below is untouched.
@@ -99,7 +110,6 @@
 +                                // pixels unchanged since the previous guest
 +                                // frame keep exact bytes instead of riding
 +                                // the world shift (HUD shimmer fix).
-+                                show_mid = false;
 +                                if (step_dh != 0 || step_dv != 0) {
 +                                    const uint32_t iw = ppu.render_width();
 +                                    const uint32_t ih = ppu.render_height();
@@ -165,12 +175,20 @@
                  }
                  if (phase_active) {
                      frame_phase.record(frame, fp_t0, fp_t1, fp_t2, fp_t3,
-@@ -4094,2 +4167,3 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -4092,6 +4351,7 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+                 pump_host_input();
+                 if (phase_active) fp_t4 = FramePhaseRing::now_ns();
                  dispatches_since_pump = 0;
 +                const uint64_t banked_frames = frame - last_presented_frame;
                  last_presented_frame = frame;
-@@ -4103,3 +4177,3 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+                 if (present_frame) {
+                     ++frames_presented;
+@@ -4101,7 +4361,7 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+                     // Normal play presents/paces every frame. Fast-forward
+                     // runs N guest frames per one paced host presentation,
                      // making its selected multiplier independent of monitor Hz.
 -                    if (pacer) pacer->wait_for_next_frame();
 +                    if (pacer) pacer->wait_for_next_frame(banked_frames);
                  }
+                 if (phase_active) {
+                     frame_phase.record(frame, fp_t0, fp_t1, fp_t2, fp_t3,
