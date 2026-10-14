@@ -1,3 +1,19 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 54eb771..5c78b92 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -441,6 +441,11 @@ if(GBARECOMP_RUNTIME_UI_ROOT AND
+         include("${GBARECOMP_RUNTIME_UI_ROOT}/recomp_ui.cmake")
+         recomp_target_runtime_ui_sdlrenderer2(gbarecomp_runtime)
+     endif()
++    # Shared presentation blend primitive (issue #9 strategy #1): compiled
++    # into the runtime so HostWindow blends CPU-side on cached memory. Pure
++    # arithmetic, no SDL; has its own upstream test (recomp-frame-blend).
++    target_sources(gbarecomp_runtime PRIVATE
++        "${GBARECOMP_RUNTIME_UI_ROOT}/src/common/recomp_frame_blend.c")
+ endif()
+ # Bake the gbarecomp source root so the Stage-2 runtime compiler can find the
+ # overlay shim headers (src/runtime + src/armv4t) when it invokes g++ or the
 diff --git a/oracle/main.cpp b/oracle/main.cpp
 index bc6663c..3574b4f 100644
 --- a/oracle/main.cpp
@@ -11225,7 +11241,7 @@ index 8c9cb06..7bc7bff 100644
 -extern "C" const unsigned kBiosDispatchTableLen = 5143;
 +extern "C" const unsigned kBiosDispatchTableLen = 5333;
 diff --git a/src/runtime/host_platform.cpp b/src/runtime/host_platform.cpp
-index 99c7813..07f5de5 100644
+index 99c7813..751f4ce 100644
 --- a/src/runtime/host_platform.cpp
 +++ b/src/runtime/host_platform.cpp
 @@ -50,11 +50,21 @@ void FramePacer::reset() {
@@ -11233,7 +11249,7 @@ index 99c7813..07f5de5 100644
  }
  
 -void FramePacer::wait_for_next_frame() {
-+void FramePacer::wait_for_next_frame(uint64_t frames) {
++void FramePacer::wait_for_next_frame(uint64_t frames, DisplayTickFn tick) {
      if (uncapped_) {
          next_ = clock::now();  // keep the deadline current for re-cap
          return;
@@ -11251,11 +11267,244 @@ index 99c7813..07f5de5 100644
      clock::time_point now = clock::now();
      // If we've fallen more than one whole frame behind, resync instead
      // of trying to replay the lost time (avoids a catch-up death spiral
+@@ -63,9 +73,18 @@ void FramePacer::wait_for_next_frame() {
+         next_ = now + period_;
+         return;
+     }
+-    // A high-resolution waitable timer is already precise enough on modern
+-    // Windows. Waiting directly on it avoids a 1.2 ms yield/spin tail whose
+-    // wake time becomes erratic when the game process runs at Idle priority.
++    if (tick) {
++        // Decoupled display clock (issue #9 3a): the tick callback (a
++        // display-paced holding present) subdivides the idle span. Guest-time
++        // bookkeeping after this branch is identical to the blocking path
++        // below — only the way the wait is spent differs. Behind-schedule
++        // waits never reach here (resync above); uncapped never does either.
++        const uint64_t deadline_ns =
++            static_cast<uint64_t>(
++                std::chrono::duration_cast<std::chrono::nanoseconds>(
++                    next_.time_since_epoch()).count());
++        while (clock::now() < next_) tick(deadline_ns);
++    } else {
+ #if defined(_WIN32)
+     if (next_ > now) {
+         if (wait_timer_) {
+@@ -92,6 +111,7 @@ void FramePacer::wait_for_next_frame() {
+         std::this_thread::sleep_until(next_ - kSpinTail);
+     }
+ #endif
++    }
+     while (clock::now() < next_) {
+         std::this_thread::yield();
+     }
 diff --git a/src/runtime/host_platform.h b/src/runtime/host_platform.h
-index 2b48ab3..42208db 100644
+index 2b48ab3..b79ac88 100644
 --- a/src/runtime/host_platform.h
 +++ b/src/runtime/host_platform.h
-@@ -41,7 +41,17 @@ public:
+@@ -5,11 +5,202 @@
+ 
+ #include <chrono>
+ #include <cstddef>
++#include <cstdint>
++#include <functional>
+ #include <string>
+ #include <vector>
+ 
+ namespace gbarecomp {
+ 
++// ── InterpShift (issue #9 3b) ────────────────────────────────────────
++// True-midpoint display interpolation, pure arithmetic: no SDL, no
++// window, no guest state — unit-tested in ffta_unit_tests without a
++// display. runtime.cpp wires these to buffers; all policy lives here.
++//
++// Model: the camera step between two presented frames is measured from
++// the BG scroll registers; a non-first display tick shows the current
++// frame shifted BACK by half that step (the true halfway position).
++// Measured, never predicted: steady motion midpoints smoothly, snaps
++// halve, oscillation lands sub-pixel, still frames are bit-identical.
++namespace interp_shift {
++
++// Scroll snapshot: HOFS/VOFS per BG layer (GBA IO 0x10..0x1F).
++inline constexpr std::size_t kScrollSnapshotBytes = 16;
++
++// Wrap-aware 9-bit scroll delta, folded to [-256, 256].
++inline int32_t fold_scroll_delta(int32_t d) {
++    d %= 512;
++    if (d > 256)
++        d -= 512;
++    else if (d < -256)
++        d += 512;
++    return d;
++}
++
++// Scroll step prev → cur (16-byte snapshots as above), consensus rule.
++// A whole-frame midpoint shift is only valid when the guest's scroll
++// motion is unambiguous: every layer that moved must report the SAME
++// (dh, dv) pair — layers that stayed still are fine, their pixels are
++// pinned by select_static. When moving layers disagree, the register
++// delta is not a camera pan: FFTA rebases BG2/BG3 HOFS by large
++// amounts mid-pan (observed 0 → 648 raw = +136 masked, visually a
++// no-op — the rendered frames stay continuous) and animates overlay
++// layers while the world pans; shifting the composed frame by those
++// deltas fabricated a ~68 px displaced frame for one display tick —
++// the "wild shifting" blip (issue #9, dense capture 2026-10-13).
++// On disagreement this returns (0,0): the live frame shows on every
++// tick, exactly the retail presentation for that instant. Affine
++// layers hold stale HOFS slots in affine modes, so they read static
++// and never vote — the safe default.
++inline void dominant_step(const uint8_t prev[kScrollSnapshotBytes],
++                          const uint8_t cur[kScrollSnapshotBytes],
++                          int32_t* out_dh, int32_t* out_dv) {
++    int32_t step_dh = 0, step_dv = 0;
++    bool have_step = false;
++    for (unsigned layer = 0; layer < 4; ++layer) {
++        const unsigned off = layer * 4u;
++        const int32_t h =
++            static_cast<int32_t>(cur[off] | (cur[off + 1u] << 8)) & 0x1FF;
++        const int32_t v =
++            static_cast<int32_t>(cur[off + 2u] | (cur[off + 3u] << 8)) &
++            0x1FF;
++        const int32_t ph =
++            static_cast<int32_t>(prev[off] | (prev[off + 1u] << 8)) & 0x1FF;
++        const int32_t pv =
++            static_cast<int32_t>(prev[off + 2u] | (prev[off + 3u] << 8)) &
++            0x1FF;
++        const int32_t dh = fold_scroll_delta(h - ph);
++        const int32_t dv = fold_scroll_delta(v - pv);
++        if (dh == 0 && dv == 0) continue;
++        if (!have_step) {
++            step_dh = dh;
++            step_dv = dv;
++            have_step = true;
++        } else if (step_dh != dh || step_dv != dv) {
++            step_dh = 0;
++            step_dv = 0;
++            break;
++        }
++    }
++    *out_dh = step_dh;
++    *out_dv = step_dv;
++}
++
++// Sampled mean |prev − cur| over an RGB frame (stride 4 in x and y,
++// 0..255 per channel). The runtime vetoes the midpoint when this is
++// ~0 while the register step is nonzero: a scroll rebase that leaves
++// the render untouched (compensated on all layers) has no visual
++// motion to interpolate, and shifting would fabricate a frame the
++// game never displayed.
++inline float frame_mean_abs_diff(const uint8_t* prev, const uint8_t* cur,
++                                 uint32_t w, uint32_t h) {
++    if (prev == nullptr || cur == nullptr || w == 0 || h == 0) return 0.0f;
++    std::uint64_t total = 0;
++    std::uint32_t samples = 0;
++    for (uint32_t y = 0; y < h; y += 4) {
++        const uint8_t* p = prev + static_cast<std::size_t>(y) * w * 3u;
++        const uint8_t* c = cur + static_cast<std::size_t>(y) * w * 3u;
++        for (uint32_t x = 0; x < w; x += 4) {
++            const std::size_t o = static_cast<std::size_t>(x) * 3u;
++            const int32_t dp = p[o] > c[o] ? p[o] - c[o] : c[o] - p[o];
++            const int32_t dg = p[o + 1u] > c[o + 1u] ? p[o + 1u] - c[o + 1u]
++                                                     : c[o + 1u] - p[o + 1u];
++            const int32_t db = p[o + 2u] > c[o + 2u] ? p[o + 2u] - c[o + 2u]
++                                                     : c[o + 2u] - p[o + 2u];
++            total += static_cast<std::uint64_t>(dp + dg + db);
++            ++samples;
++        }
++    }
++    return samples == 0
++               ? 0.0f
++               : static_cast<float>(total) / static_cast<float>(samples * 3u);
++}
++
++// Half-pixel screen shift for the midpoint: dst[x,y] samples src at
++// (x + sh_h/2, y + sh_v/2). Integer bilinear, edge-clamped (the
++// uncovered 1-2 px strip replicates the edge — invisible under motion).
++// A camera step of +d (content moved d px against the scroll direction)
++// midpoints with sh = -d.
++inline void shift_blit(const uint8_t* src, uint8_t* dst, uint32_t w,
++                       uint32_t h, int32_t sh_h, int32_t sh_v) {
++    for (uint32_t y = 0; y < h; ++y) {
++        int32_t sy = static_cast<int32_t>(y) * 2 + sh_v;
++        int32_t y0 = sy / 2;
++        int32_t fy = sy % 2;
++        if (fy < 0) {
++            fy += 2;
++            y0 -= 1;
++        }
++        if (y0 < 0) {
++            y0 = 0;
++            fy = 0;
++        }
++        if (y0 >= static_cast<int32_t>(h) - 1) {
++            y0 = static_cast<int32_t>(h) - 1;
++            fy = 0;
++        }
++        const int32_t y1 =
++            y0 + 1 >= static_cast<int32_t>(h) ? y0 : y0 + 1;
++        for (uint32_t x = 0; x < w; ++x) {
++            int32_t sx = static_cast<int32_t>(x) * 2 + sh_h;
++            int32_t x0 = sx / 2;
++            int32_t fx = sx % 2;
++            if (fx < 0) {
++                fx += 2;
++                x0 -= 1;
++            }
++            if (x0 < 0) {
++                x0 = 0;
++                fx = 0;
++            }
++            if (x0 >= static_cast<int32_t>(w) - 1) {
++                x0 = static_cast<int32_t>(w) - 1;
++                fx = 0;
++            }
++            const int32_t x1 =
++                x0 + 1 >= static_cast<int32_t>(w) ? x0 : x0 + 1;
++            const uint8_t* p00 =
++                src + (static_cast<std::size_t>(y0) * w + x0) * 3u;
++            const uint8_t* p10 =
++                src + (static_cast<std::size_t>(y0) * w + x1) * 3u;
++            const uint8_t* p01 =
++                src + (static_cast<std::size_t>(y1) * w + x0) * 3u;
++            const uint8_t* p11 =
++                src + (static_cast<std::size_t>(y1) * w + x1) * 3u;
++            uint8_t* d = dst + (static_cast<std::size_t>(y) * w + x) * 3u;
++            const int32_t w00 = (2 - fx) * (2 - fy);
++            const int32_t w10 = fx * (2 - fy);
++            const int32_t w01 = (2 - fx) * fy;
++            const int32_t w11 = fx * fy;
++            for (int c = 0; c < 3; ++c) {
++                const int32_t v =
++                    w00 * p00[c] + w10 * p10[c] + w01 * p01[c] + w11 * p11[c];
++                d[c] = static_cast<uint8_t>((v + 2) / 4);
++            }
++        }
++    }
++}
++
++// HUD pin: pixels byte-identical between the previous and current guest
++// frames are screen-locked chrome (menus, panels, HUD) — keep them exact
++// instead of shifting them with the world. `mid` enters holding the
++// shifted image and leaves with static pixels restored from `cur`
++// (in-place safe). Flat world areas match either way, so the compare
++// costs nothing visually where it fires spuriously.
++inline void select_static(const uint8_t* prev, const uint8_t* cur,
++                          uint8_t* mid, std::size_t bytes) {
++    for (std::size_t i = 0; i < bytes; i += 3u) {
++        if (prev[i] == cur[i] && prev[i + 1u] == cur[i + 1u] &&
++            prev[i + 2u] == cur[i + 2u]) {
++            mid[i] = cur[i];
++            mid[i + 1u] = cur[i + 1u];
++            mid[i + 2u] = cur[i + 2u];
++        }
++    }
++}
++
++}  // namespace interp_shift
++
+ // Read an entire file into memory. Returns empty vector + sets `error`
+ // on failure. Used for ROM and BIOS loading.
+ std::vector<unsigned char> read_file(const std::string& path,
+@@ -41,7 +232,32 @@ public:
  
      // Block until the next frame's deadline. Call once per presented
      // frame. No-op while uncapped.
@@ -11270,15 +11519,45 @@ index 2b48ab3..42208db 100644
 +    // count so one wait throttles all of them; frames==1 is exactly the
 +    // old behavior. Fast-forward presents one frame per wait already, so
 +    // it is unaffected. The behind-resync below still bounds real stalls.
-+    void wait_for_next_frame(uint64_t frames = 1);
++    //
++    // `tick`, when set, subdivides the wait into display-paced callbacks
++    // (issue #9 3a: decoupled presentation clock). Each tick re-presents
++    // the current frame and paces itself to the display (sleeping to its
++    // display boundary, or riding the present's own vsync block where the
++    // renderer already blocks), and receives the wait's deadline as
++    // nanoseconds on the steady clock so
++    // a slower panel can never hold the guest wait past it. The wait
++    // returns exactly at the guest deadline, so guest time is throttled
++    // identically with or without ticks — ticks only fill the would-be
++    // idle span with extra presents. Null (default) is the historical
++    // blocking wait, bit for bit. Uncapped and behind-schedule waits
++    // never tick.
++    using DisplayTickFn = std::function<void(uint64_t deadline_ns)>;
++    void wait_for_next_frame(uint64_t frames = 1,
++                             DisplayTickFn tick = nullptr);
  
      // Realign the deadline to "now". Call after any non-real-time jump
      // (startup, save-state load) so the pacer doesn't try to catch up.
 diff --git a/src/runtime/host_window.cpp b/src/runtime/host_window.cpp
-index 22ca157..ec6c094 100644
+index 22ca157..13bb1b2 100644
 --- a/src/runtime/host_window.cpp
 +++ b/src/runtime/host_window.cpp
-@@ -18,6 +18,7 @@
+@@ -6,6 +6,7 @@
+ #include <array>
+ #include <atomic>
+ #include <cctype>
++#include <chrono>
+ #include <cmath>
+ #include <cstdint>
+ #include <cstdio>
+@@ -13,15 +14,22 @@
+ #include <cstring>
+ #include <fstream>
+ #include <memory>
++#include <mutex>
+ #include <string>
++#include <thread>
+ #include <vector>
  
  #include "color_lut.h"
  #include "host_overlay.h"
@@ -11286,7 +11565,15 @@ index 22ca157..ec6c094 100644
  #include "presentation_layout.h"
  #include "touch_input.h"
  #if defined(GBARECOMP_RUNTIME_UI)
-@@ -374,6 +375,10 @@ struct Backend {
+ #include "recomp_runtime_ui.h"
++// Shared presentation blend primitive (issue #9 #1). Pure arithmetic, no
++// SDL — compiled into the runtime alongside this file (see
++// gbarecomp/CMakeLists.txt gbarecomp_runtime sources).
++#include "recomp_frame_blend.h"
+ #endif
+ 
+ #if defined(GBARECOMP_HAVE_SDL2)
+@@ -374,6 +382,10 @@ struct Backend {
      bool touch_controls = false;
      bool pad_visible = false;
      bool pad_choice_saved = false;
@@ -11297,7 +11584,92 @@ index 22ca157..ec6c094 100644
      // Player-placed pad toggle: centre as a fraction of the safe area, so it
      // keeps its place across rotation. Unset = bottom-right corner.
      bool toggle_pos_saved = false;
-@@ -748,6 +753,17 @@ bool pad_toggle_available(const Backend* b) {
+@@ -423,6 +435,42 @@ struct Backend {
+     // grading), so default behavior is byte-identical to upstream.
+     std::unique_ptr<runtime::ColorLut> color_lut;
+     std::vector<uint8_t> graded_fb;  // scratch RGB888 (base_w*base_h*3)
++    // Last uploaded frame (post-blend): exact display bytes for the
++    // `presented` TCP command. Updated on every present, blend on or off.
++    std::vector<uint8_t> last_upload;  // RGB888 (base_w*base_h*3)
++    mutable std::mutex last_upload_mu;  // presents vs `presented` copies
++    // Frame-blend state (issue #9 #1): RecompFrameBlend handle + ARGB8888
++    // work buffer + RGB888 upload scratch, sized for base_w*base_h and
++    // reallocated (with a history reset) when the view size changes. The
++    // handle is created at open() and starts invalid, so boot presents the
++    // first frame as drawn. History is replaced on every blended present
++    // (apply, not holding: re-presenting an identical paused frame is
++    // avg(f,f) = f, so duplicates are harmless without special-casing).
++    // Compiled only with the runtime-UI root (which ships the shared
++    // primitive); other builds keep no-op methods below.
++#if defined(GBARECOMP_RUNTIME_UI)
++    RecompFrameBlend* frame_blend = nullptr;
++    bool frame_blend_enabled = false;
++    // Issue #9 3a: decoupled display clock. When frame_interp_enabled, the
++    // pacer wait subdivides into display-paced holding presents (see
++    // FramePacer tick). interp_tick_ns is the next display-boundary time
++    // (ns, steady clock); interp_period_ns the current display period
++    // (re-queried periodically so adaptive-refresh panels just work);
++    // interp_vsync tracks whether presents block on the display (then the
++    // tick skips its own sleep — the present IS the pacing).
++    bool frame_interp_enabled = false;
++    bool interp_vsync = false;
++    uint64_t interp_tick_ns = 0;
++    uint64_t interp_period_ns = 0;
++    unsigned interp_mode_counter = 0;
++    // Tick-rate observability (remote device validation): count ticks and
++    // report presents/sec every ~5 s of ticking. Counting only — the rate
++    // decision stays in the pacing above.
++    uint64_t interp_tick_count = 0;
++    uint64_t interp_rate_window_ns = 0;
++    std::vector<uint8_t> blend_argb;  // scratch ARGB8888 (base_w*base_h*4)
++    std::vector<uint8_t> blend_rgb;   // scratch RGB888 upload (base_w*base_h*3)
++#endif
+ #if defined(GBARECOMP_RUNTIME_UI)
+     RecompRuntimeUi* runtime_ui = nullptr;
+     ImGuiContext* runtime_imgui_context = nullptr;
+@@ -478,6 +526,41 @@ void destroy_sharp_texture(Backend* b) {
+     b->sharp_texture_h = 0;
+ }
+ 
++#if defined(GBARECOMP_RUNTIME_UI)
++namespace {
++
++uint64_t steady_now_ns() {
++    return static_cast<uint64_t>(
++        std::chrono::duration_cast<std::chrono::nanoseconds>(
++            std::chrono::steady_clock::now().time_since_epoch()).count());
++}
++
++// Refresh the display period for interp ticks (adaptive-refresh panels:
++// the rate can change at any time, so re-query periodically; cheap and
++// amortized). Re-anchors boundaries on change. Logs transitions in the
++// house one-line style.
++void refresh_interp_mode(Backend* b) {
++    if (!b || !b->window) return;
++    const int di = SDL_GetWindowDisplayIndex(b->window);
++    SDL_DisplayMode dm{};
++    if (di < 0 || SDL_GetCurrentDisplayMode(di, &dm) != 0 ||
++        dm.refresh_rate <= 0)
++        return;
++    const uint64_t period =
++        1000000000ull / static_cast<uint64_t>(dm.refresh_rate);
++    if (period == b->interp_period_ns) return;
++    b->interp_period_ns = period;
++    b->interp_tick_ns = 0;
++    std::fprintf(stderr,
++                 "host_window: interp display=%d mode=%dx%d@%dHz period=%lluns\n",
++                 di, dm.w, dm.h, dm.refresh_rate,
++                 static_cast<unsigned long long>(period));
++    std::fflush(stderr);
++}
++
++}  // namespace
++#endif
++
+ bool ensure_sharp_texture(Backend* b, int factor) {
+     if (!b || !b->renderer || factor < 2) return false;
+     const int width = b->base_w * factor;
+@@ -748,6 +831,17 @@ bool pad_toggle_available(const Backend* b) {
      return b && b->touch_policy && (b->touch_controls || b->touch_emulation);
  }
  
@@ -11315,7 +11687,7 @@ index 22ca157..ec6c094 100644
  Backend::TouchPoint* find_touch(Backend* b, SDL_FingerID id) {
      if (!b) return nullptr;
      for (auto& touch : b->touches)
-@@ -1001,7 +1017,7 @@ private:
+@@ -1001,7 +1095,7 @@ private:
  #endif
  
  void draw_touch_pad(Backend* b, HostOverlay& ov) {
@@ -11324,7 +11696,7 @@ index 22ca157..ec6c094 100644
      const PadLayout p = compute_pad_layout(b);
      const uint16_t held = active_touch_buttons(b);
      const auto S = OverlaySpace::Drawable;
-@@ -1054,7 +1070,7 @@ void draw_touch_pad(Backend* b, HostOverlay& ov) {
+@@ -1054,7 +1148,7 @@ void draw_touch_pad(Backend* b, HostOverlay& ov) {
      pill(p.start, 3, "START", p.start.h * 0.5f);
  }
  void draw_pad_toggle(Backend* b, HostOverlay& ov) {
@@ -11333,7 +11705,7 @@ index 22ca157..ec6c094 100644
      const PadLayout p = compute_pad_layout(b);
      const auto S = OverlaySpace::Drawable;
      const PadRect& r = p.toggle;
-@@ -1348,6 +1364,29 @@ bool runtime_menu_open(const Backend* b) {
+@@ -1348,6 +1442,29 @@ bool runtime_menu_open(const Backend* b) {
  // builds) the settings menu on top. Nothing here reads or writes guest state
  // except through the game's own overlay callback.
  void draw_host_chrome(Backend* b, HostOverlay& ov, bool menu_open) {
@@ -11363,7 +11735,7 @@ index 22ca157..ec6c094 100644
      if (menu_open) return;
      if (b->host_overlay) b->host_overlay(&ov);
      draw_touch_pad(b, ov);
-@@ -1362,8 +1401,8 @@ void render_host_layers(Backend* b) {
+@@ -1362,8 +1479,8 @@ void render_host_layers(Backend* b) {
      const bool menu_open = false;
  #endif
      const bool chrome = !menu_open &&
@@ -11374,7 +11746,271 @@ index 22ca157..ec6c094 100644
      if (!chrome && !menu_open) return;
  
      // Native GBA presentation uses a 240x160 SDL logical size. Host chrome
-@@ -2508,12 +2547,16 @@ void HostWindow::set_runtime_ui(RecompRuntimeUi* ui) {
+@@ -1796,6 +1913,12 @@ bool HostWindow::open(int scale, int base_w, int base_h, const char* title,
+     {
+         SDL_RendererInfo info{};
+         if (SDL_GetRendererInfo(b->renderer, &info) == 0) {
++#if defined(GBARECOMP_RUNTIME_UI)
++            // Issue #9 3a: interp ticks skip their own sleep when presents
++            // already block on the display.
++            b->interp_vsync =
++                (info.flags & SDL_RENDERER_PRESENTVSYNC) != 0;
++#endif
+             std::fprintf(stderr,
+                          "host_window: renderer=%s flags=0x%08x vsync=%s%s "
+                          "scaler=%s\n",
+@@ -1808,6 +1931,9 @@ bool HostWindow::open(int scale, int base_w, int base_h, const char* title,
+             std::fflush(stderr);
+         }
+         log_display_mode(b->window, "open");
++#if defined(GBARECOMP_RUNTIME_UI)
++        refresh_interp_mode(b);
++#endif
+     }
+     b->cadence.init();
+ #if defined(__ANDROID__)
+@@ -1932,6 +2058,12 @@ bool HostWindow::open(int scale, int base_w, int base_h, const char* title,
+     b->color_lut = std::make_unique<runtime::ColorLut>(resolve_color_settings(screen));
+     if (!b->color_lut->is_passthrough())
+         b->graded_fb.resize(static_cast<std::size_t>(base_w) * base_h * 3);
++#if defined(GBARECOMP_RUNTIME_UI)
++    // Blend history starts invalid: boot presents the first frame as drawn.
++    // A NULL handle (allocation failure) is legal everywhere below and
++    // simply presents unblended frames.
++    b->frame_blend = recomp_frame_blend_create();
++#endif
+ 
+     impl_ = b;
+     open_ = true;
+@@ -2117,6 +2249,10 @@ void HostWindow::close() {
+     if (b->texture)   SDL_DestroyTexture(b->texture);
+     if (b->renderer)  SDL_DestroyRenderer(b->renderer);
+     if (b->window)    SDL_DestroyWindow(b->window);
++#if defined(GBARECOMP_RUNTIME_UI)
++    if (b->frame_blend) recomp_frame_blend_destroy(b->frame_blend);
++    b->frame_blend = nullptr;
++#endif
+     delete b;
+     impl_ = nullptr;
+     open_ = false;
+@@ -2184,7 +2320,7 @@ bool HostWindow::drawable_size(int* width, int* height) const {
+            *width > 0 && *height > 0;
+ }
+ 
+-void HostWindow::present(const uint8_t* rgb888) {
++void HostWindow::present(const uint8_t* rgb888, bool fresh) {
+     if (!open_ || !impl_ || !rgb888) return;
+     auto* b = static_cast<Backend*>(impl_);
+     // Present-time color grading (opt-in). Raw is passthrough: the raw
+@@ -2194,6 +2330,65 @@ void HostWindow::present(const uint8_t* rgb888) {
+         b->color_lut->map_rgb888(rgb888, b->graded_fb.data(), b->base_w, b->base_h);
+         rgb888 = b->graded_fb.data();
+     }
++#if defined(GBARECOMP_RUNTIME_UI)
++    // Presentation frame blending (issue #9 #1) and display-tick holding
++    // presents (issue #9 3a). CPU-side on cached scratch — the shared
++    // primitive needs ordinary cached ARGB8888, never a mapped texture:
++    // RGB888 -> ARGB8888, blend in place, back to RGB888 for upload.
++    // Fresh frames blend (when blending is on) and advance history;
++    // repeats blend against UNCHANGED history (3a holding presents).
++    // Everything off skips this block, so the upload below stays
++    // byte-identical to before.
++    const bool do_blend = b->frame_blend_enabled && b->frame_blend;
++    // Holding blends only while blending is on: with blending off, repeats
++    // upload raw (a stale-valid history from an earlier blend-on period
++    // must never smear into them).
++    const bool do_hold = !fresh && b->frame_blend_enabled &&
++                         b->frame_interp_enabled && b->frame_blend;
++    if ((do_blend || do_hold) && b->frame_blend) {
++        const std::size_t px =
++            static_cast<std::size_t>(b->base_w) * b->base_h;
++        if (b->blend_argb.size() != px * 4u ||
++            b->blend_rgb.size() != px * 3u) {
++            b->blend_argb.assign(px * 4u, 0);
++            b->blend_rgb.assign(px * 3u, 0);
++            recomp_frame_blend_reset(b->frame_blend);
++        }
++        const uint8_t* src = rgb888;
++        uint8_t* argb = b->blend_argb.data();
++        for (std::size_t i = 0; i < px; ++i) {
++            argb[i * 4u + 0u] = src[i * 3u + 2u];  // B
++            argb[i * 4u + 1u] = src[i * 3u + 1u];  // G
++            argb[i * 4u + 2u] = src[i * 3u + 0u];  // R
++            argb[i * 4u + 3u] = 0xFF;              // A (opaque; untouched)
++        }
++        if (do_hold)
++            recomp_frame_blend_apply_holding(b->frame_blend, argb, b->base_w,
++                                             b->base_h,
++                                             static_cast<size_t>(b->base_w) * 4u);
++        else
++            recomp_frame_blend_apply(b->frame_blend, argb, b->base_w, b->base_h,
++                                     static_cast<size_t>(b->base_w) * 4u);
++        uint8_t* dst = b->blend_rgb.data();
++        for (std::size_t i = 0; i < px; ++i) {
++            dst[i * 3u + 0u] = argb[i * 4u + 2u];
++            dst[i * 3u + 1u] = argb[i * 4u + 1u];
++            dst[i * 3u + 2u] = argb[i * 4u + 0u];
++        }
++        rgb888 = dst;
++    }
++#endif
++    // Remember the exact upload bytes for the `presented` TCP command.
++    // (2026-10-14 review: the observer thread copies this vector
++    // concurrently via copy_presented_frame; assign() can reallocate
++    // mid-copy. Guard both sides -- same discipline as the savestate
++    // request path.)
++    {
++        std::lock_guard<std::mutex> lk(b->last_upload_mu);
++        b->last_upload.assign(rgb888,
++                              rgb888 + static_cast<std::size_t>(b->base_w) *
++                                       b->base_h * 3u);
++    }
+     SDL_UpdateTexture(b->texture, nullptr, rgb888, b->base_w * 3);
+     SDL_SetRenderDrawColor(b->renderer, 7, 11, 20, 255);
+     SDL_RenderClear(b->renderer);
+@@ -2478,6 +2673,141 @@ bool HostWindow::linear_filter() const {
+     return open_ && impl_ && static_cast<const Backend*>(impl_)->linear_filter;
+ }
+ 
++void HostWindow::set_frame_interp(bool enabled) {
++    if (!open_ || !impl_) return;
++#if defined(GBARECOMP_RUNTIME_UI)
++    auto* b = static_cast<Backend*>(impl_);
++    b->frame_interp_enabled = enabled;
++    b->interp_tick_ns = 0;  // restart boundary tracking on every toggle
++    if (b->frame_blend) recomp_frame_blend_reset(b->frame_blend);
++#else
++    (void)enabled;
++#endif
++}
++
++bool HostWindow::frame_interp() const {
++#if defined(GBARECOMP_RUNTIME_UI)
++    return open_ && impl_ &&
++           static_cast<const Backend*>(impl_)->frame_interp_enabled;
++#else
++    return false;
++#endif
++}
++
++void HostWindow::interp_display_tick(const uint8_t* rgb888,
++                                     uint64_t deadline_ns) {
++#if defined(GBARECOMP_RUNTIME_UI)
++    if (!open_ || !impl_ || !rgb888) return;
++    auto* b = static_cast<Backend*>(impl_);
++    if (!b->frame_interp_enabled) return;
++    if ((++b->interp_mode_counter % 600u) == 0u) refresh_interp_mode(b);
++    const uint64_t now_ns = steady_now_ns();
++    if (b->interp_tick_ns == 0 ||
++        now_ns >= b->interp_tick_ns + b->interp_period_ns * 2u)
++        b->interp_tick_ns = now_ns;  // (re)anchor when unset or far adrift
++    // 2026-10-14 review: a vsync-blocked present lands one full display
++    // period from now; if that is past the guest deadline, presenting
++    // would hand the guest an extra display period (the pacer's tick
++    // loop exits only once a tick crosses the deadline -- measured ~40 Hz
++    // guest at 120 Hz vsync). The non-vsync path already clamps its
++    // sleep to the deadline; clamp the present the same way: hold the
++    // last presented frame and sleep out the remainder.
++    if (b->interp_vsync && b->interp_period_ns > 0 &&
++        now_ns + b->interp_period_ns > deadline_ns) {
++        const uint64_t wake_ns =
++            deadline_ns > now_ns ? deadline_ns : now_ns;
++        if (wake_ns > now_ns)
++            std::this_thread::sleep_for(
++                std::chrono::nanoseconds(wake_ns - now_ns));
++        return;
++    }
++    if (!b->interp_vsync) {
++        if (b->interp_period_ns == 0) {
++            // Display rate unknown: 1 ms pacing keeps CPU use bounded
++            // without pretending to a cadence we cannot see.
++            std::this_thread::sleep_for(std::chrono::milliseconds(1));
++        } else if (b->interp_tick_ns > now_ns) {
++            // Never hold the guest wait past its deadline: a slower panel
++            // yields the wait instead of oversleeping it.
++            const uint64_t wake_ns = b->interp_tick_ns < deadline_ns
++                                         ? b->interp_tick_ns
++                                         : deadline_ns;
++            if (wake_ns > now_ns)
++                std::this_thread::sleep_for(
++                    std::chrono::nanoseconds(wake_ns - now_ns));
++        }
++    }
++    present(rgb888, false);
++    const uint64_t after_ns = steady_now_ns();
++    if (b->interp_vsync || b->interp_period_ns == 0)
++        b->interp_tick_ns = after_ns;  // vsync-blocked or unknown: re-anchor
++    else {
++        do {
++            b->interp_tick_ns += b->interp_period_ns;
++        } while (b->interp_tick_ns <= after_ns);
++    }
++    // Presents/sec report (~5 s windows): the only remote proof the tick
++    // loop is actually subdividing waits at display rate.
++    if (++b->interp_tick_count == 1u)
++        b->interp_rate_window_ns = after_ns;
++    else if (b->interp_tick_count >= 600u) {
++        const uint64_t span_ns = after_ns - b->interp_rate_window_ns;
++        if (span_ns > 0u) {
++            std::fprintf(stderr,
++                         "host_window: interp ticks=%llu rate=%.1f/s\n",
++                         static_cast<unsigned long long>(
++                             b->interp_tick_count),
++                         static_cast<double>(b->interp_tick_count) *
++                         1e9 / static_cast<double>(span_ns));
++            std::fflush(stderr);
++        }
++        b->interp_tick_count = 0;
++    }
++}
++#endif
++
++void HostWindow::set_frame_blend(bool enabled) {
++    if (!open_ || !impl_) return;
++#if defined(GBARECOMP_RUNTIME_UI)
++    auto* b = static_cast<Backend*>(impl_);
++    b->frame_blend_enabled = enabled;
++    if (b->frame_blend) recomp_frame_blend_reset(b->frame_blend);
++#else
++    (void)enabled;
++#endif
++}
++
++bool HostWindow::frame_blend() const {
++#if defined(GBARECOMP_RUNTIME_UI)
++    return open_ && impl_ &&
++           static_cast<const Backend*>(impl_)->frame_blend_enabled;
++#else
++    return false;
++#endif
++}
++
++void HostWindow::reset_frame_blend() {
++    if (!open_ || !impl_) return;
++#if defined(GBARECOMP_RUNTIME_UI)
++    auto* b = static_cast<Backend*>(impl_);
++    if (b->frame_blend) recomp_frame_blend_reset(b->frame_blend);
++#endif
++}
++
++bool HostWindow::copy_presented_frame(std::vector<uint8_t>& out, int& w,
++                                      int& h) const {
++    if (!open_ || !impl_) return false;
++    auto* b = static_cast<const Backend*>(impl_);
++    std::lock_guard<std::mutex> lk(b->last_upload_mu);
++    if (b->last_upload.size() !=
++        static_cast<std::size_t>(b->base_w) * b->base_h * 3u)
++        return false;
++    out = b->last_upload;
++    w = b->base_w;
++    h = b->base_h;
++    return true;
++}
++
+ void HostWindow::set_audio_enabled(bool enabled) {
+     if (!open_ || !impl_) return;
+     auto* b = static_cast<Backend*>(impl_);
+@@ -2508,12 +2838,16 @@ void HostWindow::set_runtime_ui(RecompRuntimeUi* ui) {
  #endif
  
  void HostWindow::configure_touch(bool policy, std::uint32_t claims,
@@ -11392,7 +12028,7 @@ index 22ca157..ec6c094 100644
      if (emulate_touch) {
          // SDL then reports the left mouse button as a touch finger
          // (touchId SDL_MOUSE_TOUCHID), exercising the real finger path.
-@@ -2583,6 +2626,10 @@ void HostWindow::set_touch_pad_visible(bool visible) {
+@@ -2583,6 +2917,10 @@ void HostWindow::set_touch_pad_visible(bool visible) {
      if (b->pad_visible == visible && b->pad_choice_saved) return;
      b->pad_visible = visible;
      b->pad_choice_saved = true;
@@ -11403,7 +12039,7 @@ index 22ca157..ec6c094 100644
      // Any finger currently on a pad button is released with the pad.
      for (auto& t : b->touches)
          if (t.active && t.pad) t.buttons = 0;
-@@ -2793,13 +2840,19 @@ HostWindow::Events HostWindow::pump() {
+@@ -2793,13 +3131,19 @@ HostWindow::Events HostWindow::pump() {
                      &te.view_x, &te.view_y);
                  TouchHub::instance().submit(te);
              };
@@ -11424,7 +12060,7 @@ index 22ca157..ec6c094 100644
                              ? pad_buttons_at(pad, px, py, b->px_per_mm) : 0;
                      // The toggle wins over the pad so it can never be buried
                      // under a button (it is small and player-movable).
-@@ -2970,6 +3023,18 @@ HostWindow::Events HostWindow::pump() {
+@@ -2970,6 +3314,18 @@ HostWindow::Events HostWindow::pump() {
              if (SDL_GameControllerGetButton(b->controller, binding.button))
                  keys &= static_cast<uint16_t>(~(1u << binding.bit));
          }
@@ -11443,7 +12079,19 @@ index 22ca157..ec6c094 100644
      }
      if (b->touch_controls) {
          const uint16_t touch_buttons = active_touch_buttons(b);
-@@ -3113,7 +3178,8 @@ void HostWindow::set_resize_driven_view(bool /*enabled*/) {}
+@@ -3106,14 +3462,18 @@ int  HostWindow::volume() const { return 100; }
+ int  HostWindow::window_scale() const { return 1; }
+ void HostWindow::set_linear_filter(bool /*enabled*/) {}
+ bool HostWindow::linear_filter() const { return false; }
+-void HostWindow::set_audio_enabled(bool /*enabled*/) {}
+-bool HostWindow::audio_enabled() const { return false; }
++void HostWindow::set_frame_blend(bool /*enabled*/) {}
++bool HostWindow::frame_blend() const { return false; }
++void HostWindow::reset_frame_blend() {}
++void HostWindow::set_frame_interp(bool /*enabled*/) {}
++bool HostWindow::frame_interp() const { return false; }
+ void HostWindow::set_resize_driven_view(bool /*enabled*/) {}
+ #if defined(GBARECOMP_RUNTIME_UI)
  void HostWindow::set_runtime_ui(RecompRuntimeUi* /*ui*/) {}
  #endif
  void HostWindow::configure_touch(bool /*policy*/, std::uint32_t /*claims*/,
@@ -11453,11 +12101,58 @@ index 22ca157..ec6c094 100644
  void HostWindow::set_touch_config_dir(const char* /*dir*/) {}
  bool HostWindow::touch_pad_visible() const { return false; }
  void HostWindow::set_touch_pad_visible(bool /*visible*/) {}
+@@ -3144,4 +3504,4 @@ HostWindow::Events HostWindow::pump() {
+ 
+ }  // namespace gbarecomp
+ 
+-#endif  // GBARECOMP_HAVE_SDL2
++#endif
 diff --git a/src/runtime/host_window.h b/src/runtime/host_window.h
-index 261d693..84067d7 100644
+index 261d693..410430a 100644
 --- a/src/runtime/host_window.h
 +++ b/src/runtime/host_window.h
-@@ -103,8 +103,11 @@ public:
+@@ -14,6 +14,7 @@
+ 
+ #include <cstddef>
+ #include <cstdint>
++#include <vector>
+ 
+ struct RecompRuntimeUi;
+ 
+@@ -87,6 +88,32 @@ public:
+     int  window_scale() const;
+     void set_linear_filter(bool enabled);
+     bool linear_filter() const;
++    // Presentation frame blending (issue #9 strategy #1): average each
++    // presented frame with the previous one (recomp-ui's RecompFrameBlend —
++    // the GBA LCD's own slow response, which is what makes 30 Hz palette
++    // fades read as smooth). Driven by the runtime menu's Graphics/LCD
++    // ghosting row (and --frame-blend); default off so faithful runs stay
++    // byte-exact. reset_frame_blend forgets history: call it wherever the
++    // incoming frame is not what the player was just looking at
++    // (savestate load; boot/reset start clean by construction).
++    void set_frame_blend(bool enabled);
++    bool frame_blend() const;
++    void reset_frame_blend();
++    // Decoupled display clock (issue #9 3a): subdivide the pacer wait into
++    // display-paced holding presents (runtime menu's Graphics/Frame
++    // interpolation row, and --frame-interp). No vsync requirement: ticks
++    // sleep to display boundaries read from the current display mode
++    // (re-queried periodically, so adaptive-refresh panels just work);
++     // where presents already block on the display the tick skips its own
++     // sleep; default off.
++    void set_frame_interp(bool enabled);
++    bool frame_interp() const;
++    // One display-clock tick for the pacer wait: sleep until the next
++    // display boundary (or deadline_ns, whichever comes first — a slower
++    // panel must never hold the guest wait past its deadline), then
++    // re-present rgb888 against unchanged history. No-op builds route here
++    // in headless stubs.
++    void interp_display_tick(const uint8_t* rgb888, uint64_t deadline_ns);
+     void set_audio_enabled(bool enabled);
+     bool audio_enabled() const;
+     void set_resize_driven_view(bool enabled);
+@@ -103,8 +130,11 @@ public:
      // platform default). `emulate_touch` turns desktop mouse input into touch
      // (left = finger, right = two-finger tap, middle = three-finger tap,
      // Backspace = platform Back) for development and validation.
@@ -11470,6 +12165,28 @@ index 261d693..84067d7 100644
      // Loads/persists the player's pad choice in <dir>/config.ini [Touch].
      void set_touch_config_dir(const char* dir);
      bool touch_pad_visible() const;
+@@ -137,8 +167,19 @@ public:
+     int  fast_forward_multiplier() const;
+ 
+     // Upload one base_w x base_h RGB888 frame (the dimensions passed to open())
+-    // and present.
+-    void present(const uint8_t* rgb888);
++    // and present. `fresh` tells whether this is a newly rendered guest
++    // frame (true) or a repeat of the last one (false, e.g. the paused
++    // re-present loop or issue #9 3a display-tick holding presents):
++    // repeats blend against UNCHANGED history (avg(f,f) = f — a clean
++    // repeat, no smear), fresh frames blend and advance it.
++    void present(const uint8_t* rgb888, bool fresh = true);
++
++    // Copies the most recently uploaded frame (post color-grade AND post
++    // blend — the exact bytes handed to the display) for the `presented`
++    // TCP command. Returns false when nothing has been presented yet.
++    // Recorded unconditionally (blend on or off); the copy costs one frame
++    // memcpy per present.
++    bool copy_presented_frame(std::vector<uint8_t>& out, int& w, int& h) const;
+ 
+     // Push `count` int16_t mono samples (32.768 kHz) into the audio
+     // output queue. Backend converts to the host device's format.
 diff --git a/src/runtime/input_synth.h b/src/runtime/input_synth.h
 index d1df4da..aab700e 100644
 --- a/src/runtime/input_synth.h
@@ -11779,7 +12496,7 @@ index 117db49..4d847fb 100644
      // DLLs are left loaded (immutable code, process-lifetime); the OS reclaims
      // them at exit. Drain any last results so counters/banner are accurate.
 diff --git a/src/runtime/runtime.cpp b/src/runtime/runtime.cpp
-index b560791..93525d0 100644
+index b560791..82495f0 100644
 --- a/src/runtime/runtime.cpp
 +++ b/src/runtime/runtime.cpp
 @@ -34,6 +34,7 @@
@@ -11802,7 +12519,47 @@ index b560791..93525d0 100644
      std::optional<gba::SaveType> save_type;
      std::size_t save_size = 0;
      int steps = 16;
-@@ -788,7 +794,8 @@ constexpr std::string_view kCliValueFlags[] = {
+@@ -179,6 +185,12 @@ struct Args {
+     bool linear_filter = false;   // --linear-filter 1: linear texture scaling
+     bool sharp_filter = false;    // --sharp-filter 1: integer prescale + linear finish
+     bool affine_filter = false;   // --affine-filter 1: game-authorized smoothing
++    bool frame_blend = false;     // --frame-blend 1: average each presented
++                                  // frame with the previous one (Graphics/LCD
++                                  // ghosting row drives the same flag)
++    bool frame_interp = false;    // --frame-interp 1: decouple the present
++                                  // clock (Graphics/Frame interpolation row
++                                  // drives the same flag)
+     float gyro_sensitivity = 0.25f; // --gyro-sensitivity 0.25..4.00
+     // [audio] shadow = true|false — arm the MP2K verified-enhancement shadow
+     // mixer (default off). GBARECOMP_AUDIO_SHADOW overrides at launch.
+@@ -265,6 +277,8 @@ int runtime_ui_get(void* opaque, const RecompRuntimeUiItem* item, int* out) {
+     else if (std::strcmp(item->key, RECOMP_RUNTIME_UI_KEY_WINDOW_SCALE) == 0) *out = c->window->window_scale();
+     else if (std::strcmp(item->key, RECOMP_RUNTIME_UI_KEY_VIEW_MODE) == 0) *out = c->view_mode;
+     else if (std::strcmp(item->key, RECOMP_RUNTIME_UI_KEY_LINEAR_FILTER) == 0) *out = c->window->linear_filter();
++    else if (std::strcmp(item->key, RECOMP_RUNTIME_UI_KEY_LCD_GHOSTING) == 0) *out = c->window->frame_blend();
++    else if (std::strcmp(item->key, RECOMP_RUNTIME_UI_KEY_FRAME_INTERP) == 0) *out = c->window->frame_interp();
+     else if (std::strcmp(item->key, RECOMP_RUNTIME_UI_KEY_AUDIO) == 0) *out = c->window->audio_enabled();
+     else if (std::strcmp(item->key, RECOMP_RUNTIME_UI_KEY_VOLUME) == 0) *out = c->window->volume();
+     else if (std::strcmp(item->key, GBARECOMP_UI_KEY_STATE_SLOT) == 0) *out = c->state_slot;
+@@ -297,6 +311,10 @@ int runtime_ui_set(void* opaque, const RecompRuntimeUiItem* item, int value) {
+         c->view_mode_dirty = true;
+     } else if (std::strcmp(item->key, RECOMP_RUNTIME_UI_KEY_LINEAR_FILTER) == 0)
+         c->window->set_linear_filter(value != 0);
++    else if (std::strcmp(item->key, RECOMP_RUNTIME_UI_KEY_LCD_GHOSTING) == 0)
++        c->window->set_frame_blend(value != 0);
++    else if (std::strcmp(item->key, RECOMP_RUNTIME_UI_KEY_FRAME_INTERP) == 0)
++        c->window->set_frame_interp(value != 0);
+     else if (std::strcmp(item->key, RECOMP_RUNTIME_UI_KEY_AUDIO) == 0)
+         c->window->set_audio_enabled(value != 0);
+     else if (std::strcmp(item->key, RECOMP_RUNTIME_UI_KEY_VOLUME) == 0)
+@@ -784,11 +802,15 @@ bool apply_toml_file(const std::filesystem::path& path, Args* args,
+ // adding a value flag without listing it fails loudly on first use instead of
+ // silently dropping the game config (and with it the BIOS/ROM paths).
+ constexpr std::string_view kCliValueFlags[] = {
++    // Issue #9 #1/#3a: first elements, clear of the recorded hunks below.
++    "--frame-blend",
++    "--frame-interp",
+     "--config",      "--bios",          "--rom",           "--bios-sha1",
      "--rom-sha1",    "--rom-crc32",     "--steps",         "--frames",
      "--scale",       "--tcp",           "--tcp-observe",   "--dump-bmp",
      "--dump-png",    "--load-state",    "--view-width",    "--widescreen",
@@ -11812,7 +12569,7 @@ index b560791..93525d0 100644
      "--sharp-filter", "--linear-filter", "--affine-filter", "--screen",
      "--volume",
  };
-@@ -1011,6 +1018,12 @@ bool parse_cli(int argc, char** argv, Args* args, std::string* err) {
+@@ -1011,6 +1033,12 @@ bool parse_cli(int argc, char** argv, Args* args, std::string* err) {
              args->save_path = v;
              continue;
          }
@@ -11825,7 +12582,36 @@ index b560791..93525d0 100644
          if (s == "--screen") {
              const char* v = need_value("--screen");
              if (!v) return false;
-@@ -2449,6 +2462,11 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -1052,6 +1080,28 @@ bool parse_cli(int argc, char** argv, Args* args, std::string* err) {
+             args->linear_filter = lf != 0;
+             continue;
+         }
++        if (s == "--frame-blend") {
++            const char* v = need_value("--frame-blend");
++            if (!v) return false;
++            int fb = 0;
++            if (!parse_int(v, &fb)) {
++                if (err) *err = "invalid --frame-blend value (expected 0 or 1)";
++                return false;
++            }
++            args->frame_blend = fb != 0;
++            continue;
++        }
++        if (s == "--frame-interp") {
++            const char* v = need_value("--frame-interp");
++            if (!v) return false;
++            int fi = 0;
++            if (!parse_int(v, &fi)) {
++                if (err) *err = "invalid --frame-interp value (expected 0 or 1)";
++                return false;
++            }
++            args->frame_interp = fi != 0;
++            continue;
++        }
+         if (s == "--sharp-filter") {
+             const char* v = need_value("--sharp-filter");
+             if (!v) return false;
+@@ -2449,6 +2499,11 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
          bool ctl_step_ok   = true;
  
          std::thread game_thread([&]() {
@@ -11837,7 +12623,7 @@ index b560791..93525d0 100644
              for (;;) {
                  int st;
                  {
-@@ -2588,8 +2606,10 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -2588,14 +2643,42 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
          if (game_thread.joinable()) game_thread.join();
          bool save_ok = flush_save();
          write_session_diagnostics(opts, "exit", ppu.frame_count());
@@ -11849,7 +12635,80 @@ index b560791..93525d0 100644
          runtime_shutdown();
          return (ok && save_ok) ? 0 : 1;
      }
-@@ -2865,7 +2885,8 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+ 
+     HostWindow win;
+     std::vector<uint8_t> live_fb;
++    // Issue #9 3b: true-midpoint screen-shift interpolation. This state
++    // MUST live at function scope beside live_fb: the present-in-place hook
++    // below captures it by reference and outlives the `if` block that
++    // registers the hook (declaring it there was a use-after-scope crash:
++    // stale stack contents survive the first frames, then reuse corrupts
++    // the vector object and assign() memsets a wild pointer — device
++    // tombstone 2026-10-13). Hook cleared before return, so locals die
++    // last. The dominant BG layer's scroll step is measured between the
++    // previous and current presented frames (end of VBlank — a consistent
++    // point; wrap-aware on the 9-bit counters). Non-first ticks show the
++    // current frame shifted BACK by half that measured step: the true
++    // halfway position, never a prediction — whips midpoint smoothly,
++    // snaps halve, oscillation lands sub-pixel, still frames are
++    // bit-identical. Dominant layer wins (parallax backgrounds ride
++    // along, approximately); affine layers read stale HOFS slots (step 0
++    // → exact, a safe default). World-locked OBJs ride along on pure
++    // pans; unit motion under a static camera stays 60 Hz. Screen-locked
++    // chrome (pixels unchanged since the previous guest frame) keeps
++    // exact bytes instead of riding the world shift (HUD shimmer fix).
++    // The shift, step, and pin logic live in the interp_shift
++    // namespace (host_platform.h) with unit tests; this site only
++    // wires buffers.
++    std::vector<uint8_t> interp_fb;
++    std::vector<uint8_t> interp_prev;
++    uint8_t interp_prev_io[gbarecomp::interp_shift::kScrollSnapshotBytes] = {};
++    bool interp_have_prev = false;
+     // MC-WS-002 capture: per-present dump of the exact composed bytes handed to
+     // SDL (`live_fb`). Gated by GBARECOMP_FRAMEDUMP_DIR; START = first guest
+     // frame to capture, COUNT = how many; quits after COUNT are written. This
+@@ -2851,6 +2934,40 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+             runtime_shutdown();
+             return 1;
+         }
++        // --frame-blend startup default (menu row drives the same flag at
++        // runtime; both default off so faithful runs stay byte-exact).
++        win.set_frame_blend(args.frame_blend);
++        // --frame-interp startup default, same shape (menu row drives it
++        // live; the decoupled wait below only ticks while this is on).
++        win.set_frame_interp(args.frame_interp);
++        // `presented` TCP command (issue #9 blend verification): exact bytes
++        // uploaded to the display, post color-grade and post-blend — the
++        // only way to observe the blend stage, which sits after the guest
++        // framebuffer the `screenshot` command re-renders. Wired into the
++        // --tcp-observe server where octx is built below (plain --tcp is
++        // headless: nothing is ever presented there). Anything else falls
++        // through to the shared touch/game-command extension.
++        auto presented_extension = [&](const std::string& request,
++                                       std::string& reply) -> bool {
++            if (request.find("\"presented\"") == std::string::npos)
++                return tcp_extension(request, reply);
++            std::vector<uint8_t> px;
++            int pw = 0, ph = 0;
++            if (!win.copy_presented_frame(px, pw, ph)) {
++                reply = "{\"ok\":false}";
++                return true;
++            }
++            static const char* hexd = "0123456789abcdef";
++            std::string hex;
++            hex.reserve(px.size() * 2u);
++            for (uint8_t v : px) {
++                hex.push_back(hexd[v >> 4]);
++                hex.push_back(hexd[v & 15]);
++            }
++            reply = "{\"ok\":true,\"w\":" + std::to_string(pw) + ",\"h\":" +
++                    std::to_string(ph) + ",\"data\":\"0x" + hex + "\"}";
++            return true;
++        };
+         // Rebindable input: keybinds.ini (player buttons, recomp-ui generic
+         // format) + config.ini [KeyMap] (system hotkeys), both next to the
+         // exe. Missing files leave the built-in defaults.
+@@ -2865,7 +2982,8 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
                                    opts.assist_fast_forward_multiplier_default);
              win.configure_touch(opts.input_frame != nullptr,
                                  opts.touch_gesture_claims,
@@ -11859,7 +12718,33 @@ index b560791..93525d0 100644
              win.set_touch_config_dir(exe_dir.c_str());
          }
          win.set_host_overlay(opts.host_overlay);
-@@ -3098,25 +3119,27 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -2881,7 +2999,7 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+             octx.bus = &bus;
+             octx.ppu = &ppu;
+             octx.misses_query = []() { return gbarecomp::self_heal_misses_json(); };
+-            octx.extension = tcp_extension;
++            octx.extension = presented_extension;
+             octx.savestate_save = [&](const std::string& p, std::string& e) {
+                 return observer_request(true, p, e);
+             };
+@@ -2961,6 +3079,16 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+             RECOMP_RUNTIME_UI_STANDARD_AUDIO |
+             RECOMP_RUNTIME_UI_STANDARD_VOLUME |
+             RECOMP_RUNTIME_UI_STANDARD_RESUME;
++        // Issue #9 strategy #1: the Graphics/LCD ghosting row (presentation
++        // frame blending), game-opted via RunOptions::expose_lcd_ghosting.
++        // The row sits right after Linear filter in the recomp-ui catalog.
++        if (opts.expose_lcd_ghosting)
++            runtime_ui_config.features |=
++                RECOMP_RUNTIME_UI_STANDARD_LCD_GHOSTING;
++        // Issue #9 3a row, same opt-in shape (default off).
++        if (opts.expose_frame_interp)
++            runtime_ui_config.features |=
++                RECOMP_RUNTIME_UI_STANDARD_FRAME_INTERP;
+         if (!opts.expose_assist_tools) {
+             runtime_ui_config.features |=
+                 RECOMP_RUNTIME_UI_STANDARD_SAVE_STATE |
+@@ -3098,25 +3226,27 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
      // Host-window save-state slots: the ROM path with a .stateN extension.
      // Shift+F1..F9 writes slots 1..9 and F1..F9 restores them; a runtime menu
      // may additionally expose slot 10 without changing the established
@@ -11896,7 +12781,21 @@ index b560791..93525d0 100644
      };
      auto clear_suspend_marker = [&]() {
          std::error_code ec;
-@@ -3507,8 +3530,15 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -3369,6 +3499,13 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+                                 : do_savestate_load(r->path, r->err);
+                 if (!r->save && r->ok) {
+                     last_presented_frame = ppu.frame_count() - 1;
++                    // A load swaps the scene wholesale: forget blend history
++                    // so the next present doesn't average one stale frame
++                    // into the restored picture (history would self-heal on
++                    // the following frame anyway — this skips the smear).
++                    win.reset_frame_blend();
++                    interp_have_prev = false;  // scene swap: drop interp
++                                                  // history too
+                     if (pacer) pacer->reset();
+                 }
+                 std::printf("observer_savestate_%s path=\"%s\" ok=%d\n",
+@@ -3507,8 +3644,15 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
          fast_forward_multiplier = std::clamp(
              win.fast_forward_multiplier(), 2, 10);
  #endif
@@ -11913,7 +12812,27 @@ index b560791..93525d0 100644
          // System hotkeys (config.ini [KeyMap], rebindable in the launcher).
          if (ev.toggle_fullscreen) {
              // Toggle between windowed and the configured mode. A session
-@@ -3687,12 +3717,16 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -3570,6 +3714,9 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+                 // Force the next iteration to re-present the restored
+                 // frame instead of waiting for frame_count to advance.
+                 last_presented_frame = ppu.frame_count() - 1;
++                win.reset_frame_blend();  // scene swap: drop blend history
++                interp_have_prev = false;  // scene swap: drop interp
++                                              // history too
+                 // The load jumped guest time; realign the pacer so it
+                 // doesn't burn the accumulated lag catching up.
+                 if (pacer) pacer->reset();
+@@ -3608,6 +3755,9 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+                     while (rewind_history.size() > target_index + 1)
+                         rewind_history.pop_back();
+                     last_presented_frame = ppu.frame_count() - 1;
++                    win.reset_frame_blend();  // scene swap: drop blend history
++                    interp_have_prev = false;  // scene swap: drop interp
++                                                  // history too
+                     next_rewind_capture_frame =
+                         ppu.frame_count() + rewind_interval;
+                     if (pacer) pacer->reset();
+@@ -3687,12 +3837,121 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
                  // the same frame-indexed input as headless acceptance runs.
                  if (input_replay_requested) apply_input_replay();
                  if (phase_active) fp_t4 = FramePhaseRing::now_ns();
@@ -11927,11 +12846,125 @@ index b560791..93525d0 100644
                      if (args.frames >= 0 && frames_presented >= args.frames)
                          host_quit = true;
 -                    if (pacer) pacer->wait_for_next_frame();
-+                    if (pacer) pacer->wait_for_next_frame(banked_frames);
++                    // Issue #9 3a: decoupled display clock. While frame
++                    // interpolation is on (and fast-forward is not), the
++                    // wait subdivides into display-paced presents: the first
++                    // tick re-presents live_fb exact, later ticks carry the
++                    // 3b halfway scroll shift (exact when still). Headless,
++                    // behind-schedule, toggle-off, and fast-forward waits all
++                    // pass null and keep the historical blocking path (FF =
++                    // the pre-#9 behavior: decimated presents, no interp
++                    // machinery -- its decimated-stream midpoints were never
++                    // device-validated, so FF holds exact frames).
++                    if (pacer) {
++                        // 2026-10-14 review: interp history is dead while
++                        // interp is off or FF is on. Drop it every such
++                        // present so the first present after any
++                        // discontinuity (menu toggle, FF release) seeds
++                        // fresh snapshots instead of measuring a step
++                        // across the gap.
++                        const bool interp_on =
++                            win.frame_interp() && !fast_forward_active;
++                        if (!interp_on) interp_have_prev = false;
++                        if (interp_on) {
++                            // Issue #9 3b: true-midpoint intermediates (see
++                            // function-scope note). Interp on only; the
++                            // off-path below is untouched.
++                            bool show_mid = false;
++                            {
++                                using namespace gbarecomp::interp_shift;
++                                uint8_t cur_io[kScrollSnapshotBytes];
++                                std::memcpy(cur_io, bus.io().raw() + 0x10u,
++                                            kScrollSnapshotBytes);
++                                int32_t step_dh = 0, step_dv = 0;
++                                if (interp_have_prev && banked_frames <= 1)
++                                    dominant_step(interp_prev_io, cur_io,
++                                                  &step_dh, &step_dv);
++                                std::memcpy(interp_prev_io, cur_io,
++                                            kScrollSnapshotBytes);
++                                interp_have_prev = true;
++                                // True midpoint: shift the CURRENT frame
++                                // back by half the measured step (the blit
++                                // takes half-pixel units, so odd steps stay
++                                // exact), then pin screen-locked chrome:
++                                // pixels unchanged since the previous guest
++                                // frame keep exact bytes instead of riding
++                                // the world shift (HUD shimmer fix).
++                                if (step_dh != 0 || step_dv != 0) {
++                                    const uint32_t iw = ppu.render_width();
++                                    const uint32_t ih = ppu.render_height();
++                                    const std::size_t ibytes =
++                                        static_cast<std::size_t>(iw) * ih * 3u;
++                                    // Rebase veto (issue #9): a register
++                                    // step that leaves the rendered frame
++                                    // unchanged — a compensated scroll
++                                    // rebase on every layer — has no
++                                    // visual motion to interpolate.
++                                    // Shifting would fabricate a frame
++                                    // the game never displayed.
++                                    if (ibytes > 0 &&
++                                        ibytes == live_fb.size() &&
++                                        interp_prev.size() == ibytes &&
++                                        frame_mean_abs_diff(
++                                            interp_prev.data(),
++                                            live_fb.data(), iw,
++                                            ih) < 1.0f) {
++                                        step_dh = 0;
++                                        step_dv = 0;
++                                    }
++                                }
++                                if (step_dh != 0 || step_dv != 0) {
++                                    const uint32_t iw = ppu.render_width();
++                                    const uint32_t ih = ppu.render_height();
++                                    const std::size_t ibytes =
++                                        static_cast<std::size_t>(iw) * ih * 3u;
++                                    if (ibytes > 0 &&
++                                        ibytes == live_fb.size()) {
++                                        using namespace gbarecomp::
++                                            interp_shift;
++                                        if (interp_fb.size() != ibytes)
++                                            interp_fb.assign(ibytes, 0);
++                                        shift_blit(
++                                            live_fb.data(), interp_fb.data(),
++                                            iw, ih, -step_dh, -step_dv);
++                                        if (interp_prev.size() == ibytes)
++                                            select_static(interp_prev.data(),
++                                                          live_fb.data(),
++                                                          interp_fb.data(),
++                                                          ibytes);
++                                        show_mid = true;
++                                    }
++                                }
++                                interp_prev.assign(live_fb.begin(),
++                                                   live_fb.end());
++                            }
++                            uint64_t tick_index = 0;
++                            pacer->wait_for_next_frame(
++                                banked_frames,
++                                [&](uint64_t deadline_ns) {
++                                    const uint8_t* frame = live_fb.data();
++                                    if (tick_index++ != 0 && show_mid)
++                                        frame = interp_fb.data();
++                                    win.interp_display_tick(frame,
++                                                            deadline_ns);
++                                });
++                        } else {
++                            pacer->wait_for_next_frame(banked_frames);
++                        }
++                    }
                  }
                  if (phase_active) {
                      frame_phase.record(frame, fp_t0, fp_t1, fp_t2, fp_t3,
-@@ -4092,6 +4126,7 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -3985,7 +4244,7 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+         // re-present, ~100 Hz idle). Applies to windowed play only.
+         while (host_paused && !host_quit && args.window) {
+             pump_host_input();
+-            win.present(live_fb.data());
++            win.present(live_fb.data(), false);
+             std::this_thread::sleep_for(std::chrono::milliseconds(10));
+         }
+         if (host_quit) break;
+@@ -4092,6 +4351,7 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
                  pump_host_input();
                  if (phase_active) fp_t4 = FramePhaseRing::now_ns();
                  dispatches_since_pump = 0;
@@ -11939,7 +12972,7 @@ index b560791..93525d0 100644
                  last_presented_frame = frame;
                  if (present_frame) {
                      ++frames_presented;
-@@ -4101,7 +4136,7 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -4101,7 +4361,7 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
                      // Normal play presents/paces every frame. Fast-forward
                      // runs N guest frames per one paced host presentation,
                      // making its selected multiplier independent of monitor Hz.
@@ -11948,7 +12981,7 @@ index b560791..93525d0 100644
                  }
                  if (phase_active) {
                      frame_phase.record(frame, fp_t0, fp_t1, fp_t2, fp_t3,
-@@ -4260,8 +4295,10 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -4260,8 +4520,10 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
          }
      }
  
@@ -11961,10 +12994,28 @@ index b560791..93525d0 100644
      return save_ok ? 0 : 1;
  }
 diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
-index cb6717c..e2e4417 100644
+index cb6717c..9ddc23b 100644
 --- a/src/runtime/runtime.h
 +++ b/src/runtime/runtime.h
-@@ -127,6 +127,13 @@ struct RunOptions {
+@@ -123,10 +123,31 @@ struct RunOptions {
+     bool expose_assist_tools = false;
+     bool assist_tools_enabled_by_default = true;
+     std::uint8_t assist_fast_forward_multiplier_default = 4;
++    // Issue #9 strategy #1: Graphics/LCD ghosting row in the runtime
++    // settings menu (presentation frame blending). Kept above the recorded
++    // assist block (not inside it) so the per-feature reference diffs keep
++    // their context; default off everywhere so faithful runs stay byte-exact
++    // unless the player opts in mid-session. Engine side of the row +
++    // HostWindow blend stage: gbarecomp-local.patch; row order:
++    // recomp-ui-local.patch.
++    bool expose_lcd_ghosting = false;
++    // Issue #9 strategy #3a: Graphics/Frame interpolation row (decoupled
++    // display clock: the pacer wait subdivides into display-paced holding
++    // presents). Same opt-in shape as above; default off. At 3a the row
++    // delivers judder-free multiplied presents; 3b will add lerped BG
++    // re-renders behind the same toggle.
++    bool expose_frame_interp = false;
+     std::uint8_t save_state_slot_count = 9;
      std::uint8_t rewind_history_seconds = 0;
      std::uint8_t rewind_capture_interval_frames = 15;
  
@@ -11978,7 +13029,7 @@ index cb6717c..e2e4417 100644
      // Optional game-owned content initializer. Called exactly once, after the
      // first non-native view has been authorized and applied. For a fixed view
      // that is during startup; for resize-driven view it is deferred until the
-@@ -164,6 +171,11 @@ struct RunOptions {
+@@ -164,6 +185,11 @@ struct RunOptions {
      // The player toggles it with the corner button; the choice persists.
      int touch_pad_default = -1;
  

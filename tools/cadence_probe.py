@@ -30,17 +30,22 @@ found zero exact-half cadences. This tool keeps that verdict checkable.
 Usage:
   tools/cadence_probe.py                       # gate: invariants + iwram/oam/pal
   tools/cadence_probe.py --state game.state1 --keyinput right --frames 160
+  tools/cadence_probe.py --replay saves/regress/battle_move_trace.csv \
+      --state saves/regress/battle_move_start.state   # drive a recorded flow
+  tools/cadence_probe.py --script "0:a,4:none,14:right" --watch 0x02002FD8:0x80
   tools/cadence_probe.py --regions vram --frames 120
-  tools/cadence_probe.py --strict              # exact-half bytes FAIL the run
+  tools/cadence_probe.py --strict              # every-other-frame fails the run
   tools/cadence_probe.py --table --traces 8    # per-frame table + more traces
   tools/cadence_probe.py --json /tmp/cad.json
 
 Exit: 0 pass, 1 cadence/invariant failure, 2 setup error.
 Gate rules: parities equal and toggling on >=95% of steps, gVblankCounter
-+1 per step on >=95% of steps; with --strict, additionally zero
-every-other-frame addresses on the PRESENTED surfaces (io/oam/pal/vram +
-the display-reg shadow) — internal IWRAM staging alternation is the
-double-buffer slot write and is reported, not gated.
++1 per step on >=95% of steps; with --strict, additionally zero SUSTAINED
+every-other-frame addresses (>=6 alternating changes) on the PRESENTED
+surfaces (io/oam/pal/vram + the display-reg shadow) — internal IWRAM
+staging alternation is the double-buffer slot write and is reported, not
+gated; short alternating runs are reported as transient candidates (OAM
+slot recycling mimics strict alternation over short windows), never gated.
 """
 import argparse
 import json
@@ -60,6 +65,7 @@ ROM = REPO / "game.gba"
 
 REGIONS = {
     "iwram": (0x03000000, 32 * 1024, "read_iwram"),
+    "ewram": (0x02000000, 256 * 1024, "read_ewram"),
     "oam": (0x07000000, 1024, "read_oam"),
     "pal": (0x05000000, 1024, "read_pal"),
     "vram": (0x06000000, 96 * 1024, "read_vram"),
@@ -105,6 +111,54 @@ def find_free_port():
     return port
 
 
+def parse_script(spec):
+    """--script "0:a,4:none,14:right,24:a" -> per-step keyinput schedule.
+
+    Step i uses the last entry whose frame <= i; missing schedule = the
+    --keyinput default. Buttons use the KEY_BITS names, '+' to chord.
+    """
+    if not spec:
+        return []
+    out = []
+    for item in spec.split(","):
+        fr, btn = item.split(":", 1)
+        out.append((int(fr), parse_keyinput(btn)))
+    out.sort()
+    return out
+
+
+def parse_watch(spec):
+    """--watch 0x02002C10:0x20,0x02002FD8:0x20 -> [(addr, len), ...]"""
+    out = []
+    for item in spec.split(",") if spec else []:
+        item = item.strip()
+        if not item:
+            continue
+        addr, ln = item.split(":")
+        out.append((int(addr, 0), int(ln, 0)))
+    return out
+
+
+def parse_trace(path, leadin):
+    """Replay a gbarecomp-keyinput-v1 trace (frame,keyinput_active_low) as
+    a per-step schedule. The recorded session's absolute frames are
+    re-anchored so its FIRST non-idle input lands at probe step `leadin`
+    (the state is quiescent while idle, so the boot offset is inert).
+    """
+    events = []
+    for line in pathlib.Path(path).read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        fr, keys = line.split(",", 1)
+        events.append((int(fr), int(keys, 0)))
+    if not events:
+        raise SystemExit(f"cadence_probe: empty trace {path}")
+    first = next((f for f, k in events if k != 0x03FF), events[0][0])
+    shift = first - leadin
+    return [(max(0, f - shift), k) for f, k in events if f - shift >= 0]
+
+
 def connect(port, deadline_s=45.0):
     end = time.monotonic() + deadline_s
     while time.monotonic() < end:
@@ -140,31 +194,63 @@ def clean_env():
             if not k.startswith("GBARECOMP_")}
 
 
-def collect(sock, frames, keyinput, regions):
+def read_cmd_for(addr):
+    for name, (base, size, cmd) in REGIONS.items():
+        if base <= addr < base + size:
+            return cmd
+    raise SystemExit(f"cadence_probe: no read command for {addr:#x}")
+
+
+def collect(sock, frames, keyinput, targets, script):
     """Step one VBlank at a time; return per-step snapshots."""
     out = []
-    for _ in range(frames):
-        fr = call(sock, "run_frames", n=1, keyinput=keyinput)
+    for i in range(frames):
+        if i and i % 100 == 0:
+            print(f"cadence_probe: step {i}/{frames} ...", file=sys.stderr,
+                  flush=True)
+    for i in range(frames):
+        keys = keyinput
+        for fr, kv in script:
+            if fr <= i:
+                keys = kv
+        fr = call(sock, "run_frames", n=1, keyinput=keys)
         pa = read_mem(sock, "read_iwram", PARITY_A, 1)[0]
         pb = read_mem(sock, "read_iwram", PARITY_B, 1)[0]
         tick = int.from_bytes(read_mem(sock, "read_iwram", TICK, 2), "little")
         vb = int.from_bytes(read_mem(sock, "read_iwram", VBCOUNT, 2), "little")
         blobs = []
-        for name in regions:
-            base, size, cmd = REGIONS[name]
+        for name, base, size, cmd in targets:
             blobs.append(read_mem(sock, cmd, base, size))
         out.append({"frame": fr.get("frame"), "pa": pa, "pb": pb,
                     "tick": tick, "vb": vb, "blobs": blobs})
     return out
 
 
-def analyze(regions, rows, trace_n):
-    """Per-region cadence stats + scheduler invariants.
+def analyze(targets, rows, trace_n):
+    """Per-target cadence stats + scheduler invariants.
 
     The every-other-frame signature is STRICT ALTERNATION of change steps
     (gaps of exactly 2 between consecutive change frames), not merely a
     ~0.5 change ratio: a byte that is static for half the run and then
     updates every frame also lands near 0.5 without being a 30 Hz gate.
+
+    OAM confounder (2026-10-13, route-B replay): a recycled OAM slot can
+    fake strict alternation over a SHORT window — the whole entry is
+    reassigned to a different sprite every step during scene recomposition
+    while one byte happens to take pairwise-equal values across consecutive
+    sprites (e.g. entry 70 byte3 = 50,50,10,10,11,11 over steps 73-79 while
+    bytes 0,1,2,4,5 jump discontinuously every step). Gating therefore
+    requires a SUSTAINED run (>=6 alternating changes); shorter runs are
+    reported as transient candidates for human review, not gated.
+
+    Dilution caveat (2026-10-13, totema 2600-step replay): full-history
+    alternation misses a LOCALIZED burst (e.g. a 20-step palette fade)
+    when the same byte changes again anywhere later in a long run — the
+    totema fade flagged 8 palette bytes over 1800 steps and zero over
+    2600. Maximal gap-2 subruns (>=6 changes) are therefore reported
+    separately as burst_alternating with their step window (reported, not
+    gated); long measurement runs must be read through bursts, not just
+    the gate.
     """
     n = len(rows) - 1
     sched = {"steps": n, "parity_toggles": 0, "parity_disagreements": 0,
@@ -177,11 +263,10 @@ def analyze(regions, rows, trace_n):
     sched["vblank_rate"] = sched["vblank_steps"] / max(1, n)
 
     out = {}
-    for ri, name in enumerate(regions):
-        base = REGIONS[name][0]
+    for ti, (name, base, size, cmd) in enumerate(targets):
         changed_at = {}
         for si, (a, b) in enumerate(zip(rows, rows[1:])):
-            pa, pb = a["blobs"][ri], b["blobs"][ri]
+            pa, pb = a["blobs"][ti], b["blobs"][ti]
             if pa == pb:
                 continue
             for off in range(len(pa)):
@@ -189,43 +274,96 @@ def analyze(regions, rows, trace_n):
                     changed_at.setdefault(off, []).append(si)
         hist = {}
         alt_steps = {}
+        bursts = []
         near = []
         for off, steps in changed_at.items():
             cad = len(steps) / max(1, n)
             hist[round(cad * 20) / 20] = hist.get(round(cad * 20) / 20, 0) + 1
             gaps = [b - x for x, b in zip(steps, steps[1:])]
             if len(steps) >= 4 and all(g == 2 for g in gaps):
-                alt_steps.setdefault(tuple(steps), []).append(base + off)
+                # Sustained runs gate; short runs (OAM slot-recycling
+                # transients) are reported separately, never gated.
+                bucket = "sust" if len(steps) >= 6 else "tran"
+                alt_steps.setdefault((bucket, tuple(steps)), []).append(
+                    base + off)
+            # Burst runs: maximal consecutive gap-2 subruns. Full-history
+            # alternation dilutes when a localized burst (e.g. a 20-step
+            # palette fade) is followed by later changes to the same byte
+            # anywhere in a long run — the subrun still counts.
+            run = [steps[0]]
+            for prev_, cur in zip(steps, steps[1:]):
+                if cur - prev_ == 2:
+                    run.append(cur)
+                else:
+                    if len(run) >= 6:
+                        bursts.append((base + off, run[0], run[-1], len(run)))
+                    run = [cur]
+            if len(run) >= 6:
+                bursts.append((base + off, run[0], run[-1], len(run)))
             if abs(cad - 0.5) <= 0.1:
-                near.append((cad, base + off, ri, off))
-        # Every-other-frame signature = strictly alternating change steps
-        # (gaps of exactly 2). On a PRESENTED surface that is a 30 Hz gate;
-        # in IWRAM staging it is the normal double-buffer slot write (slot A
-        # written on even steps, slot B on odd ones) — report it, don't
-        # gate it.
+                near.append((cad, base + off, ti, off))
+        # Every-other-frame signature = strictly alternating change steps.
+        # On a PRESENTED surface that is a 30 Hz gate; in IWRAM staging it
+        # is the normal double-buffer slot write (slot A written on even
+        # steps, slot B on odd ones) — report it, don't gate it.
         alt = []
-        for steps, addrs in alt_steps.items():
+        transient = []
+        for (bucket, steps), addrs in alt_steps.items():
             for x in addrs:
-                alt.append((x, steps[0] % 2))
+                (alt if bucket == "sust" else transient).append(
+                    (x, steps[0] % 2, len(steps)))
         phases = {}
-        for _, ph in alt:
+        for _, ph, _cnt in alt + transient:
             phases[ph] = phases.get(ph, 0) + 1
 
         def presented(x):
-            return name in PRESENTED or (
-                name == "iwram" and SHADOW[0] <= x < SHADOW[1])
+            if name in PRESENTED:
+                return True
+            if name == "iwram" and SHADOW[0] <= x < SHADOW[1]:
+                return True
+            return name.startswith("watch@") and (
+                (0x04000008 <= x < 0x04000056) or
+                (0x05000000 <= x < 0x05000400) or
+                (0x06000000 <= x < 0x06018000) or
+                (0x07000000 <= x < 0x07000400))
 
-        gate_addrs = sorted(f"{x:#010x}" for x, _ in alt if presented(x))
-        internal = sum(1 for x, _ in alt if not presented(x))
+        gate_addrs = sorted(f"{x:#010x}" for x, _, _ in alt if presented(x))
+        transient_addrs = sorted(f"{x:#010x}" for x, _, _ in transient
+                                 if presented(x))
+        internal = sum(1 for x, _, _ in alt if not presented(x))
+        internal += sum(1 for x, _, _ in transient if not presented(x))
         near.sort(key=lambda t: abs(t[0] - 0.5))
+        # Traces: gated alternating addresses first (always), then the
+        # nearest-to-0.5 movers.
         traces = []
-        for cad, addr, _, off in near[:trace_n]:
-            vals = [r["blobs"][ri][off] for r in rows[:80]]
+        for x, _ph, cnt in sorted(alt + transient):
+            if presented(x):
+                vals = [r["blobs"][ti][x - base] for r in rows[:120]]
+                traces.append({"addr": f"{x:#010x}",
+                               "cadence": round(cnt / max(1, n), 3),
+                               "changes": cnt,
+                               "values": [f"{v:02x}" for v in vals]})
+        for x, start, end, cnt in sorted(bursts):
+            # Every window gets its own trace: the same byte often bursts
+            # twice (fade-out, then fade-in) and the directions differ.
+            if presented(x):
+                vals = [r["blobs"][ti][x - base]
+                        for r in rows[max(0, start - 2):end + 6]]
+                traces.append({"addr": f"{x:#010x}",
+                               "cadence": round(cnt / max(1, end - start + 1), 3),
+                               "changes": cnt, "window": [start, end],
+                               "values": [f"{v:02x}" for v in vals]})
+        for cad, addr, ti2, off in near[:trace_n]:
+            vals = [r["blobs"][ti2][off] for r in rows[:80]]
             traces.append({"addr": f"{addr:#010x}", "cadence": round(cad, 3),
                            "values": [f"{v:02x}" for v in vals]})
         out[name] = {"changed_bytes": len(changed_at),
                      "histogram": {f"{k:.2f}": v for k, v in sorted(hist.items())},
                      "alternating": gate_addrs,
+                     "transient_alternating": transient_addrs,
+                     "burst_alternating": sorted(
+                         f"{x:#010x}@{s}-{e}" for x, s, e, _ in bursts
+                         if presented(x)),
                      "internal_alternating": internal,
                      "alternating_phases": {str(k): v for k, v in
                                             sorted(phases.items())},
@@ -249,6 +387,18 @@ def main():
     ap.add_argument("--keyinput", default="",
                     help="held buttons: names and/or hex mask, comma list "
                          "(e.g. right, or right,a); default: none held")
+    ap.add_argument("--script", default="",
+                    help="per-step keyinput schedule \"0:a,4:none,14:right\" "
+                         "(step:buttons[,step:buttons...]; buttons use the "
+                         "--keyinput names, '+' chords) — overrides "
+                         "--keyinput from each listed step on")
+    ap.add_argument("--replay", default="",
+                    help="gbarecomp-keyinput-v1 trace to replay per step "
+                         "(see reference/dev-gotchas.md § Input trace "
+                         "format); first non-idle input lands at step 8")
+    ap.add_argument("--watch", default="",
+                    help="extra per-frame watches \"0x02002C10:0x20,...\" "
+                         "(addr:len, auto read-command by region)")
     ap.add_argument("--regions", default="io,iwram,oam,pal",
                     help="comma list of " + ",".join(REGIONS) +
                          " (vram is slow; opt in)")
@@ -284,6 +434,14 @@ def main():
     if a.no_state:
         state = None
     keyinput = parse_keyinput(a.keyinput)
+    script = parse_script(a.script) if a.script else (
+        parse_trace(a.replay, 8) if a.replay else [])
+    targets = []
+    for name in regions:
+        base, size, cmd = REGIONS[name]
+        targets.append((name, base, size, cmd))
+    for addr, ln in parse_watch(a.watch):
+        targets.append((f"watch@{addr:#x}", addr, ln, read_cmd_for(addr)))
 
     tmp = pathlib.Path(tempfile.mkdtemp(prefix="ffta_cadence_"))
     log = open(tmp / "run.log", "wb")
@@ -309,7 +467,7 @@ def main():
                     return 2
                 loaded = state.name
             call(sock, "run_frames", n=6, keyinput=keyinput)
-            rows = collect(sock, a.frames, keyinput, regions)
+            rows = collect(sock, a.frames, keyinput, targets, script)
             call(sock, "quit")
         except (ConnectionError, OSError) as exc:
             print(f"cadence_probe: tcp session failed ({exc}); "
@@ -323,10 +481,13 @@ def main():
             proc.kill()
         log.close()
 
-    sched, stats = analyze(regions, rows, a.traces)
+    sched, stats = analyze(targets, rows, a.traces)
 
-    print(f"cadence_probe: {a.frames} steps on {loaded}, "
-          f"keyinput={a.keyinput or 'none'}, regions={','.join(regions)}")
+    drive = (f"replay={pathlib.Path(a.replay).name}" if a.replay else
+             f"script={a.script}" if a.script else
+             f"keyinput={a.keyinput or 'none'}")
+    print(f"cadence_probe: {a.frames} steps on {loaded}, {drive}, "
+          f"targets={','.join(t[0] for t in targets)}")
     if a.table:
         print(f"{'frame':>6} {'pa':>2} {'pb':>2} {'vb':>6} {'dvb':>3}")
         prev = None
@@ -338,7 +499,7 @@ def main():
     print(f"scheduler: parity toggle {sched['parity_rate']:.2f}/step, "
           f"parity A==B disagreements {sched['parity_disagreements']}, "
           f"vblank +1/step {sched['vblank_rate']:.2f}")
-    for name in regions:
+    for name, _base, _size, _cmd in targets:
         s = stats[name]
         print(f"== {name}: {s['changed_bytes']} bytes changed")
         print("   histogram (cadence: bytes): "
@@ -348,12 +509,22 @@ def main():
                   f"{', '.join(s['alternating'])}")
         else:
             print("   every-other-frame on presented surface: none")
+        if s["transient_alternating"]:
+            print(f"   transient alternation (short-run, review manually — "
+                  f"OAM slot recycling mimics this): "
+                  f"{', '.join(s['transient_alternating'])}")
+        if s["burst_alternating"]:
+            print(f"   burst alternation (localized gap-2 run, addr@first-last "
+                  f"step — survives later changes to the same byte): "
+                  f"{', '.join(s['burst_alternating'])}")
         if s["internal_alternating"]:
             print(f"   internal staging alternation (double buffer): "
                   f"{s['internal_alternating']} bytes, phases "
                   f"{s['alternating_phases']}")
         for t in s["traces"]:
-            print(f"   trace {t['addr']} cad={t['cadence']:.2f}: "
+            tag = (f"@{t['window'][0]}-{t['window'][1]}"
+                   if "window" in t else "")
+            print(f"   trace {t['addr']}{tag} cad={t['cadence']:.2f}: "
                   + " ".join(t["values"]))
 
     if a.json:
@@ -370,7 +541,7 @@ def main():
     if sched["vblank_rate"] < 0.95:
         failures.append(f"vblank +1/step only {sched['vblank_rate']:.2f}")
     if a.strict:
-        for name in regions:
+        for name in stats:
             if stats[name]["alternating"]:
                 failures.append(f"{name}: every-other-frame cadence at "
                                 + ", ".join(stats[name]["alternating"]))
@@ -378,7 +549,7 @@ def main():
     if failures:
         print("cadence_probe: FAIL — " + "; ".join(failures))
         return 1
-    half = sum(len(stats[n]["alternating"]) for n in regions)
+    half = sum(len(stats[n]["alternating"]) for n in stats)
     print(f"cadence_probe: PASS — scheduler 60 Hz, {half} every-other-frame "
           f"address(es)" + ("" if a.strict else " (--strict gates them)"))
     return 0

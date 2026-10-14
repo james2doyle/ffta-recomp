@@ -1,0 +1,11 @@
+# gbarecomp-keyinput-v1
+# frame,keyinput_active_low
+25283,0x03FF
+25562,0x037F
+25566,0x03FF
+25591,0x03FE
+25597,0x03FF
+25654,0x03FE
+25658,0x03FF
+25736,0x03FE
+25741,0x03FF

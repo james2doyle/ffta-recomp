@@ -304,6 +304,13 @@ int main() {
         g_failures += run_stick_dpad_tests();
     }
 
+    // ── interp shift midpoint helpers (host_platform.h interp_shift) ─
+    // Issue #9 3b: scroll-step measurement + half-pixel shift blit.
+    {
+        extern int run_interp_shift_tests();
+        g_failures += run_interp_shift_tests();
+    }
+
     std::printf("%s (%d failure%s)\n", g_failures ? "FAIL" : "PASS",
                 g_failures, g_failures == 1 ? "" : "s");
     return g_failures ? 1 : 0;

@@ -39,7 +39,8 @@ real hours once.
   `rm -rf recomp_cache` before one-off checks.
 - `GBARECOMP_INPUT_REPLAY` is applied by the headless `--frames` loop only —
   TCP `run_frames`/`step` does NOT apply replay events (check KEYINPUT at
-  0x04000130 if in doubt). Run replay gates headless.
+  0x04000130 if in doubt). Run replay gates headless. Trace format:
+  § "Input trace format (`gbarecomp-keyinput-v1`)" below.
 - `--tcp` mode does NOT process `--load-state` (silently skipped — no
   `savestate_loaded` line). Load over TCP with `savestate_load {path}`
   (GBAS container; refuses wrong SHA-1/version).
@@ -64,6 +65,47 @@ real hours once.
 - Long non-strict runs are safe (present-in-place + background healing; the
   session-5 acceptance replay runs 112,000 frames headless). Strict runs are
   faster and are the acceptance.
+
+## Input trace format (`gbarecomp-keyinput-v1`)
+
+The `.csv` input traces (recorded by `GBARECOMP_INPUT_RECORD`, replayed by
+`GBARECOMP_INPUT_REPLAY` — the two are mutually exclusive) are a
+change-only event list of the GBA KEYINPUT register. First-stop
+documentation, distilled from `gbarecomp/src/runtime/runtime.cpp` (write
+site ~3450, parser ~3240, apply ~3290):
+
+- **Header:** comment lines `# gbarecomp-keyinput-v1` and
+  `# frame,keyinput_active_low`. Every `#` line and blank line is ignored.
+- **Rows:** `<frame>,0x<keys>` (`%llu,0x%04X`) — the absolute
+  `ppu.frame_count()` and the **composed** KEYINPUT value the guest
+  actually read (host keys AND any touch-policy synthesis, so a replay
+  needs neither the policy nor the touches that drove it).
+- **KEYINPUT is active-low**, 10 bits: `0x03FF` = nothing held;
+  bit0=A, 1=B, 2=Select, 3=Start, 4=Right, 5=Left, 6=Up, 7=Down, 8=R,
+  9=L. A SET bit means the button is NOT pressed (`0x03FE` = A held).
+- **Change-only, held:** a row is written only when the composed value
+  changes (plus the first value). Each row's value applies FROM its frame
+  until the next row. On replay, every frame the last event with
+  `frame <= ppu.frame_count()` is written to KEYINPUT; before the first
+  event's frame no write happens (the register stays idle).
+- **Parser constraints** (replay load): rows must parse as above, `keys`
+  must be `<= 0x03FF`, and frames must be **monotonic non-decreasing** —
+  a back-step is "invalid input trace line" and aborts. That is why
+  `tools/trace_split.py` exists: a mid-session savestate load makes the
+  frame column jump (the counter follows the loaded state), so split such
+  traces before replay. An empty trace aborts the run.
+- **Producers/consumers:** `tools/play.sh` records every windowed
+  playtest to `logs/playthrough.csv` (the previous take is archived to
+  `saves/trace_prev_<ts>.csv` at startup). The frozen strict-route replay
+  fixtures are `saves/regress/*.csv` (local-only). Replay is applied by
+  the headless `--frames` loop ONLY — TCP `run_frames`/`step` never
+  applies events (see above). `tools/cadence_probe.py --replay <trace>`
+  re-drives a trace over the TCP surface by shifting its events onto
+  probe steps (first non-idle input → step 8; the guest is quiescent
+  while idle, so the boot offset is inert).
+- **Not this format:** `GBARECOMP_ASSIST_SCRIPT` is a monotonic-pump
+  action script (`frame:action;…` — fast-forward/save/rewind actions, no
+  buttons), documented next to the Assist code in `runtime.cpp`.
 
 ## Sessions and close handling
 

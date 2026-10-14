@@ -5937,3 +5937,519 @@ PASS — regen 63134 discovered/emitted (corpus unchanged), dispatch
 sanity OK, build OK, attract gate PASS frames=1200 sha256
 1EF4C118A8438CADE6E5847DC6716A7A800D157A568DECB272F2F7052EF321C1.
 Commit after this entry.
+
+## 2026-10-13 — Input-trace format documented; cadence_probe learns --replay (route-B pre-finding)
+
+Two follow-ups to the late-12/13 audit work, both aimed at measuring
+logic-driven animation cadence (the last unknown for the issue #9
+strategy ladder):
+
+**Input trace format documented** (`reference/dev-gotchas.md` § "Input
+trace format (`gbarecomp-keyinput-v1`)", pointers from tests/README).
+Distilled from `gbarecomp/src/runtime/runtime.cpp` (write ~3450, parser
+~3240, apply ~3290): change-only `<frame>,0x<keys>` rows (`%llu,0x%04X`),
+composed KEYINPUT (host keys + touch-policy synthesis), active-low 10-bit
+(`0x03FF` idle), rows hold until the next; replay = last event with
+`frame <= ppu.frame_count()` per frame, nothing before the first event;
+parser demands monotonic frames (why `trace_split.py` exists — a
+mid-session savestate load makes the frame column jump) and `keys <=
+0x03FF`. Recorded by `GBARECOMP_INPUT_RECORD` (play.sh ->
+logs/playthrough.csv), replayed by `GBARECOMP_INPUT_REPLAY` (headless
+`--frames` loop ONLY — TCP stepping never applies events).
+`GBARECOMP_ASSIST_SCRIPT` is a different format (action script).
+
+**`tools/cadence_probe.py` extended:** `--replay <trace>` re-drives a
+recorded flow over the TCP surface by re-anchoring its events onto probe
+steps (first non-idle input -> step 8; the guest is quiescent while idle),
+`--script "step:buttons,..."` for hand schedules, `--watch addr:len` for
+targeted reads (ewram region added for watch resolution), and gated
+alternating addresses always get value traces.
+
+**Route-B pre-finding** (replaying the frozen
+`saves/regress/battle_move_trace.csv` off `battle_move_start.state`, 120
+steps): **unit sprite positions interpolate per frame** (OAM x eased
+6d,70,74,78,7c,7f,82,83,85,86... — 60 Hz) and the camera scrolls at 60
+(BG2HOFS 80,7e,7c,7a,78,76,73,70,6c,68,64... eased), internal staging
+alternates in antiphase (25 bytes, phases 15/10 — the double buffer).
+But ONE OAM byte ticked at a true 30 Hz: 0x07000233 (entry 70, attr1
+high byte = x bit8/hflip/size) held 50,50,10,10,11,11 — a 2-frame
+sprite-shape animation. First live confirmation that ffta mixes 60 Hz
+motion with 30 Hz effect-animation ticks — exactly the category inter-
+frame blending (issue #9 option 1) smooths and a cheat-class patch
+(option 6) could target. Full walk/magic/totema takes to follow (user
+records via play.sh --load-state game.state1; replays measured per flow).
+
+Acceptance: `check.py --only unit-py,cadence` ALL PASS (2/2; suite
+unchanged in behavior). Docs-only + tool-internal changes; no
+symbols/game.toml/src change, so no cycle needed.
+
+## 2026-10-13 (late) — The 30 Hz "tick" retracts: OAM slot recycling mimics alternation
+
+Follow-up to the route-B pre-finding above: the 0x07000233 "true 30 Hz
+tick" does NOT survive entry-level inspection, and the issue #9
+correction claiming it has been amended a second time.
+
+**Evidence:** a per-step dump of the full OAM entry 70 (0x07000230:8)
+over probe steps 65-95 (`/tmp/opencode/dump_entry70.py`, local-only)
+shows the flagged byte's `50,50,10,10,11,11` window (steps 73-79) is a
+scene-recomposition transient — the WHOLE entry is reassigned to a
+different sprite every step (y/x/tile all jump discontinuously:
+0c00/4c/dc08 -> 0100/41/dc08 -> ef40/37/d808 -> 1680/06/2218 ...), and
+byte3 merely takes pairwise-equal values across consecutive sprites.
+Change steps 73,75,77,79 satisfy strict alternation (gaps 2,2,2) by
+coincidence. From step 79 the slot settles onto the walking unit and x
+advances per frame (f4,f1,ed,eb,e8,e7,e5... — 60 Hz eased motion with
+ease-out repeats, not holds).
+
+**Tool fix (committed here):** gating now requires a SUSTAINED run
+(>=6 alternating changes, >=10 steps); 4-5-change runs are reported as
+`transient_alternating` candidates (always value-traced) and never gate.
+Docstring documents the slot-recycling confounder. `alternating_phases`
+now covers both classes.
+
+**300-step route-B walk verdict** (replay off battle_move_start.state,
+regions io/iwram/oam/pal): scheduler 60 Hz (parity 0.99, vblank 1.00),
+**zero sustained every-other-frame addresses on every presented
+surface**; sole transient is the known 0x07000233 artifact; PAL moves
+(141 bytes, fades/flashes) at non-half cadences. So the battle-walk
+flow is 60 Hz motion end-to-end with NO confirmed 30 Hz content yet —
+the authored-vs-mechanical classification question stays open for the
+effect-heavy flows (black magic, totema), where real animation ticks
+are expected. User records those takes via
+`tools/play.sh --load-state game.state1` (one flow per session, ~2 s
+idle after load for clean re-anchor; trace lands at
+logs/playthrough.csv, archived to inputs/cadence_<flow>.csv between
+takes).
+
+Acceptance: `check.py --only unit-py,cadence` ALL PASS (2/2). Tool-
+internal change only; no cycle needed.
+
+## 2026-10-13 (late) — Totema take: first CONFIRMED 30 Hz content (palette fade)
+
+User-recorded take `inputs/cadence_totema.csv` (Down,A,A,A over 458
+frames off game.state1, committed). 1800-step replay (regions io/oam/pal
++ watches display-reg shadow / 0x02002C10 / unit records):
+
+- **Summon verified from data:** menu nav (steps 8-186) -> camera swoop +
+  OAM recomposition (~326-437, BG2 scroll 215->260->263->224->215 snap)
+  -> palette fade burst (437-456) -> long hold with slow pan (scroll
+  ->136, VOFS dip to -55 around 1240-1520) -> finale starting ~1640
+  (still busy at step 1800; the 2600-step extension captured the rest —
+  see mirror note below).
+- **8 BG-palette bytes pass the SUSTAINED gate**
+  (0x0500000c/2c/4c/6d/76/8f/98/af): 10 changes, gaps all exactly 2,
+  values ramping monotonically
+  83->63->43->22->02->e2->c2->a2->81->61->41 with each held exactly 2
+  steps, all 8 bytes in lockstep (`/tmp/opencode/totema_timeline.py`
+  timeline, local-only). Palette-level confirmation holds: a coherent
+  multi-byte ramp cannot be slot recycling (palettes have no slots).
+  **First confirmed 30 Hz animation content in the game** — a fade
+  advancing every 2 frames (~20 frames / 0.33 s).
+- **Classification: authored fade cadence (high confidence).** No palette
+  staging double-buffer exists in the render path (late-12 audit), so
+  there is no writer that could sample a 60 Hz fade computation at 30 —
+  the 2-frame hold comes from the fade routine's own tick. Full rigor
+  would be finding the fade routine via a guest watchpoint (open,
+  optional). Ladder consequence: blending (#1) smooths it for free; a
+  #6 patch would halve the fade step and tick every frame — same
+  duration, double smoothness.
+- **Watch-address correction:** 0x02002C10 is `gWorldMapCamera` — a
+  *committed* symbol (data TSV § gWorldMapCamera), static as expected in
+  a battle scene. The earlier draft of this entry called it "rejected";
+  that was wrong — the battle camera is a different, still-unpinned
+  address (BG scroll proves it moves). Lesson recorded: check the symbol
+  table before declaring a quiet watch address dead. Unit-record watch
+  nearly quiet (1 byte — units stand still during the cinematic, or the
+  struct base is off; not resolved, not needed).
+- Context: the fade is short; the summon's ~20 s holds show NO 30 Hz
+  content (static palette, sparse OAM, slow pans). 30 Hz content so far
+  is confined to fade steps — exactly what inter-frame blending erases.
+- **Finale mirror (2600-step timeline):** steps 1928-1947 fade back UP
+  (41->61->81->a2->c2->e2->02->22->43->63->83, 2-frame holds, same 8
+  bytes in lockstep), palette restored to 83/4e, scene-return pans +
+  OAM recomposition (~1980-2260), quiet battle scene by ~2260. Full
+  byte histories: 83x438, fade-out ramp, 41x1473 (~24.5 s dark hold),
+  fade-in ramp, 83x653. The 2600-step full-history gate flags ZERO —
+  dilution confirmed live (20 changes/byte split by a 1473-step gap) —
+  which motivated the burst_alternating detector (implemented +
+  unit-tested this session via synthetic rows; live validation pending
+  on the black-magic take).
+
+## 2026-10-13 (late) — Black-magic take: same fade engine, two verses; synthesis
+
+User-recorded take `inputs/cadence_blackmagic.csv` (27 events: Down/A
+nav with B back-outs + Left cursor moves over 738 frames off
+game.state1, committed). 1500-step replay (io/oam/pal + shadow/unit
+watches), run twice (second run after per-window trace fix):
+
+- **Burst detector live-validated:** full-history gate finds ZERO, but
+  `burst_alternating` reports 26 localized windows, all palette —
+  exactly the shape the synthetic test predicted.
+- **Verse 1 (steps 705-723): fade OUT.** The same 8 totema bytes
+  (0x0500000c/2c/4c/6d/76/8f/98/af) ramp 83->41 with 2-frame holds,
+  plus neighboring bytes (6f/71/91/93/b1/b3) ramping in adjacent
+  windows (704-714, 711-723). Same fade engine, same cadence.
+- **Verse 2 (steps 958-976): fade back IN.** Same 8 bytes reversed
+  (41->61->81->a2->c2->e2->02->22->43->63->83, 2-holds); byte 0x3f
+  ascends 2d->4f alongside (mostly 2-holds with a few 1-holds mid-run).
+  Spell structure: cast -> fade to dark -> ~230-step (~4 s) effect hold
+  -> fade back -> aftermath. Per-window traces (tool fix this session:
+  every burst window traced, not just the first per address) confirm
+  both directions.
+- **No OAM/IO burst or sustained flags anywhere in 1500 steps:**
+  spell sprites and scroll run at 60 Hz; only palette fades tick at 30.
+- **Synthesis across all three flows** (route-B walk, totema, black
+  magic): render pipeline 60 Hz end-to-end; sprite/scroll motion 60 Hz
+  per-frame; 30 Hz content confined to authored palette-fade ticks in
+  ~20-step bursts (totema ~40/2600 steps ≈ 1.5%, magic ~40/1500 ≈
+  2.7%). Decision rule fires: no mechanical compute/read split anywhere
+  -> option #6 dead as a general measure (only conceivable as a narrow
+  fade-routine opt-in: halve step + tick every frame = same duration,
+  smoother — low value for 0.3 s fades). Recommendation stands:
+  #1 inter-frame blending (erases fade steps for free) + #2 VRR sync,
+  then #3 scroll/affine re-render. Measurement program complete.
+
+Acceptance: `check.py --only unit-py,cadence` ALL PASS (2/2) on the
+final tool. Fixture + tool-internal changes only; no cycle needed.
+
+## 2026-10-13 (late) — Issue #9 strategy #3a built: decoupled display clock
+
+Design (locked in-session, no-renderer-surgery version): no vsync
+requirement, no renderer recreate, no rate picker. Guest stays
+pacer-clocked at 59.7275; the pacer wait subdivides into display-paced
+holding presents (tick callback). Ticks sleep to display boundaries read
+from the current mode (re-queried periodically — adaptive panels safe);
+where presents already block, the tick skips its own sleep; a slower
+panel yields at the guest deadline instead of oversleeping it. Single
+"Frame interpolation" runtime row (Graphics, after LCD ghosting);
+default off; panel rate auto-followed; no device lists anywhere. FF
+(uncapped), behind-schedule, headless, and netplay (separate
+multiplayer_runner loop) all keep the historical path by construction
+(tick=null). At 3a the row delivers judder-free multiplied presents
+(holding = clean repeats); 3b will add lerped BG re-renders behind it.
+
+Implementation:
+
+- `FramePacer::wait_for_next_frame(frames, tick=nullptr)`
+  (host_platform.h/cpp): tick branch shares resync + late-rule tail with
+  the blocking path; deadline passed to ticks as ns so slow panels yield.
+- `HostWindow::present(rgb, fresh=true)`: repeats blend against
+  UNCHANGED history; paused loop passes false. New set/frame_interp,
+  vsync_blocks, interp_display_tick + Backend pacing state
+  (boundary/period/mode counter) + mode query at open.
+- Runtime: `expose_frame_interp` knob, STANDARD_FRAME_INTERP row bit,
+  get/set branches, `--frame-interp` CLI + flag-list entry, tick lambda
+  at the PiP-hook wait, set-at-open. Non-PiP/headless path untouched.
+- recomp-ui: `graphics.frame_interp` key + STANDARD bit + catalog row.
+- Game: expose knob true (`src/main.cpp`).
+- Overlap procedure (new): same-function features cannot keep separate
+  reference files green by repositioning, so the banked-wait reference
+  was rebased as a documented superset (wait-call/signature/decl hunks
+  absorb the 3a tick lines; banked lines unchanged; README row notes it)
+  plus right-of-way moves for the knob/CLI lines. Both patch legs green.
+
+Verification: `tools/cycle.py` PASS (corpus 63134, attract `1EF4C118…`
+intact); 7/7 suites incl. route_B determinism + ui-tests; 60 Hz desktop
+smoke (25 s interp-on windowed: guest 300 f/5 s steady, mode line
+60 Hz/16.67 ms, clean quit). True feel test needs a 120 Hz device
+(pending user run).
+
+Not done: 3b (lerped re-render), launcher Video persistence, device
+validation (APK + 120 Hz feel + thermal sanity).
+
+Implementation (commits `881a9d3`, `3fa9ce2`):
+
+## 2026-10-13 (late) — Issue #9 strategy #1 built: LCD ghosting toggle + stage
+
+- **Menu row:** the standard Graphics/LCD ghosting row, reordered directly
+  after Linear filter + relabeled "LCD ghosting (frame blending)"
+  (`recomp-ui-local.patch`; key `graphics.lcd_ghosting` unchanged, so
+  dispatch/persistence/tests keyed on it are unaffected). Offered only
+  when the game sets the new `RunOptions::expose_lcd_ghosting`.
+- **Present stage** (`gbarecomp-local.patch`): `HostWindow` flag +
+  CPU-side blend on cached scratch via recomp-ui's shared
+  `RecompFrameBlend` (compiled into `gbarecomp_runtime`; RGB888→ARGB8888,
+  `apply()`, back to RGB888 for upload — ~3 passes over ≤448×160, trivial).
+  `--frame-blend 0|1` mirrors the flag for scripted runs. History resets
+  on the savestate-load dispatches (menu/hotkey/observer/rewind); boot
+  starts invalid (first frame as drawn); view-size change reallocs +
+  resets. `apply()` everywhere, no holding variant: re-presenting an
+  identical paused frame is avg(f,f)=f, so duplicates need no
+  special-casing. The paused-loop duplicate present and FF-decimated
+  presents are therefore correct by construction; TCP-dev loads (no `win`
+  scope at that dispatch) self-heal in one frame.
+- **Game:** `opts.expose_lcd_ghosting = true` (`src/main.cpp`). Default
+  off everywhere (flag, CLI, menu initial state) — faithful runs stay
+  byte-exact unless the player opts in mid-session.
+- **Right-of-way:** new framework code yields to the recorded reference
+  diffs — first placement (knob inside assist block, flag mid-list) broke
+  `speed-toggle-ff-seam` + `android-external-state-dir` reverse checks;
+  moved clear of their context (knob above the assist block, flag first
+  in the CLI list) and the `patches` suite is green including both
+  reference files and all three consolidated replays.
+- **Not done:** launcher Video persistence (`frame_blend` config key +
+  `has_frame_blend` gate — the natural follow-up so the choice survives
+  relaunch), fade-routine RE (optional rigor), TCP `run_frames` in
+  `--tcp-observe` (step callback unwired there; deterministic flows stay
+  on plain `--tcp` or manual play).
+
+Verification:
+
+- Default-off byte-exact: `tools/cycle.py` PASS (corpus 63134, attract
+  `1EF4C118…` unchanged); `ui-tests` PASS with reorder+relabel.
+- Stage live, both enablement paths user-tested (`--frame-blend 1` AND
+  the menu toggle): eyewitness motion trails on fast pans (photo) plus
+  the `presented` TCP hook (exact post-blend upload bytes; menu chrome is
+  drawn after upload so the hook is blind to it — game pixels only).
+
+Menu-episode postmortem (no code bug — environment, all of it):
+
+- Down/Esc "dead", stuck overlay, xdotool blindness: Wayland session
+  (only a mutter guard window visible to X11 tools) + GNOME's
+  interactive screenshot overlay (raised by ydotool-PrintScreen attempts)
+  grabbing all keys. Logout/in cleared it; on the clean session every
+  key works, the row toggles, Esc dismisses (two-level: section→list→
+  close, plus a second press closes). The `ev.quit`-on-Escape pump branch
+  never fires while the menu is open (menu consumes the event first).
+- Lessons: verify input-path pollution before suspecting menu code;
+  never drive keys or OS screenshots on the player's session again —
+  TCP for driving, `presented` hook for pixels; my earlier hang was
+  `import` awaiting a manual window click, not TCP.
+
+## 2026-10-13 (late) — 3a device validation (Mi 11, 120 Hz)
+
+APK via `build_apk.py` (clean 39.2 MiB, content guard OK, installed,
+device gate passed). Note: an incremental rebuild skipped the symbol
+strip (71.6 MiB, guard correctly FAILed packaging sanity); clean
+rebuild fixed it — the guard worked as designed.
+
+- Panel: 1440×3200, modes 120 + 60, ACTIVE at 120 (`renderFrameRate
+  120.00001`); peak setting Infinity (adaptive — auto-follow design
+  handles switches). Renderer opengles2, vsync=no → timer-paced ticks.
+- Drive findings: TCP `set_keyinput` on live sessions is overwritten by
+  the host input pump within a frame (read-back 0x03FF 200 ms after set;
+  edges sometimes land, holds never) — reliable device motion is
+  touch-swipe long-presses on the pad (dpad geometry from the pad layout
+  log line). Screenshot-gate every precondition (load→menu-open proof→
+  B→menu-closed proof→pan); blind sleeps hid a sequencing failure twice.
+- Mechanism proven remotely: `interp ticks=600 rate=100–111/s`
+  (~1.74 presents/guest frame at 120 Hz — the expected subdivision
+  shape), guest clock steady throughout, zero crashes/anomalies over
+  ~15 min of interp-on device time with pans + loads. Stills crisp
+  (blend off in this session, as designed — 3a alone doesn't smear).
+  Tick-rate logging added to the patch for exactly this observability.
+- Hygiene: `debug-args.txt` scrubbed post-run (a stuck
+  `--frame-interp 1` would haunt later play) + forward removed. Staging
+  note: `/sdcard` run-as reads are permission-denied on this API level;
+  `/data/local/tmp` works (press_test already does this; trace_replay's
+  external save path was already correct — no fix needed).
+- Open: feel verdict (user holds the phone), thermal/battery sanity (no
+  harness — user-reported).
+
+## 2026-10-13 (late) — 3b v1 built, then a use-after-scope crash found on device
+
+**3b v1 design** (runtime-only, same Frame-interpolation toggle, no
+renderer surgery — consistent with the 3a no-surgery lock): at each
+presented frame sample BG HOFS/VOFS velocity (dominant layer, 9-bit
+wrap-aware, /banked after skips, cut-guard above 16 px/axis); the wait's
+first tick presents live_fb exact, later ticks present it screen-shifted
+by half the step (integer-bilinear, edge-clamped) — the extrapolated
+halfway scroll position. Velocity transitions log
+(`interp: scroll start/stop vel=(h,v)px/f`). Blending interaction falls
+out: shifted frames arrive with fresh=false, so they ride the existing
+holding-blend path (clean repeats stay clean, trails stay trailed).
+Affine refs unread in v1 (stale HOFS slots read zero → exact ticks, a
+safe default); unit motion under a static camera stays 60 Hz.
+
+**Crash (my bug, device-found):** the 3b state (`interp_fb`, prev
+arrays, blit lambda) was declared INSIDE the `if (window &&
+present_in_place)` block that registers the hook — but the hook (which
+captures them by reference) lives until function return, past the
+block's end. Use-after-scope: first frames survive on stale stack
+contents (device proved it — ticks at ~115/s + velocity lines + working
+screenshots for minutes), then stack reuse corrupts the vector object
+and `interp_fb.assign(ibytes, 0)` memsets a wild pointer. Tombstone:
+guest `gf_vblank_wait_loop` → `runtime_should_yield+772` (the PiP hook
+fires from inside the yield) → `__memset_aarch64` SEGV, len 0x29b80 =
+170,880 = exactly the widescreen framebuffer (356×160×3) — the length
+named the culprit. Identical fault twice, 9 s apart; interp-off run
+survived (block never executes). Repro on demand: interp-ON relaunch
+dead within 90 s.
+**Fix:** state moved to function scope beside `live_fb` (same lifetime
+as the hook); the stale-lifetime comment replaced with the rule.
+Desktop cycle PASS (corpus 63134, attract pin intact), patches green
+both legs (wait-site hunk unaffected — the move is outside it),
+ui-tests/unit-py/cadence green. Fixed APK in validation.
+**Rule (also to dev-gotchas):** hook-captured state is declared at the
+hook owner's scope — never inside the registering block.
+Side note: battle scenes show a ±1 px VOFS start/stop flip-flop every
+frame in the velocity log (effect oscillation or staging phase, not
+steady motion) — half-pixel shimmer risk; deadband candidate if visible
+in feel testing. Device gate note: `build_apk.py` skipped install once
+(`--no-install` unprompted — manually `adb install -r`ed); gate's
+app-private log read fails where the external log path works.
+
+## 2026-10-13 (late) — 3b jump fix: delta-consistency gate (device-driven)
+
+User report: fullscreen jumps with widescreen play on the 3b build.
+Device evidence backed a mechanism, not a widescreen interaction: the
+battle scene's VOFS flip-flops ±1 px (singles AND pairs), so the v1
+any-nonzero rule engaged the shifter on phantom motion — whole-screen
+half-pixel shimmer alternating with exact frames. Snaps confirmed too:
+a swipe pan logged (18,0)->(-126,0) (edge recenter), which v1 would have
+half-shifted 9–18 px.
+Fix: engage only during SMOOTH motion — the dominant step's delta must
+match the previous delta (steady 0,0,... or steady ramp +1,+1,...).
+Oscillation (deltas -1,+1,...), snaps, reversals, and layer flips all
+hold exact. The old magnitude cut-guard is gone (cuts fail the gate
+inherently; it would only have hurt real whips).
+Device proof (fresh-log, attributed): 10 s idle on the battle scene =
+0 scroll lines (was flip-flopping every frame); swipe pan engages with
+real velocities and each snap disengages on the same frame; burst caps
+after a snap step uniformly (~3 px, no duplicates, no jumps); process
+alive throughout. Desktop cycle + pin + all suites still green.
+
+## 2026-10-13 (late) — 3b redesign: true midpoints (no prediction) + unit tests
+
+User's A-repro ("big jump on A", then "brief shake during the
+transition, never continuous") instrumented to the frame: the Move
+transition whips +18,+18 then snaps -126 in consecutive guest frames
+(scroll regs; identical with interp on AND off — the A/B diffs matched
+to 0.15). The v2 extrapolator engaged on the repeated +18 and showed a
++9 frame immediately before the -126 snap: tracked right, then yanked
+back — whiplash no retail behaves that way. Fix by construction, not
+tuning: non-first ticks now show the CURRENT frame shifted BACK by half
+the MEASURED prev→cur step (midpoint, sh=-d). No future term exists
+anywhere, so overshoot is impossible: whips midpoint smoothly, snaps
+halve, oscillation lands sub-pixel, still frames are bit-identical,
+60 Hz panels take one tick and behave exactly as before. Deleted: the
+whole snap/flip/announce gate, velocity state, banked division (banked
+waits hold exact). Net code shrank (reference hunk 150→81 lines).
+Stale-post-load midpoint (one 8 ms frame under a flash) accepted.
+Sign convention (sh=-d) verified on paper twice; the first device
+validation predates it.
+User asked for tests — added `tests/unit/test_interp_shift.cpp`
+(step fold/wrap/dominant-tie, blit identity/±1px/half/edge/1x1/column,
+midpoint sign pin) wired into ffta_unit_tests with the same
+pristine-checkout skip policy as the pacer/stick suites; helpers live
+in the tracked host_platform.h (no new-file export problem). The suite
+caught one real bug on arrival: my hand-computed half-pixel
+expectation used wrong weights (code was right).
+Device: midpoint build installed, survives, ticks subdivide; A-trace
+via the `presented` hook (14 ms polls — undersamples 8.3 ms ticks, so
+midpoints alias in/out, but the whip landing + settle + tiles-in all
+resolve). A/full-pan feel verdict still with the user.
+
+## 2026-10-13 (late) — A-whip exoneration: commanded-vs-presented map
+
+Interleaved BG2HOFS polls + presented-frame polls across the A→Move
+transition (midpoint build): 36→72→90→108→108→126→136→0→0→215→215.
+The game whips right ~100 px, snaps back -136, settles at its anchor —
+every presented change coincides with a commanded scroll write; zero
+phantom motion from the midpoint path (X axis only throughout, matching
+the user's read). Later frame changes with d=0 are the blue-tile fade
+(OAM/palette — presented exact, correctly). Conclusion stands:
+midpoints halve each leg and cannot overshoot; the maneuver's violence
+is authored in the camera code. Remaining softener for cuts is
+ghosting trails, not interpolation.
+
+## 2026-10-13 (late) — HUD pin: static-pixel mask (shimmer fix)
+
+User report: tons of X shifting while panning. Diagnosis by code
+inspection (structural, not captured): the full-frame midpoint drags
+screen-locked chrome (clock, panels, menus) along with the world,
+oscillating it at display rate during every pan. Fix: after building
+the shifted midpoint, restore exact bytes for pixels byte-identical
+between the previous and current guest frames (`select_static` in
+interp_shift.h — HUD/menus stay glued while the world midpoints
+beneath; flat world areas match either way). +1 framebuffer
+(`interp_prev`, stored per present while interp is on) and one
+in-place select pass per midpoint. Unit-tested (static/moved/mixed +
+all-static). Aliased poll telemetry couldn't resolve this either way;
+feel verdict with the user.
+
+## 2026-10-13 (late) — Fast-pan "wild shifting" root cause: BG2/BG3 scroll rebase midpointed as a camera step
+
+User report: wild shifting when panning quickly, "the blip happens at the
+end of the map after panning all the way". Dense whole-pan capture
+(dv_cap2.py: single 11.5 s Left hold on the live session, ~880 polls,
+503 unique presented frames saved raw with per-frame BG h/v snapshots;
+the presented stream is the exact upload bytes, midpoints included):
+
+- Camera catch-up pan runs t≈1.0→1.95 (BG0/BG1 HOFS 240→144, VOFS
+  88→16, ~2-5 px/guest-frame; BG2/BG3 = 0 throughout). The 24-frame
+  caps of the earlier attempts never reached this window — capture
+  density, not the pan, was the blocker.
+- At t≈1.506 the game writes BG2/BG3 HOFS 0→648 raw (= +136 masked) and
+  walks 648→630→612→612→630→0 over ~0.15 s, then returns to 0 — a scroll
+  rebase/overlay dance. Frames with BG2=648 held are visually
+  continuous with the rest of the pan: the register jump is a visual
+  no-op, not camera motion.
+- Exactly one captured frame (t=1.506) is garbled: whole composed frame
+  displaced ~+68 px right, left strip = edge-clamped replicated column
+  (vertical green streaks on water) + select_static-pinned water pixels
+  scattered as debris. Wide-range correlation: 68→69 dx=-76, 69→70
+  dx=+68, neighbors continuous. This is the 3b midpoint built with
+  dominant_step's +136 (|136| beats BG0's real -3), i.e. our artifact,
+  not a guest tear (a guest tear would garble the live tick too; only
+  the mid tick is wrong).
+- The dance's small legs (-18/-18/+18/-118) likewise beat BG0's -4 and
+  produced ±9 px wrong shifts on mid ticks in the same window.
+
+Fix (evidence-backed, conservative):
+1. dominant_step → consensus rule: a whole-frame midpoint shift is only
+   valid when every layer that moved reports the SAME (dh,dv) pair
+   (still layers don't vote; select_static pins their pixels). On
+   disagreement → (0,0) → live frame on all ticks = retail presentation
+   for that instant. Kills the rebase frame AND the dance legs.
+2. frame_mean_abs_diff veto (runtime midpoint block): if prev/cur guest
+   frames are visually identical (sampled stride-4 mean < 1.0) while a
+   register step is nonzero — a compensated all-layer rebase — no
+   midpoint (nothing to interpolate).
+Unit tests updated (consensus cases, rebase case 0→648, dance legs,
+cross-axis movers, diff-metric exact values). Patches gate green
+(gbarecomp-local.patch regenerated with `git -C gbarecomp -c color.ui=never
+diff HEAD --ignore-submodules=all --no-ext-diff` — plain export is
+polluted by a DFT external diff driver + ANSI color; frame-pacer
+wait-site hunk re-spliced to +3880,111), cycle PASS (attract pin
+1EF4C118… intact), APK rebuilt+installed. Device feel verdict: manual
+validation by the user before commit.
+
+## 2026-10-13 (late) — Rebase-guard fix validated on device; committed
+
+User manual QA on the device (state-1 load, Move staged, hold-Left
+fly-across, 120 Hz panel, interp on): verdict "as good as it can get
+without revisiting other fixes for the widescreen" — the map-end blip
+and fast-pan wild shifting are gone, normal pans still interpolate.
+Consensus + rebase-veto guards accepted as shipped. All gates were
+green before the device pass (patches 431-file replay, unit-cpp,
+cycle/attract pin 1EF4C118…). This commit carries: the guard fix,
+re-spliced patches, updated unit tests, and
+docs/frame-interpolation.md (design + porting doc, indexed in
+docs/README.md + AGENTS.md). Device scratch state (debug-args.txt,
+tcp:19850 forward, /data/local/tmp/game.state1) cleaned up after QA;
+interp remains togglable via the persisted Graphics menu row.
+
+## 2026-10-14 — Issue #9 review remediation (FF blocking path, history resets, vsync clamp, race lock, doc corrections)
+
+Branch review (frame-improvements vs main) found doc/behavior drift; all fixed
+in this commit. Full gate 17/17 PASS, attract pin unchanged (1EF4C118...).
+
+- Fast-forward now keeps the historical blocking wait (pre-#9 behavior): the
+  interp branch is skipped while `fast_forward_active`, and interp history is
+  dropped on every non-interp present, so the first present after a menu toggle
+  or FF release measures no step across the gap.
+- Interp history now also dropped at the three blend-reset sites (observer
+  load, load dispatch, rewind) — same discontinuity hygiene as the blend feature.
+- `last_upload` copies (`presented` TCP) are mutex-guarded against the present
+  thread.
+- `interp_display_tick` clamps vsync-blocked presents to the guest deadline.
+- Dead code removed: unused `interp_shift_blit` duplicate, mangled comment,
+  dead store, caller-less `vsync_blocks`.
+- Unit tests: vertical half-pixel/negative-odd/diagonal blit kernels and the
+  ±256 wrap-tie consensus pinned.
+- Docs corrected: Graphics rows are not persisted (Android: debug-args remains
+  the only carrier for the interp flag); frame blending IS exposed (LCD ghosting
+  row); FF claim now matches code; mid semantics wording fixed; veto threshold
+  envelope documented.
+

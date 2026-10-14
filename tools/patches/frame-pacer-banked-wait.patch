@@ -3,7 +3,7 @@
 @@ -52,3 +52,3 @@ void FramePacer::reset() {
  
 -void FramePacer::wait_for_next_frame() {
-+void FramePacer::wait_for_next_frame(uint64_t frames) {
++void FramePacer::wait_for_next_frame(uint64_t frames, DisplayTickFn tick) {
      if (uncapped_) {
 @@ -57,2 +57,12 @@ void FramePacer::wait_for_next_frame() {
      }
@@ -20,7 +20,7 @@
      clock::time_point now = clock::now();
 --- a/src/runtime/host_platform.h
 +++ b/src/runtime/host_platform.h
-@@ -43,3 +43,13 @@ public:
+@@ -43,3 +43,28 @@ public:
      // frame. No-op while uncapped.
 -    void wait_for_next_frame();
 +    //
@@ -33,28 +33,162 @@
 +    // count so one wait throttles all of them; frames==1 is exactly the
 +    // old behavior. Fast-forward presents one frame per wait already, so
 +    // it is unaffected. The behind-resync below still bounds real stalls.
-+    void wait_for_next_frame(uint64_t frames = 1);
++    //
++    // `tick`, when set, subdivides the wait into display-paced callbacks
++    // (issue #9 3a: decoupled presentation clock). Each tick re-presents
++    // the current frame and paces itself to the display (sleeping to its
++    // display boundary, or riding the present's own vsync block where the
++    // renderer already blocks), and receives the wait's deadline as
++    // nanoseconds on the steady clock so
++    // a slower panel can never hold the guest wait past it. The wait
++    // returns exactly at the guest deadline, so guest time is throttled
++    // identically with or without ticks — ticks only fill the would-be
++    // idle span with extra presents. Null (default) is the historical
++    // blocking wait, bit for bit. Uncapped and behind-schedule waits
++    // never tick.
++    using DisplayTickFn = std::function<void(uint64_t deadline_ns)>;
++    void wait_for_next_frame(uint64_t frames = 1,
++                             DisplayTickFn tick = nullptr);
  
 --- a/src/runtime/runtime.cpp
 +++ b/src/runtime/runtime.cpp
-@@ -3689,2 +3723,6 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -3687,12 +3837,121 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+                 // the same frame-indexed input as headless acceptance runs.
+                 if (input_replay_requested) apply_input_replay();
                  if (phase_active) fp_t4 = FramePhaseRing::now_ns();
 +                // Banked frames for the pacer: this present covers every guest
 +                // frame since the last one (normally 1; 2 after a stale-frame
 +                // skip). The pacer throttles all of them.
 +                const uint64_t banked_frames = frame - last_presented_frame;
                  last_presented_frame = frame;
-@@ -3694,3 +3732,3 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+                 if (present_frame) {
+                     ++frames_presented;
+                     if (args.frames >= 0 && frames_presented >= args.frames)
                          host_quit = true;
 -                    if (pacer) pacer->wait_for_next_frame();
-+                    if (pacer) pacer->wait_for_next_frame(banked_frames);
++                    // Issue #9 3a: decoupled display clock. While frame
++                    // interpolation is on (and fast-forward is not), the
++                    // wait subdivides into display-paced presents: the first
++                    // tick re-presents live_fb exact, later ticks carry the
++                    // 3b halfway scroll shift (exact when still). Headless,
++                    // behind-schedule, toggle-off, and fast-forward waits all
++                    // pass null and keep the historical blocking path (FF =
++                    // the pre-#9 behavior: decimated presents, no interp
++                    // machinery -- its decimated-stream midpoints were never
++                    // device-validated, so FF holds exact frames).
++                    if (pacer) {
++                        // 2026-10-14 review: interp history is dead while
++                        // interp is off or FF is on. Drop it every such
++                        // present so the first present after any
++                        // discontinuity (menu toggle, FF release) seeds
++                        // fresh snapshots instead of measuring a step
++                        // across the gap.
++                        const bool interp_on =
++                            win.frame_interp() && !fast_forward_active;
++                        if (!interp_on) interp_have_prev = false;
++                        if (interp_on) {
++                            // Issue #9 3b: true-midpoint intermediates (see
++                            // function-scope note). Interp on only; the
++                            // off-path below is untouched.
++                            bool show_mid = false;
++                            {
++                                using namespace gbarecomp::interp_shift;
++                                uint8_t cur_io[kScrollSnapshotBytes];
++                                std::memcpy(cur_io, bus.io().raw() + 0x10u,
++                                            kScrollSnapshotBytes);
++                                int32_t step_dh = 0, step_dv = 0;
++                                if (interp_have_prev && banked_frames <= 1)
++                                    dominant_step(interp_prev_io, cur_io,
++                                                  &step_dh, &step_dv);
++                                std::memcpy(interp_prev_io, cur_io,
++                                            kScrollSnapshotBytes);
++                                interp_have_prev = true;
++                                // True midpoint: shift the CURRENT frame
++                                // back by half the measured step (the blit
++                                // takes half-pixel units, so odd steps stay
++                                // exact), then pin screen-locked chrome:
++                                // pixels unchanged since the previous guest
++                                // frame keep exact bytes instead of riding
++                                // the world shift (HUD shimmer fix).
++                                if (step_dh != 0 || step_dv != 0) {
++                                    const uint32_t iw = ppu.render_width();
++                                    const uint32_t ih = ppu.render_height();
++                                    const std::size_t ibytes =
++                                        static_cast<std::size_t>(iw) * ih * 3u;
++                                    // Rebase veto (issue #9): a register
++                                    // step that leaves the rendered frame
++                                    // unchanged — a compensated scroll
++                                    // rebase on every layer — has no
++                                    // visual motion to interpolate.
++                                    // Shifting would fabricate a frame
++                                    // the game never displayed.
++                                    if (ibytes > 0 &&
++                                        ibytes == live_fb.size() &&
++                                        interp_prev.size() == ibytes &&
++                                        frame_mean_abs_diff(
++                                            interp_prev.data(),
++                                            live_fb.data(), iw,
++                                            ih) < 1.0f) {
++                                        step_dh = 0;
++                                        step_dv = 0;
++                                    }
++                                }
++                                if (step_dh != 0 || step_dv != 0) {
++                                    const uint32_t iw = ppu.render_width();
++                                    const uint32_t ih = ppu.render_height();
++                                    const std::size_t ibytes =
++                                        static_cast<std::size_t>(iw) * ih * 3u;
++                                    if (ibytes > 0 &&
++                                        ibytes == live_fb.size()) {
++                                        using namespace gbarecomp::
++                                            interp_shift;
++                                        if (interp_fb.size() != ibytes)
++                                            interp_fb.assign(ibytes, 0);
++                                        shift_blit(
++                                            live_fb.data(), interp_fb.data(),
++                                            iw, ih, -step_dh, -step_dv);
++                                        if (interp_prev.size() == ibytes)
++                                            select_static(interp_prev.data(),
++                                                          live_fb.data(),
++                                                          interp_fb.data(),
++                                                          ibytes);
++                                        show_mid = true;
++                                    }
++                                }
++                                interp_prev.assign(live_fb.begin(),
++                                                   live_fb.end());
++                            }
++                            uint64_t tick_index = 0;
++                            pacer->wait_for_next_frame(
++                                banked_frames,
++                                [&](uint64_t deadline_ns) {
++                                    const uint8_t* frame = live_fb.data();
++                                    if (tick_index++ != 0 && show_mid)
++                                        frame = interp_fb.data();
++                                    win.interp_display_tick(frame,
++                                                            deadline_ns);
++                                });
++                        } else {
++                            pacer->wait_for_next_frame(banked_frames);
++                        }
++                    }
                  }
-@@ -4094,2 +4144,3 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+                 if (phase_active) {
+                     frame_phase.record(frame, fp_t0, fp_t1, fp_t2, fp_t3,
+@@ -4092,6 +4351,7 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+                 pump_host_input();
+                 if (phase_active) fp_t4 = FramePhaseRing::now_ns();
                  dispatches_since_pump = 0;
 +                const uint64_t banked_frames = frame - last_presented_frame;
                  last_presented_frame = frame;
-@@ -4103,3 +4154,3 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+                 if (present_frame) {
+                     ++frames_presented;
+@@ -4101,7 +4361,7 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+                     // Normal play presents/paces every frame. Fast-forward
+                     // runs N guest frames per one paced host presentation,
                      // making its selected multiplier independent of monitor Hz.
 -                    if (pacer) pacer->wait_for_next_frame();
 +                    if (pacer) pacer->wait_for_next_frame(banked_frames);
                  }
+                 if (phase_active) {
+                     frame_phase.record(frame, fp_t0, fp_t1, fp_t2, fp_t3,

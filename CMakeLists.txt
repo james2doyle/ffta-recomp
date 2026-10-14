@@ -168,6 +168,7 @@ if(FFTA_BUILD_TESTS AND NOT ANDROID)
         tests/unit/test_frame_pacer.cpp
         tests/unit/test_speed_boost.cpp
         tests/unit/test_stick_dpad.cpp
+        tests/unit/test_interp_shift.cpp
         "${GBARECOMP_ROOT}/src/runtime/mobile_platform.cpp"
         "${GBARECOMP_ROOT}/src/runtime/host_platform.cpp")
     target_include_directories(ffta_unit_tests PRIVATE
@@ -206,6 +207,18 @@ if(FFTA_BUILD_TESTS AND NOT ANDROID)
     else()
         message(STATUS "stick-to-dpad API absent (pristine submodule): "
                        "test compiles to a skip")
+    endif()
+    # Same pristine-checkout policy for the issue-#9 3b midpoint helpers
+    # (interp_shift in host_platform.h locally): test the pure helpers
+    # where present.
+    file(READ "${GBARECOMP_ROOT}/src/runtime/host_platform.h"
+         _interp_shift_header_text)
+    if(_interp_shift_header_text MATCHES "interp_shift")
+        message(STATUS "interp-shift API present: testing")
+        target_compile_definitions(ffta_unit_tests PRIVATE INTERP_SHIFT_API=1)
+    else()
+        message(STATUS "interp-shift API absent (pristine "
+                       "submodule): test compiles to a skip")
     endif()
     add_test(NAME ram_dispatch COMMAND ffta_unit_tests)
 endif()
