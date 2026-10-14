@@ -41,6 +41,7 @@ int shift_failures = 0;
 #if INTERP_SHIFT_TESTING
 using gbarecomp::interp_shift::dominant_step;
 using gbarecomp::interp_shift::fold_scroll_delta;
+using gbarecomp::interp_shift::frame_mean_abs_diff;
 using gbarecomp::interp_shift::kScrollSnapshotBytes;
 using gbarecomp::interp_shift::shift_blit;
 
@@ -117,24 +118,69 @@ int run_interp_shift_tests() {
         SHIFT_CHECK(dh == -4 && dv == 0);
     }
     {
-        // Two layers move: larger magnitude wins (L1 |(0,-5)|=5).
+        // Two layers moving IDENTICALLY vote one consensus step.
+        uint8_t prev[kScrollSnapshotBytes] = {};
+        uint8_t cur[kScrollSnapshotBytes] = {};
+        set_scroll(cur, 2, 10, 0);
+        set_scroll(cur, 3, 10, 0);
+        int32_t dh = 0, dv = 0;
+        step(prev, cur, &dh, &dv);
+        SHIFT_CHECK(dh == 10 && dv == 0);
+    }
+    {
+        // Still layers ride along: a layer that did not move — even at
+        // a nonzero offset — does not vote; the single mover stands.
+        uint8_t prev[kScrollSnapshotBytes] = {};
+        uint8_t cur[kScrollSnapshotBytes] = {};
+        set_scroll(prev, 0, 200, 100);
+        set_scroll(cur, 0, 198, 100);
+        set_scroll(prev, 1, 215, 81);
+        set_scroll(cur, 1, 215, 81);
+        int32_t dh = 0, dv = 0;
+        step(prev, cur, &dh, &dv);
+        SHIFT_CHECK(dh == -2 && dv == 0);
+    }
+    {
+        // Disagreement (issue #9 rebase, dense capture 2026-10-13):
+        // BG0/BG1 pan −3 while BG2/BG3 jump 0 → 648 raw (136 masked).
+        // Not a camera pan — no midpoint; live frame on all ticks.
+        uint8_t prev[kScrollSnapshotBytes] = {};
+        uint8_t cur[kScrollSnapshotBytes] = {};
+        set_scroll(prev, 0, 191, 49);
+        set_scroll(cur, 0, 188, 46);
+        set_scroll(prev, 1, 191, 49);
+        set_scroll(cur, 1, 188, 46);
+        set_scroll(cur, 2, 648, 0);
+        set_scroll(cur, 3, 648, 0);
+        int32_t dh = 0, dv = 0;
+        step(prev, cur, &dh, &dv);
+        SHIFT_CHECK(dh == 0 && dv == 0);
+    }
+    {
+        // Overlay dance legs disagree too (−18 on BG2/3 while BG0/1
+        // pan −4): no midpoint either.
+        uint8_t prev[kScrollSnapshotBytes] = {};
+        uint8_t cur[kScrollSnapshotBytes] = {};
+        set_scroll(prev, 0, 180, 40);
+        set_scroll(cur, 0, 176, 37);
+        set_scroll(prev, 2, 630, 0);
+        set_scroll(cur, 2, 612, 0);
+        set_scroll(prev, 3, 630, 0);
+        set_scroll(cur, 3, 612, 0);
+        int32_t dh = 0, dv = 0;
+        step(prev, cur, &dh, &dv);
+        SHIFT_CHECK(dh == 0 && dv == 0);
+    }
+    {
+        // Movers on different axes can never share one whole-frame
+        // shift: no midpoint.
         uint8_t prev[kScrollSnapshotBytes] = {};
         uint8_t cur[kScrollSnapshotBytes] = {};
         set_scroll(cur, 0, 3, 0);
         set_scroll(cur, 1, 0, 507);  // -5 folded
         int32_t dh = 0, dv = 0;
         step(prev, cur, &dh, &dv);
-        SHIFT_CHECK(dh == 0 && dv == -5);
-    }
-    {
-        // Tie → lowest layer index.
-        uint8_t prev[kScrollSnapshotBytes] = {};
-        uint8_t cur[kScrollSnapshotBytes] = {};
-        set_scroll(cur, 1, 2, 0);
-        set_scroll(cur, 2, 0, 2);
-        int32_t dh = 0, dv = 0;
-        step(prev, cur, &dh, &dv);
-        SHIFT_CHECK(dh == 2 && dv == 0);
+        SHIFT_CHECK(dh == 0 && dv == 0);
     }
 
     // Blit: 4x1 row [10,20,30,40] (RGB triples), rest of channels equal.
@@ -221,6 +267,23 @@ int run_interp_shift_tests() {
         uint8_t mid[3] = {1, 2, 3};
         gbarecomp::interp_shift::select_static(prev, cur, mid, 3);
         SHIFT_CHECK(mid[0] == 9 && mid[1] == 9 && mid[2] == 9);
+    }
+
+    // Frame-identity metric (rebase veto input): identical → 0.0.
+    {
+        std::vector<uint8_t> a(8 * 8 * 3, 40), b(8 * 8 * 3, 40);
+        SHIFT_CHECK(frame_mean_abs_diff(a.data(), b.data(), 8, 8) == 0.0f);
+        // One sampled pixel (x=0,y=0 hits the stride-4 grid) delta 30 on
+        // one channel: mean = 30 / (4 samples · 3 channels) = 2.5.
+        b[0] = 70;
+        SHIFT_CHECK(frame_mean_abs_diff(a.data(), b.data(), 8, 8) == 2.5f);
+        // Every sampled pixel +100 on all channels → mean exactly 100.
+        for (std::size_t i = 0; i < b.size(); ++i) b[i] = 140;
+        SHIFT_CHECK(frame_mean_abs_diff(a.data(), b.data(), 8, 8) ==
+                    100.0f);
+        // Degenerate sizes are safe (and 0.0 → never vetoes on their own).
+        SHIFT_CHECK(frame_mean_abs_diff(nullptr, b.data(), 8, 8) == 0.0f);
+        SHIFT_CHECK(frame_mean_abs_diff(a.data(), b.data(), 0, 8) == 0.0f);
     }
 
     if (shift_failures) {

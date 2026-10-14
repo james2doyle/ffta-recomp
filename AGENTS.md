@@ -163,6 +163,7 @@ crash playbooks: `BRINGUP.md`.
 | Harness traps: run modes, capture envs, close handling, RAM-dispatch, saves, submodule pins, framework patches | `reference/dev-gotchas.md` |
 | Oracle + frame-diff protocol (park phase, sync rules, builds) | `reference/oracle-harness.md` |
 | Widescreen internals + validation | `reference/widescreen.md` |
+| Frame interpolation (issue #9): design, guards, porting checklist | `docs/frame-interpolation.md` |
 | Event VM + scripts | `reference/event-vm.md` |
 | Community source summaries (decomp, engine hacks, FAQs, notes) | `reference/{ffta-decomp,fergusson-mechanics,bcrobert-notes,jokyr-hack-guide,ffta-gamefaqs-code-guides}.md` |
 | BIOS boot/SoftReset/System-SPSR semantics (validated vs GBATEK + mGBA source) | `reference/gba-bios-boot-and-spsr.md` |

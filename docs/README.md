@@ -83,6 +83,15 @@ not for play. Run modes and their traps:
 [tests/README.md](../tests/README.md) and
 [reference/dev-gotchas.md](../reference/dev-gotchas.md).
 
+## Frame interpolation
+
+[frame-interpolation.md](frame-interpolation.md) documents the
+display-rate interpolation feature (issue #9): the decoupled display
+clock, the true-midpoint scroll-shift intermediates, and the three
+motion guards (layer consensus, rebase veto, HUD pin) — with the
+FFTA-specific findings that shaped them and a porting checklist for
+other gbarecomp games.
+
 ## Manual build route
 
 [manual-build.md](manual-build.md) documents, step by step, what
@@ -100,7 +109,7 @@ step detects whether it is already done.
 | `src/` | Host integration: `main.cpp` (hooks/plugins), launcher boot, stack setup |
 | `android/` | Android target: Gradle project + engine-shell wiring, runtime TOML, payload defaults, device gate — guide `android/README.md` |
 | `tests/` | Host unit tests + the testing guide — playtesting, healing loop, gates, CI (`tests/README.md`) |
-| `docs/` | This guide + the manual setup route (`docs/manual-build.md`) |
+| `docs/` | This guide, the frame-interpolation deep dive (`docs/frame-interpolation.md`), and the manual setup route (`docs/manual-build.md`) |
 | `generated/` | Recompiler output — gitignored, **never edited** |
 | `mods/` | Preloaded mod catalog shipped beside the exe — the default-enabled `ffta.enhancement.widescreen` manifest activating the linked `ffta.widescreen` plugin |
 | `inputs/` | Deterministic input traces (`<frame>,0x<hex>` active-low, sticky) |

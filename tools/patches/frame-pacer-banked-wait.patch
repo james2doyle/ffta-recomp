@@ -52,7 +52,7 @@
  
 --- a/src/runtime/runtime.cpp
 +++ b/src/runtime/runtime.cpp
-@@ -3687,12 +3880,88 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -3687,12 +3880,111 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
                  // the same frame-indexed input as headless acceptance runs.
                  if (input_replay_requested) apply_input_replay();
                  if (phase_active) fp_t4 = FramePhaseRing::now_ns();
@@ -105,6 +105,29 @@
 +                                    const uint32_t ih = ppu.render_height();
 +                                    const std::size_t ibytes =
 +                                        static_cast<std::size_t>(iw) * ih * 3u;
++                                    // Rebase veto (issue #9): a register
++                                    // step that leaves the rendered frame
++                                    // unchanged — a compensated scroll
++                                    // rebase on every layer — has no
++                                    // visual motion to interpolate.
++                                    // Shifting would fabricate a frame
++                                    // the game never displayed.
++                                    if (ibytes > 0 &&
++                                        ibytes == live_fb.size() &&
++                                        interp_prev.size() == ibytes &&
++                                        frame_mean_abs_diff(
++                                            interp_prev.data(),
++                                            live_fb.data(), iw,
++                                            ih) < 1.0f) {
++                                        step_dh = 0;
++                                        step_dv = 0;
++                                    }
++                                }
++                                if (step_dh != 0 || step_dv != 0) {
++                                    const uint32_t iw = ppu.render_width();
++                                    const uint32_t ih = ppu.render_height();
++                                    const std::size_t ibytes =
++                                        static_cast<std::size_t>(iw) * ih * 3u;
 +                                    if (ibytes > 0 &&
 +                                        ibytes == live_fb.size()) {
 +                                        using namespace gbarecomp::
@@ -142,11 +165,11 @@
                  }
                  if (phase_active) {
                      frame_phase.record(frame, fp_t0, fp_t1, fp_t2, fp_t3,
-@@ -4094,2 +4144,3 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -4094,2 +4167,3 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
                  dispatches_since_pump = 0;
 +                const uint64_t banked_frames = frame - last_presented_frame;
                  last_presented_frame = frame;
-@@ -4103,3 +4154,3 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
+@@ -4103,3 +4177,3 @@ int run_game(int argc, char** argv, const RunOptions& opts) {
                      // making its selected multiplier independent of monitor Hz.
 -                    if (pacer) pacer->wait_for_next_frame();
 +                    if (pacer) pacer->wait_for_next_frame(banked_frames);

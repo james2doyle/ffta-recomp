@@ -6367,3 +6367,65 @@ beneath; flat world areas match either way). +1 framebuffer
 in-place select pass per midpoint. Unit-tested (static/moved/mixed +
 all-static). Aliased poll telemetry couldn't resolve this either way;
 feel verdict with the user.
+
+## 2026-10-13 (late) — Fast-pan "wild shifting" root cause: BG2/BG3 scroll rebase midpointed as a camera step
+
+User report: wild shifting when panning quickly, "the blip happens at the
+end of the map after panning all the way". Dense whole-pan capture
+(dv_cap2.py: single 11.5 s Left hold on the live session, ~880 polls,
+503 unique presented frames saved raw with per-frame BG h/v snapshots;
+the presented stream is the exact upload bytes, midpoints included):
+
+- Camera catch-up pan runs t≈1.0→1.95 (BG0/BG1 HOFS 240→144, VOFS
+  88→16, ~2-5 px/guest-frame; BG2/BG3 = 0 throughout). The 24-frame
+  caps of the earlier attempts never reached this window — capture
+  density, not the pan, was the blocker.
+- At t≈1.506 the game writes BG2/BG3 HOFS 0→648 raw (= +136 masked) and
+  walks 648→630→612→612→630→0 over ~0.15 s, then returns to 0 — a scroll
+  rebase/overlay dance. Frames with BG2=648 held are visually
+  continuous with the rest of the pan: the register jump is a visual
+  no-op, not camera motion.
+- Exactly one captured frame (t=1.506) is garbled: whole composed frame
+  displaced ~+68 px right, left strip = edge-clamped replicated column
+  (vertical green streaks on water) + select_static-pinned water pixels
+  scattered as debris. Wide-range correlation: 68→69 dx=-76, 69→70
+  dx=+68, neighbors continuous. This is the 3b midpoint built with
+  dominant_step's +136 (|136| beats BG0's real -3), i.e. our artifact,
+  not a guest tear (a guest tear would garble the live tick too; only
+  the mid tick is wrong).
+- The dance's small legs (-18/-18/+18/-118) likewise beat BG0's -4 and
+  produced ±9 px wrong shifts on mid ticks in the same window.
+
+Fix (evidence-backed, conservative):
+1. dominant_step → consensus rule: a whole-frame midpoint shift is only
+   valid when every layer that moved reports the SAME (dh,dv) pair
+   (still layers don't vote; select_static pins their pixels). On
+   disagreement → (0,0) → live frame on all ticks = retail presentation
+   for that instant. Kills the rebase frame AND the dance legs.
+2. frame_mean_abs_diff veto (runtime midpoint block): if prev/cur guest
+   frames are visually identical (sampled stride-4 mean < 1.0) while a
+   register step is nonzero — a compensated all-layer rebase — no
+   midpoint (nothing to interpolate).
+Unit tests updated (consensus cases, rebase case 0→648, dance legs,
+cross-axis movers, diff-metric exact values). Patches gate green
+(gbarecomp-local.patch regenerated with `git -C gbarecomp -c color.ui=never
+diff HEAD --ignore-submodules=all --no-ext-diff` — plain export is
+polluted by a DFT external diff driver + ANSI color; frame-pacer
+wait-site hunk re-spliced to +3880,111), cycle PASS (attract pin
+1EF4C118… intact), APK rebuilt+installed. Device feel verdict: manual
+validation by the user before commit.
+
+## 2026-10-13 (late) — Rebase-guard fix validated on device; committed
+
+User manual QA on the device (state-1 load, Move staged, hold-Left
+fly-across, 120 Hz panel, interp on): verdict "as good as it can get
+without revisiting other fixes for the widescreen" — the map-end blip
+and fast-pan wild shifting are gone, normal pans still interpolate.
+Consensus + rebase-veto guards accepted as shipped. All gates were
+green before the device pass (patches 431-file replay, unit-cpp,
+cycle/attract pin 1EF4C118…). This commit carries: the guard fix,
+re-spliced patches, updated unit tests, and
+docs/frame-interpolation.md (design + porting doc, indexed in
+docs/README.md + AGENTS.md). Device scratch state (debug-args.txt,
+tcp:19850 forward, /data/local/tmp/game.state1) cleaned up after QA;
+interp remains togglable via the persisted Graphics menu row.
