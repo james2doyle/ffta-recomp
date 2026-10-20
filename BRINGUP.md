@@ -9509,3 +9509,55 @@ Guide/Y are intentional menu triggers — any other button reaching the
 menu is the fallback bug).
 
 **Commit.** `gbarecompx` `fce1781`; game pin + docs in this change.
+
+## 2026-10-20 — issue #30 haptics: phone sink + primary routing (Phases 1+3)
+
+**Scope.** The user selected the ungated engine work only: Phase 1 (Android
+phone-vibrator sink) and Phase 3 (primary-modality routing + stable API).
+Phase 2 (glue device-id capture), Phase 4 (battle-damage hook), and Phase 5
+(settings) remain deferred.
+
+**Phase 0 evidence.** `game.state1` loaded over TCP `savestate_load` is a live
+battle (load frame 25283; `[0x0200F4A8] = 0x0200F4E8`). A confirmed Fight
+attack fired `0x080A2210` twice: f25545 `r0=0x020034EC r1=79
+lr=0x080A3167`; f25546 `r0=0x020030CC r1=96 lr=0x080A3167`; gate
+`0x0200F4E8` both. Disasm: the helper sign-extends `r1` and subtracts it from
+`[unit+0x18]` (`strh r5,[r6,#0x18]` @0x080A2298), clamping to `[0,maxHP]`;
+heals therefore arrive negative (disasm-verified, not live-probed). The
+HP↔MP swap call site `bl 0x080A2210` @0x080A337E (LR `0x080A3383`) passes
+`curHP-curMP` and must be excluded from damage haptics.
+
+**Change.** Engine-only, host-side:
+- `mobile_platform.{h,cpp}`: `android_haptics_pulse(ms, strength)` — JNI to
+  `GbaGameActivity.vibrate(IF)V`, attaching the game thread only when needed,
+  caching the method id, and clearing/logging the first JNI exception.
+- `GbaGameActivity.java`: `vibrate` uses `VibratorManager` on API 31+,
+  amplitude control when present, and media/game attributes (API 33+
+  `VibrationAttributes.USAGE_MEDIA`, API 26-32 `AudioAttributes.USAGE_GAME`)
+  so OEM touch-haptics settings cannot drop the pulse.
+- `raylib_backend.cpp`: Android `haptic_pulse()` routes to the platform sink
+  (raylib's `SetGamepadVibration` is a stub there); `Caps::haptics` is true on
+  Android. `Input::controller_is_primary()` tracks per-pump touch/pad stamps
+  (pad wins only when strictly newer; desktop returns false, keeping its
+  historical pad-motor behavior). `host_primary_haptic()` routes to
+  `gamepad_rumble` or `haptic_pulse`; `host_gamepad_supports_rumble()` is now
+  defined in the raylib build (the latent link break).
+- Tests: `pad_is_primary` pure cases in `input_translate_test.cpp`; new
+  `primary_haptic_test.cpp` fake-backend routing (stub build skips loudly);
+  closed-window fallback in `host_window_closed_test.cpp`.
+
+**Verification.** Framework tests PASS in both configs (`input_translate`,
+`host_window_closed`, `primary_haptic`; the stub `primary_haptic` SKIPs, the
+raylib build PASSes). Cold `tools/cycle.py` PASS — 63,134 units, dispatch
+aligned, attract `1EF4C118…` unchanged. `tools/check.py` **17/17 PASS**.
+Private arm64 APK builds; `android_apk_check --expect private` 8/8 (38.5 MiB).
+Compile traps fixed en route: NDK C++ JNI uses member calls
+(`env->GetObjectClass`), and `GetAndroidApp` needs the glue header for
+`struct android_app`.
+
+**Limits.** Controller-primary haptics are silent on Android until Phase 2:
+`Input::rumble()` still reaches raylib's Android stub. The battle-damage hook
+and settings are not wired. Device verification: the attached phone's FF pill
+pulses the platform vibrator (user-confirmed 2026-10-20; the pill's existing
+`host_haptic_pulse(15, 0.5)` is the first real consumer). No rumble-capable
+controller was attached, so the controller-primary path remains unexercised.

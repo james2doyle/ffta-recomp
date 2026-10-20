@@ -171,7 +171,13 @@ crash playbooks: `BRINGUP.md`.
   unhandled BUTTON_B into BACK — the "menu on B" symptom). Face buttons
   map label-wise; the pad's menu button (or Y) and the Back key both open the
   settings overlay; right trigger = fast-forward; left stick = d-pad.
-- **Sharp scaling verified at the pixels** (fractional layouts differ
+- **Android haptics (2026-10-20, issue #30 Phases 1+3):** the platform
+vibrator sink is live (`android_haptics_pulse` → `GbaGameActivity.vibrate`,
+media/game-attributed) and `host_primary_haptic` routes by last-used input
+modality. Controller motors (Phase 2 glue capture), the battle-damage hook
+(Phase 4), and the haptics setting (Phase 5) remain deferred.
+
+**Sharp scaling verified at the pixels** (fractional layouts differ
   ~70%, exact-integer layouts identical — the designed inertness per
   the rsn8887 recipe) and the menu's status line names the inert case.
 - **Test ownership split**: the game's CI tests only game code —

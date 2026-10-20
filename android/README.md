@@ -436,6 +436,20 @@ real Back press keeps its menu gesture (`android_gamepad.h` in the
 framework; the mechanism is written up in
 `reference/dev-gotchas.md`).
 
+## Haptics (2026-10-20)
+
+The Android build uses the platform vibrator for host haptics. The FF pill's
+existing pulse (`host_haptic_pulse(15, 0.5)`) is the first real consumer.
+`host_primary_haptic(strength, ms)` routes a gameplay pulse by primary input
+modality: touchscreen → phone vibrator. An active pad is tracked as primary
+and will use the controller's motors once the glue device-id capture lands
+(Phase 2 of `.opencode/HAPTICS_PLAN.md`, deferred in this pass). Pulses are
+attributed as media/game (`VibrationAttributes.USAGE_MEDIA` on API 33+,
+`AudioAttributes.USAGE_GAME` below) so OEM "touch haptics off" settings do not
+silently drop them. A device without a vibrator is a silent no-op; the
+`VIBRATE` permission already ships. Damage-triggered haptics (issue #30
+Phase 4) and the haptics setting (Phase 5) are not wired in this pass.
+
 ## Known behavior
 
 - **Split-loop nesting (fixed 2026-10-09, `607ca07`):** the vblank wait

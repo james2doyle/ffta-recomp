@@ -356,6 +356,19 @@ access, which is enough:
   bug above. Debugging "button X opens the menu": the `pad-census:`
   logcat lines print keycode, source AND flags — check the flag first.
 
+- **Android haptics (2026-10-20).** `VibratorManager` + `CombinedVibration`
+  are API 31+; `InputDevice.getVibrator()` is API 16 (deprecated at 31);
+  `Vibrator.hasAmplitudeControl` and `VibrationEffect.createOneShot` are API
+  26 (amplitude 1..255, or `DEFAULT_AMPLITUDE`). A bare `vibrate(effect)`
+  carries `USAGE_TOUCH`, and OEMs that disable touch haptics drop it
+  silently — attribute game pulses as `VibrationAttributes.USAGE_MEDIA`
+  (API 33+) or `AudioAttributes.USAGE_GAME` (API 26-32); the framework's
+  phone sink does both. The app must be in the foreground. JNI: raylib
+  exports `GetAndroidApp()` but does not declare it in `raylib.h`; include
+  the glue header for `struct android_app`. NDK C++ `JNIEnv`/`JavaVM` are
+  objects with member calls (`env->GetObjectClass`), not the C function
+  tables (`(*env)->...`).
+
 ## Run examples
 
 - Strict smoke: `GBARECOMP_STRICT_STATIC=1 ./build/FFTARecomp --bios
