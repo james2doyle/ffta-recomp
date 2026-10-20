@@ -175,7 +175,8 @@ crash playbooks: `BRINGUP.md`.
 vibrator sink is live (`android_haptics_pulse` → `GbaGameActivity.vibrate`,
 media/game-attributed) and `host_primary_haptic` routes by last-used input
 modality. Controller motors (Phase 2 glue capture), the battle-damage hook
-(Phase 4), and the haptics setting (Phase 5) remain deferred.
+(Phase 4), and the haptics setting (Phase 5) remain deferred. Contract:
+`gbarecompx/docs/HAPTICS.md` — fork-only, not in upstream gbarecomp.
 
 **Sharp scaling verified at the pixels** (fractional layouts differ
   ~70%, exact-integer layouts identical — the designed inertness per

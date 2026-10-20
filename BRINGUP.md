@@ -9561,3 +9561,9 @@ and settings are not wired. Device verification: the attached phone's FF pill
 pulses the platform vibrator (user-confirmed 2026-10-20; the pill's existing
 `host_haptic_pulse(15, 0.5)` is the first real consumer). No rumble-capable
 controller was attached, so the controller-primary path remains unexercised.
+
+**Docs.** `gbarecompx/docs/HAPTICS.md` documents the feature as **fork-only**
+(absent from upstream gbarecomp): API, Android API-level/attribute choices,
+primary-modality rules, verification, and the deferred controller/damage/
+settings scope. The framework README, `gbarecompx/AGENTS.md`, and this
+repo's `android/README.md` (which links the page) mark it the same way.

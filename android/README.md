@@ -449,6 +449,7 @@ attributed as media/game (`VibrationAttributes.USAGE_MEDIA` on API 33+,
 silently drop them. A device without a vibrator is a silent no-op; the
 `VIBRATE` permission already ships. Damage-triggered haptics (issue #30
 Phase 4) and the haptics setting (Phase 5) are not wired in this pass.
+Contract and platform details: [`gbarecompx/docs/HAPTICS.md`](../gbarecompx/docs/HAPTICS.md).
 
 ## Known behavior
 
