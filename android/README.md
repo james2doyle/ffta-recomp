@@ -447,8 +447,11 @@ and will use the controller's motors once the glue device-id capture lands
 attributed as media/game (`VibrationAttributes.USAGE_MEDIA` on API 33+,
 `AudioAttributes.USAGE_GAME` below) so OEM "touch haptics off" settings do not
 silently drop them. A device without a vibrator is a silent no-op; the
-`VIBRATE` permission already ships. Damage-triggered haptics (issue #30
-Phase 4) and the haptics setting (Phase 5) are not wired in this pass.
+`VIBRATE` permission already ships. Damage-triggered haptics are implemented
+and device-verified (issue #30 Phase 4, 2026-10-20): the two damage-apply
+seams feed a pulse that releases when the damage-number popup spawns (impact
+sync for every animation; misses are silent). The haptics setting (Phase 5)
+is not wired.
 Contract and platform details: [`gbarecompx/docs/HAPTICS.md`](../gbarecompx/docs/HAPTICS.md).
 
 ## Known behavior

@@ -207,13 +207,17 @@ if(FFTA_BUILD_TESTS AND NOT ANDROID)
     enable_testing()
     add_executable(ffta_unit_tests
         tests/unit/test_ram_dispatch.cpp
-        tests/unit/test_speed_boost.cpp)
+        tests/unit/test_speed_boost.cpp
+        tests/unit/test_haptics.cpp)
     target_include_directories(ffta_unit_tests PRIVATE
         "${GBARECOMP_ROOT}/src/armv4t"
         "${GBARECOMP_ROOT}/src/runtime"
+        "${GBARECOMP_ROOT}/src/gba"
         src)
     find_package(Threads REQUIRED)
-    target_link_libraries(ffta_unit_tests PRIVATE Threads::Threads)
+    target_link_libraries(ffta_unit_tests PRIVATE
+        gbarecomp_runtime  # haptics host_primary_haptic (no-backend stub here)
+        Threads::Threads)
     if(WIN32 AND NOT MSVC)
         target_link_libraries(ffta_unit_tests PRIVATE winmm)
     endif()

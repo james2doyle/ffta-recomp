@@ -9567,3 +9567,63 @@ controller was attached, so the controller-primary path remains unexercised.
 primary-modality rules, verification, and the deferred controller/damage/
 settings scope. The framework README, `gbarecompx/AGENTS.md`, and this
 repo's `android/README.md` (which links the page) mark it the same way.
+## 2026-10-20 — issue #30 Phase 4: enemy-hit haptics — root cause + popup-synced release
+
+**Report.** "Haptics not working when an enemy gets hit": the user's Air
+Render test (device slot 4) landed hits (with occasional misses) but no
+haptic and no diagnostics ever fired.
+
+**Root cause (two HP paths).** Instrumented builds proved the hook plumbing
+live (enabled, guard reached: synthetic dispatch census) while landed hits
+logged nothing. Per-attempt EWRAM diffs located the unit HP field
+(gBattleEnemyUnits+0x8; observed drops 61→10/61→9) and ruled the silent
+attempts in as misses. `GBARECOMP_ABORT_ON_MEM_WRITE_ADDR` on a landed
+desktop hit trapped the writer:
+
+    pc=0x080A3250  strh r1,[r2,#0x1C]   r2 = unit, r1 = clamped new hp
+
+The enemy-unit apply path computes the final HP and stores it directly
+(hp@unit+0x1C, max@unit+0x1E; block at 0x080A3240-0x080A3252) — it never
+calls the 0x080A2210 delta helper our hook watched (hp@+0x18 layout). The
+helper covers the melee/fight family (state5); enemy-targeted ability
+damage uses the direct store. Hence: hits with zero hook entries.
+
+**Fix (commit scope).**
+- Second damage seam: `[[mod_function_hook]] 0x080A3250` +
+  `haptics_hp_store_hook` (delta = old−new at entry; same gate/coalescing).
+- Release rework: the pulse no longer uses a fixed 22-frame delay (calibrated
+  on the fast state5 melee; Air Render's store→number gap measured at ~240
+  frames — the user heard "too early"). New release trigger:
+  `[[mod_function_hook]] 0x080A8BF8` — the damage-number popup spawn
+  (display-element initializer; split root, both parents tail-call/dispatch
+  into it). An armed pulse releases on the popup + 1 frame, for any animation
+  length; a 900-frame grace deadline releases late rather than never.
+- Stale-state hardening (first device test fired ~1 frame after the apply:
+  the release-check line exposed `popup=7935` at `f=7791` — a popup frame
+  from the PREVIOUS attempt). Two layers: (a) the frame policy clears the
+  haptics pipeline whenever `ExtendedViewFrameInfo::state_epoch` changes
+  (every savestate load bumps it; the mods reset callback does not run on
+  TCP loads), and (b) the arm-time popup heuristic rejects "future"
+  timestamps (`lp <= now`). A two-load regression (load → full action →
+  reload → action) releases each pulse at its own popup with `popup=0` in
+  the second release-check — locked in BRINGUP evidence, no CI test shape
+  yet (needs the two-load harness; candidate for `check.py` later).
+- Verified desktop: state5 `popup value=22 kind=0` → PULSE at popup+1;
+  slot4 `popup value=50 kind=1` → PULSE at popup+1. Unit tests rewritten for
+  the popup-synced state machine.
+- A "rapier attack" with no buzz was a miss — correct: no HP change, no
+  pulse (the user confirmed the miss).
+
+**Evidence.** Cold `tools/cycle.py` PASS (63,134 units; attract
+`1EF4C118…` unchanged); `tools/check.py` 17/17 PASS. Device (fixed build):
+`active=4`; landed hits log `entry-store → damage → popup value=NN kind=1 →
+PULSE fire → haptics-sink ms=120` with the release one frame after the
+popup; misses log `popup value=0 kind=21` with no arm and are silent.
+Sink lines 23:54:17 (0.90) / 23:54:51 (0.89). Two-load regression: second
+run's release-check shows `popup=0` (epoch reset) and releases at its own
+popup. Field note: popup kind 0 = player-array number, kind 1 = enemy-array
+number, kind 21 = the miss text.
+
+**Cleanup.** The TEMP boot self-test and the framework `[mod-guard]` census
+were stripped after the investigation; the feature keeps its bounded
+seams censuses (entry/entry-store/damage/popup/PULSE, ≤64 lines/session).

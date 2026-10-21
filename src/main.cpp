@@ -11,6 +11,7 @@
 #include "mod_runtime.h"
 #include "ffta_ram_dispatch.h"
 #include "ffta_lzss_guard.h"
+#include "ffta_haptics_hook.h"
 #include "ffta_speed_boost.h"
 #include "ffta_ws_margin.h"
 #include "mobile_platform.h"
@@ -56,6 +57,21 @@ void print_usage() {
 // (bounded degradation, logged) instead of hanging. Registered below via
 // GBA_MOD_CONSTRUCTOR; extracted to the header so the unit suite links it.
 
+// ── Battle-damage haptics (mod_function_hook, game.toml) ────────────────────
+// Definition: src/ffta_haptics_hook.h. Two damage seams feed one pulse
+// pipeline, and one display hook releases it (issue #30, 2026-10-20):
+//   1. ffta::haptics_damage_hook @ 0x080A2210 — the HP delta helper (unit
+//      hp@+0x18 layout); covers the helper-family apply paths.
+//   2. ffta::haptics_hp_store_hook @ 0x080A3250 — the enemy-unit direct
+//      store (hp@+0x1C/max@+0x1E); the Air Render-style apply path that
+//      never calls the helper (proven by the abort-on-write trace, BRINGUP).
+//   3. ffta::haptics_popup_hook @ 0x080A8BF8 — the damage-number popup
+//      spawn; releases the armed pulse so the buzz lands with the number
+//      for every animation length.
+// The observers filter positive deltas + the live-battle gate, then route
+// one 120 ms pulse through host_primary_haptic. Registered below via
+// GBA_MOD_CONSTRUCTOR.
+
 // ── Trusted plugins: mods lifecycle (see reference/widescreen.md) ──────────
 // Game-owned hooks install through the trusted-plugin activation pass
 // (mods/preloaded catalog, feature "widescreen", default-enabled). The pass
@@ -95,6 +111,8 @@ static void ffta_mod_reset() {
     g_ws_frame_left = 0;
     g_ws_frame_right = 0;
     gba_mod_set_function_hook_enabled("ffta.lzss-guard", 1);
+    gba_mod_set_function_hook_enabled("ffta.haptics", 1);
+    ffta::haptics_reset();
 }
 
 // Activation plugin "ffta.widescreen" (manifest:
@@ -114,6 +132,12 @@ static void ffta_ws_activate() {
 GBA_MOD_CONSTRUCTOR(register_ffta_mod_plugins) {
     gba_mod_register_function_entry_plugin("ffta.lzss-guard", 0x0800543Cu, 1,
                                            ffta::lzss_entry_guard);
+    gba_mod_register_function_entry_plugin("ffta.haptics", 0x080A2210u, 1,
+                                           ffta::haptics_damage_hook);
+    gba_mod_register_function_entry_plugin("ffta.haptics", 0x080A3250u, 1,
+                                           ffta::haptics_hp_store_hook);
+    gba_mod_register_function_entry_plugin("ffta.haptics", 0x080A8BF8u, 1,
+                                           ffta::haptics_popup_hook);
     gba_mod_register_reset_callback(ffta_mod_reset);
     gba_mod_register_activation_plugin("ffta.widescreen", ffta_ws_activate);
 }
@@ -166,6 +190,19 @@ void ffta_ws_margin_policy(const gbarecomp::ExtendedViewFrameInfo* frame) {
     if (!frame || !frame->io || frame->io_size < 0x10) return;
     g_ws_frame_left = frame->extra_left;
     g_ws_frame_right = frame->extra_right;
+    // Issue #30 Phase 4: a savestate load bumps the runtime state epoch —
+    // clear the haptics pipeline so armed pulses / stale popup frames from
+    // the pre-load world cannot leak (the mods reset callback does not run
+    // on TCP loads, the path the device/replay tooling uses). Then release
+    // the armed damage haptic: the pulse fires when the damage-number popup
+    // spawns (or at the grace deadline). Rides this existing per-frame
+    // callback — no new framework seam.
+    static std::uint64_t haptics_epoch = 0;
+    if (frame->state_epoch != haptics_epoch) {
+        haptics_epoch = frame->state_epoch;
+        ffta::haptics_reset();
+    }
+    ffta::haptics_frame_service(frame->frame_count);
     if (frame->extra_left == 0 && frame->extra_right == 0) return;
     const std::uint8_t* io = frame->io;
     const unsigned bg0 = io[0x08] | (io[0x09] << 8);
@@ -416,6 +453,7 @@ int ffta_main(int argc, char** argv) {
     // activation pass disables all entry hooks each launch and re-arms via
     // the reset callback; this covers run paths that skip the pass.
     gba_mod_set_function_hook_enabled("ffta.lzss-guard", 1);
+    gba_mod_set_function_hook_enabled("ffta.haptics", 1);
 
     // Touch pad idle auto-hide (device decision 2026-10-08; 15 s per user
     // request): after 15 s of screen-wide touch inactivity the pad hides;

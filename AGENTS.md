@@ -174,8 +174,14 @@ crash playbooks: `BRINGUP.md`.
 - **Android haptics (2026-10-20, issue #30 Phases 1+3):** the platform
 vibrator sink is live (`android_haptics_pulse` → `GbaGameActivity.vibrate`,
 media/game-attributed) and `host_primary_haptic` routes by last-used input
-modality. Controller motors (Phase 2 glue capture), the battle-damage hook
-(Phase 4), and the haptics setting (Phase 5) remain deferred. Contract:
+modality. Controller motors (Phase 2 glue capture) and the haptics setting
+(Phase 5) remain deferred; the battle-damage hook (Phase 4) is implemented
+and device-verified (2026-10-20): two damage seams (the 0x080A2210 HP-delta
+helper and the 0x080A3250 enemy-array direct HP store — the Air Render-style
+path that bypasses the helper) feed one pulse pipeline, released when the
+damage-number popup spawns (0x080A8BF8) so the buzz lands with the number
+for every animation length (grace deadline 900 frames; state-epoch reset on
+savestate loads). Contract:
 `gbarecompx/docs/HAPTICS.md` — fork-only, not in upstream gbarecomp.
 
 **Sharp scaling verified at the pixels** (fractional layouts differ

@@ -676,3 +676,7 @@
 0x08001194	thumb	oam_stage_reset_a
 0x08001244	thumb	oam_stage_reset_b
 0x08000438	thumb	vblank_task_service
+
+# Issue #30 Phase 4 (2026-10-20): HP helper at the battle-damage haptic seam
+# (disarm: r0 unit, r1 signed delta, `strh r5,[r6,#0x18]` @0x080A2298).
+0x080A2210	thumb	unit_apply_hp_delta

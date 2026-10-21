@@ -5499,6 +5499,38 @@ addr = 0x0800543C
 mode = "thumb"
 note = "lzss guard seam -> host plugin ffta.lzss-guard; rejects corrupted source headers"
 
+# Issue #30 Phase 4: 0x080A2210 is the HP helper (r0 unit, r1 signed delta;
+# write `strh r5,[r6,#0x18]` @0x080A2298; max HP u16 at unit+0x1A). The host
+# plugin observes only: positive delta, live battle gate [0x0200F4A8], and
+# excludes the HP<->MP swap return 0x080A3383.
+[[mod_function_hook]]
+addr = 0x080A2210
+mode = "thumb"
+note = "damage-haptic seam -> host plugin ffta.haptics; positive signed HP delta, battle gate [0x0200F4A8], excludes HP/MP swap return 0x080A3383"
+
+# Issue #30 Phase 4, second seam (2026-10-20): enemy-unit damage applies the
+# final HP directly at 0x080A3250 — `strh r1,[r2,#0x1C]` with r2 = unit,
+# r1 = clamped new HP (block: ldrh r1,[r2,#0x1C]; ldrsh staged damage;
+# subs; clamp [0, max@unit+0x1E]). The 0x080A2210 helper is NOT executed on
+# this path (abort-on-mem-write trace on a landed Air Render hit: pc
+# 0x080A3250, addr 0x02002FE0 = gBattleEnemyUnits+0x8, old hp 61 -> 11).
+[[mod_function_hook]]
+addr = 0x080A3250
+mode = "thumb"
+note = "enemy-unit direct HP store -> host plugin ffta.haptics (hp@unit+0x1C, max@+0x1E; delta = old-new at entry; the Air Render-style path that bypasses the 0x080A2210 helper)"
+
+# Issue #30 Phase 4, release trigger (2026-10-20): the display-element
+# initializer at 0x080A8BF8 — the damage-number popup spawn (split root;
+# both parents tail-call / dispatch into it, so every popup init passes the
+# guard). At entry: r2 = signed displayed value, r0 = abs(value), r8 =
+# element kind. The armed pulse releases on the popup spawn, landing the
+# buzz with the number for every animation length (measured gaps: fast
+# melee ~22 frames, Air Render ~240; see BRINGUP 2026-10-20).
+[[mod_function_hook]]
+addr = 0x080A8BF8
+mode = "thumb"
+note = "damage-number popup spawn -> host plugin ffta.haptics (observation only; release trigger for the armed pulse; r2 signed value, r8 kind)"
+
 # ─── Batch ac: session 16:31 (post-fix summon attempt, spin) ───
 # 12 heal-cache units (0x081154D8-0x081159D0 battle cluster); split-interior seeds.
 

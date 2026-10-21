@@ -402,3 +402,7 @@
 0x03000EB4	iwram	0x2	gVblankCounter
 0x03000E60	iwram	0x18	gBg0RegPtrs
 0x03000E80	iwram	0x18	gBg2RegPtrs
+
+# Issue #30 Phase 4 (2026-10-20): battle object pointer installed at
+# 0x08096C26 and cleared at 0x08096CCC; reads gate the damage haptic.
+0x0200F4A8	ewram	0x4	gBattleUnitPtr
