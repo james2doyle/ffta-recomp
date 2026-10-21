@@ -360,7 +360,9 @@ GBARECOMP_INPUT_REPLAY=logs/playthrough.csv ./build/FFTARecomp ...` — expect
   track).
 - **Full gate:** `.venv/bin/python tools/check.py` — host unit tests
   (C++ + Python), patch validity, the device-free Android checks, the
-  attract gate, the widescreen smoke,
+  seam guard (backend *and* framework test-double completeness), the
+  offline `stub-backend` compile (`USE_RAYLIB=OFF`),
+  the attract gate, the widescreen smoke,
   and strict route
   replays (user
   save-load, sessions G/K, battle movement route B) against frozen fixtures in `saves/regress/`
@@ -486,10 +488,15 @@ Two tiers, split by what may leave your machine:
 - The **`raylib-backend` job** (`.github/workflows/ci.yml`) is a second,
   independent tier-1 job for the experimental raylib backend
   (`gbarecompx/`, opt-in via `-DGBARECOMP_USE_RAYLIB=ON`). It runs
-  `tools/check.py --only raylib-compile`, which fetches raylib 6 by SHA, builds
-  the backend, and then **builds and runs** the integration test — on a
+  `tools/check.py --only raylib-compile,raylib-backend`: raylib-compile
+  fetches raylib 6 by SHA, builds BOTH backend personalities, and then
+  **builds and runs** the integration test — on a
   GitHub-hosted runner with no GPU, no `/dev/dri` and no X server, via
-  `xvfb-run -a` with Mesa's llvmpipe software rasterizer. No ROM needed: the
+  `xvfb-run -a` with Mesa's llvmpipe software rasterizer. raylib-backend
+  adds the seam guard and its test-double scan: the framework's test
+  doubles compile only in its own test target, so this is the first
+  consumer-side CI job that sees one go abstract (2026-10-21 `NoopInput`
+  class). No ROM needed: the
   test links only raylib + `gbarecomp_raylib_backend`, deliberately kept lean
   because `generated/` is gitignored and anything linking `gbarecomp_runtime`
   cannot link on a fresh checkout. It reports which display it used, and skips

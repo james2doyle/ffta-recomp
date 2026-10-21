@@ -163,8 +163,12 @@ jobs:
           path: build/_deps
           key: ffta-raylib-deps-${{ runner.os }}-${{ hashFiles('gbarecompx/CMakeLists.txt') }}
 
-      - name: "Gate (raylib-compile: build + run headless under Xvfb)"
-        run: CC="ccache gcc" CXX="ccache g++" python3 tools/check.py --only raylib-compile
+      # raylib-compile builds BOTH backend personalities; raylib-backend adds
+      # the seam guard and its test-double completeness scan. The 2026-10-21
+      # NoopInput break compiled only in the framework's own test target, so
+      # this is the first CI job that sees double drift from the consumer side.
+      - name: "Gate (raylib-compile + seam guards)"
+        run: CC="ccache gcc" CXX="ccache g++" python3 tools/check.py --only raylib-compile,raylib-backend
 
   android-lint:
     # Android Lint over the app module (the engine-template activities) plus

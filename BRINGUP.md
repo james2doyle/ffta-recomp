@@ -9658,3 +9658,43 @@ default, matching `support/fake_backend.h`). Pin bumped to `2a8bffb`.
 `--only unit-cpp` PASS; fork stub build + `ctest` 89/89, fork
 raylib-ON build + `ctest` 91/91 locally (Xvfb unavailable on the dev
 host — the raylib job's display tier is the post-push CI signal).
+
+## 2026-10-21 — guards for the CI-break classes (stub compile + test doubles)
+
+**Gap.** The 37cf1fb pin carried two breaks that every local gate missed:
+the raylib-only key census broke the `USE_RAYLIB=OFF` build (opt-in
+`raylib-compile` only), and `NoopInput` went abstract (framework test
+doubles compile only in the fork's own test target, which the consumer
+never built). Same session, same pin bump — both need consumer-side gates.
+
+**Guards.**
+- **`stub-backend` (new, DEFAULT and `--fast`).** Builds the backend with
+  `-DGBARECOMP_USE_RAYLIB=OFF` through a shared `build_stub_backend()`
+  helper that `raylib-compile`'s OFF half now also calls, so the two
+  callers cannot drift. No raylib fetch: configure + one TU, ~0.5 s
+  warm. A stub-only compile break can no longer hide behind an opt-in.
+- **Seam guard check 4 — test doubles.** `tools/check_raylib_backend_
+  complete.py` now scans `gbarecompx/tests/runtime/**` for every class
+  deriving directly from a seam interface and requires its full override
+  set (the 2026-10-21 `NoopInput` class). It runs in the default
+  `raylib-backend` suite and is a source-level consumer-side companion to
+  the fork's compile check.
+- **Normalization fixes the scan forced:** unnamed function-pointer
+  parameters compare equal to named ones (`void (*)(HostOverlay*)` ==
+  `void (*overlay)(HostOverlay*)`), and `gbarecomp::`-qualified parameter
+  types compare equal to bare ones (`SpyBackend` writes
+  `const gbarecomp::OpenParams&`). Both self-tested.
+- **CI.** The `raylib-backend` job now runs
+  `tools/check.py --only raylib-compile,raylib-backend`, so the test-double
+  scan also gates every push.
+
+**Evidence.** Guard self-test PASS (23 cases; new cases: complete double,
+abstract-double regression, const drift, unnamed function-pointer,
+namespace-qualified type). Guard: 15 doubles / 138 interface methods.
+Negative control: deleting `controller_is_primary` from a scratch copy of
+`backend_v2_types_test.cpp` fails with
+`DOUBLE: test double NoopInput (backend_v2_types_test.cpp) has no override
+for Input::controller_is_primary()`; restored tree passes. Gates:
+`check.py --only raylib-backend,stub-backend,unit-py` 3/3 PASS,
+`--only raylib-compile` PASS (ON+OFF), `--fast` 8/8 PASS (attract
+`1EF4C118…` unchanged).

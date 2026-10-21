@@ -7,7 +7,9 @@ including the cases that once broke it (the function-pointer argument, the
 overload pair), the Phase 4b checks (pure interfaces, single generation), and
 the Phase 4d per-interface attribution cases: a method implemented in the
 WRONG impl class, a cross-interface signature collision, and a facade method
-implemented in an impl class. The old union scan accepted all three.
+implemented in an impl class. The old union scan accepted all three. It also
+covers the 2026-10-21 test-double scan: the abstract `NoopInput` regression,
+plus the function-pointer and namespace normalizations a double needs.
 
 Run: python3 tools/tests/test_check_raylib_backend_complete.py
 """
@@ -121,7 +123,8 @@ def run(tmp: Path, facade_iface: str = "", video_iface: str = "",
         overlay_iface: str = "", menu_iface: str = "", facade_impl: str = "",
         video_impl: str = "", audio_impl: str = "", input_impl: str = "",
         fx_impl: str = "", overlay_impl: str = "", menu_impl: str = "",
-        host_window: str = CLEAN_HOST, factory: str = CLEAN_FACTORY) -> int:
+        host_window: str = CLEAN_HOST, factory: str = CLEAN_FACTORY,
+        doubles: str = "") -> int:
     paths = {
         "iface": tmp / "window_backend.h",
         "backend_h": tmp / "raylib_backend.h",
@@ -137,6 +140,9 @@ def run(tmp: Path, facade_iface: str = "", video_iface: str = "",
         video_impl, audio_impl, input_impl, fx_impl, overlay_impl, menu_impl))
     paths["host_window"].write_text(host_window)
     paths["factory"].write_text(factory)
+    tests = tmp / "tests"
+    tests.mkdir(exist_ok=True)
+    (tests / "doubles.cpp").write_text(doubles)
     buf = io.StringIO()
     with contextlib.redirect_stdout(buf):
         return checker.main([
@@ -145,6 +151,7 @@ def run(tmp: Path, facade_iface: str = "", video_iface: str = "",
             "--backend-cpp", str(paths["backend_cpp"]),
             "--host-window", str(paths["host_window"]),
             "--factory", str(paths["factory"]),
+            "--tests", str(tests),
         ])
 
 
@@ -298,6 +305,62 @@ def main() -> int:
                   facade_iface="    virtual void close() = 0;\n",
                   video_impl="    void close() override;\n"),
               1)
+
+        # 19. A test double implementing the full interface passes (qualified
+        #     and final base forms both parse).
+        check("complete test double passes",
+              run(tmp,
+                  input_iface="    virtual void read(int& out) = 0;\n",
+                  input_impl="    void read(int& out) override;\n",
+                  doubles="struct FullInput final : public gbarecomp::Input {\n"
+                          "    void read(int& out) override {}\n"
+                          "};\n"),
+              0)
+
+        # 20. REGRESSION (2026-10-21): an abstract test double once compiled
+        #     only in the framework's own test target, so the consumer pin bump
+        #     stayed green while NoopInput lacked controller_is_primary().
+        check("abstract test double fails",
+              run(tmp,
+                  input_iface="    virtual void read(int& out) = 0;\n",
+                  input_impl="    void read(int& out) override;\n",
+                  doubles="struct NoopInput final : Input {\n};\n"),
+              1)
+
+        # 21. Const-ness drift in a double must fail like it does in the
+        #     product backend.
+        check("test double const drift fails",
+              run(tmp,
+                  input_iface="    virtual int value() const = 0;\n",
+                  input_impl="    int value() const override;\n",
+                  doubles="struct BadInput final : Input {\n"
+                          "    int value() override { return 0; }\n"
+                          "};\n"),
+              1)
+
+        # 22. REGRESSION: doubles often omit the function-pointer parameter
+        #     name (`void (*)(HostOverlay*)` vs `void (*overlay)(...)`); it is
+        #     not part of the signature.
+        check("unnamed function-pointer arg in double passes",
+              run(tmp,
+                  overlay_iface="    virtual void set_host_overlay(void (*overlay)(HostOverlay*)) = 0;\n",
+                  overlay_impl="    void set_host_overlay(void (*overlay)(HostOverlay*)) override;\n",
+                  doubles="struct NoopOverlay final : Overlay {\n"
+                          "    void set_host_overlay(void (*)(HostOverlay*)) override {}\n"
+                          "};\n"),
+              0)
+
+        # 23. REGRESSION: a double in the seam namespace may write
+        #     `gbarecomp::OpenParams`; the namespace is not part of the type
+        #     identity here.
+        check("namespace-qualified type in double passes",
+              run(tmp,
+                  facade_iface="    virtual bool open(const OpenParams& p) = 0;\n",
+                  facade_impl="    bool open(const OpenParams& p) override;\n",
+                  doubles="struct SpyBackend final : WindowBackend {\n"
+                          "    bool open(const gbarecomp::OpenParams& p) override { return true; }\n"
+                          "};\n"),
+              0)
 
     if FAILURES:
         print("check_raylib_backend_complete SELF-TESTS FAILED:")

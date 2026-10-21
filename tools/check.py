@@ -308,6 +308,52 @@ def check_raylib_headless():
     return True, "PASS (rlsw headless, DISPLAY unset)"
 
 
+def build_stub_backend():
+    """Configure + build the backend in its USE_RAYLIB=OFF personality.
+
+    Shared by the default `stub-backend` gate and raylib-compile's OFF half.
+    No raylib fetch happens with the flag off, so this is offline-cheap, and
+    the stable build dir keeps reruns incremental (same dir as CI/caches).
+    The flock serializes the two callers when a run selects both with
+    `--jobs` (two CMake configures in one dir can corrupt the cache).
+    """
+    stub = REPO / "build-raylib-stub"
+    stub.mkdir(parents=True, exist_ok=True)
+    with open(stub / ".check.lock", "w") as lock:
+        try:
+            import fcntl
+            fcntl.flock(lock, fcntl.LOCK_EX)
+        except ImportError:  # non-POSIX host: checks are Linux/CI-bound
+            pass
+        r = run(["cmake", "-S", str(REPO), "-B", str(stub), "-G", "Ninja",
+                 "-DCMAKE_BUILD_TYPE=Release", "-DGBARECOMP_USE_RAYLIB=OFF"],
+                timeout=900)
+        if r.returncode != 0:
+            return False, "stub configure failed"
+        r = run(["cmake", "--build", str(stub), "--target",
+                 "gbarecomp_raylib_backend", "--parallel", "4"], timeout=900)
+        if r.returncode != 0:
+            errs = [ln for ln in (r.stdout + r.stderr).splitlines()
+                    if "error:" in ln]
+            return False, ("stub (USE_RAYLIB=OFF) backend build failed: " +
+                           (errs[0].strip() if errs
+                            else "raylib_backend.cpp does not compile as a stub"))
+    return True, "backend compiles as a stub (USE_RAYLIB=OFF)"
+
+
+def check_stub_backend():
+    """The USE_RAYLIB=OFF personality compiles — in the DEFAULT gate.
+
+    2026-10-21: the key census landed outside `#if defined(GBARECOMP_USE_RAYLIB)`
+    while its only caller was inside it. The full local gate stayed green
+    because the OFF build was opt-in (`raylib-compile`); only CI's
+    raylib-backend job built it, and the pin bump shipped the break. The OFF
+    half needs no raylib fetch, so promoting it costs a configure + one TU and
+    closes the class locally. `raylib-compile` keeps the ON+OFF pair for CI.
+    """
+    return build_stub_backend()
+
+
 def check_raylib_compile():
     """Compile the RaylibBackend against real raylib 6 (opt-in).
 
@@ -322,12 +368,14 @@ def check_raylib_compile():
     backend target -- not raylib itself, not the game.
 
     It ALSO compiles the backend with the flag OFF (stub build, second build
-    dir). The backend file must compile in both configurations: Slice B/C
-    helpers were once declared inside `#if defined(GBARECOMP_USE_RAYLIB)` but
-    called from unguarded setters, which broke the other configuration while
-    the raylib tree stayed green -- and no gate built that configuration, so it
-    survived several sessions. This is the gate that closes that class, and the
-    explicit OFF is what keeps a default flip from silently dropping this half.
+    dir), via the shared builder that the DEFAULT `stub-backend` gate uses.
+    The backend file must compile in both configurations: Slice B/C helpers
+    were once declared inside `#if defined(GBARECOMP_USE_RAYLIB)` but called
+    from unguarded setters, which broke the other configuration while the
+    raylib tree stayed green -- and no gate built that configuration, so it
+    survived several sessions. The 2026-10-21 key-census break repeated the
+    class, which is why the OFF half is no longer opt-in-only. The explicit
+    OFF keeps a default flip from silently dropping this half.
 
     Opt-in rather than default: the first configure fetches and builds raylib,
     which is minutes. Once cached in build/ it is a few seconds. The stub dir
@@ -368,26 +416,12 @@ def check_raylib_compile():
                 if "error:" in ln]
         return False, (errs[0].strip() if errs else "raylib backend build failed")
 
-    # The OFF half: same file must compile as a stub. Uses its own build dir
-    # (a dir caches its source AND its flag set -- reconfiguring build/ OFF
-    # and back would thrash the cached raylib build).
-    # Explicit OFF rather than relying on the default, so a default flip can
-    # never silently drop this half. No raylib fetch happens with the flag
-    # off, so this half is offline-cheap.
-    stub = REPO / "build-raylib-stub"
-    r = run(["cmake", "-S", str(src), "-B", str(stub), "-G", "Ninja",
-             "-DCMAKE_BUILD_TYPE=Release", "-DGBARECOMP_USE_RAYLIB=OFF"],
-            timeout=900)
-    if r.returncode != 0:
-        return False, "stub configure failed"
-    r = run(["cmake", "--build", str(stub), "--target",
-             "gbarecomp_raylib_backend", "--parallel", "4"], timeout=900)
-    if r.returncode != 0:
-        errs = [ln for ln in (r.stdout + r.stderr).splitlines()
-                if "error:" in ln]
-        return False, ("stub (USE_RAYLIB=OFF) backend build failed: " +
-                       (errs[0].strip() if errs
-                        else "raylib_backend.cpp does not compile as a stub"))
+    # The OFF half: same file must compile as a stub. The shared builder is
+    # also the default `stub-backend` gate (2026-10-21), so the two callers
+    # cannot drift; explicit OFF keeps a default flip from dropping this half.
+    ok, detail = build_stub_backend()
+    if not ok:
+        return False, detail
 
     # Compiling is not running — but the PRESENT-pipeline runtime coverage
     # (ffta_raylib_present_tests through 2026-10-17) moved to the FRAMEWORK:
@@ -503,6 +537,7 @@ CHECKS = {
     "android-static": check_android_static,
     "raylib-backend": check_raylib_backend,
     "backend-default": check_backend_default,
+    "stub-backend": check_stub_backend,
     "raylib-compile": check_raylib_compile,
     "raylib-headless": check_raylib_headless,
     "hangrepro": check_hangrepro,
@@ -522,14 +557,16 @@ CHECKS = {
                                           REG / "battle_move.sav", 5600),
 }
 FAST = ["unit-cpp", "unit-py", "savecheck",
-        "android-static", "raylib-backend", "backend-default", "attract"]
+        "android-static", "raylib-backend", "backend-default", "stub-backend",
+        "attract"]
 # Opt-in suites, left out of the default run (they need local artifacts a
 # desktop-only worktree may not have); --only NAME runs them explicitly.
 # release: the zip packager — needs a built tree (no ROM), and its output
 # is a public artifact contract, so it runs explicit, never by default.
-# raylib-compile is opt-in locally (its first run fetches + builds raylib, minutes)
-# but IS run by CI: the raylib-backend job in .github/workflows/ci.yml needs no ROM
-# and no display, so it is cheap enough to gate every push.
+# raylib-compile is opt-in locally (its first run fetches + builds raylib,
+# minutes), but its OFFLINE half is promoted to the default `stub-backend`
+# gate: a stub-only compile break must not hide behind an opt-in (2026-10-21).
+# CI runs the pair in the raylib-backend job (no ROM, no display).
 OPTIONAL = {"android-apk", "release", "raylib-compile", "raylib-headless"}
 # Checks that execute the game binary (require it to exist); the others run
 # on a fresh clone without the ROM (CI tier 1: unit-cpp, unit-py, android-static).

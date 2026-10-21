@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Completeness guard for the single-generation window seam (Phase 4b).
 
-Three checks, all against the sources:
+Four checks, all against the sources:
 
   1. single generation — the flat generation and the SDL backend are gone:
      no `WindowBackendOpenParams` in the seam, no `host_make_sdl_backend` in
@@ -22,14 +22,21 @@ Three checks, all against the sources:
      a cross-interface signature collision satisfied by only one impl, is a
      FAILURE here (a union scan over both files accepts both — the Phase 4d
      rewrite is what closed that).
+  4. complete test doubles — every class in the framework test tree that
+     derives directly from a seam interface overrides the full contract too.
+     Compilation is the strict check, but those doubles are only built by the
+     framework's own test targets; the consumer's pin-bump gate never compiled
+     them, so `NoopInput` stayed abstract through a green parent run
+     (2026-10-21). This source scan puts that drift in the parent's default
+     gate, where a pin bump sees it.
 
 Why the parsing is fussy: `override` catches signature drift, but not a
 method that silently stops overriding (see check 2), and a naive
 `\\([^)]*\\)` regex drops `set_host_overlay(void (*overlay)(HostOverlay*))`
 because the function-pointer argument contains its own parentheses.
 
-Usage:  python3 tools/check_raylib_backend_complete.py
-Exit 0 when all three hold, 1 otherwise.
+Usage:  python3 tools/check_raylib_backend_complete.py [--tests DIR]
+Exit 0 when all four hold, 1 otherwise.
 """
 from __future__ import annotations
 
@@ -43,6 +50,7 @@ DEFAULT_BACKEND_H = ROOT / "gbarecompx/src/runtime/raylib_backend.h"
 DEFAULT_BACKEND_CPP = ROOT / "gbarecompx/src/runtime/raylib_backend.cpp"
 DEFAULT_HOST_WINDOW = ROOT / "gbarecompx/src/runtime/host_window.cpp"
 DEFAULT_FACTORY = ROOT / "gbarecompx/src/runtime/host_backend_factory.cpp"
+DEFAULT_TESTS = ROOT / "gbarecompx/tests/runtime"
 
 # The seam interfaces whose methods must all be pure and implemented.
 INTERFACE_NAMES = ["WindowBackend", "Video", "Audio", "Input", "Fx",
@@ -70,10 +78,13 @@ def _strip_param_name(param: str) -> str:
     """Drop a trailing parameter NAME, which is not part of the signature.
 
     `float low` and `float low_frequency` are the same parameter type. Also
-    drops leading `::` global-scope qualifiers.
+    drops leading `::` global-scope qualifiers, and the name inside a
+    function-pointer parameter (`void (*overlay)(HostOverlay*)` ==
+    `void (*)(HostOverlay*)` — test doubles often omit it).
     """
     param = param.strip()
     param = re.sub(r"^::", "", param)
+    param = re.sub(r"\(\s*\*\s*[A-Za-z_]\w*\s*\)", "(*)", param)
     m = re.match(r"^(.*?)([A-Za-z_]\w*)$", param, re.DOTALL)
     if not m:
         return param
@@ -98,11 +109,12 @@ def norm(text: str) -> str:
     """Canonicalize an argument list for signature comparison.
 
     Normalizes, in order: pointer/reference spacing (`int* w` == `int *w`), the
-    `std::` qualifier (`std::uint8_t` == `uint8_t`), global-scope `::`, and
+    `std::` and `gbarecomp::` qualifiers (`gbarecomp::OpenParams` ==
+    `OpenParams`, as test doubles in the seam's own namespace write it), and
     parameter NAMES (not part of a C++ signature).
     """
     text = re.sub(r"\s*([*&])\s*", r"\1", text)
-    text = text.replace("std::", "")
+    text = text.replace("std::", "").replace("gbarecomp::", "")
     parts, depth, cur = [], 0, ""
     for ch in text:                        # split on top-level commas only
         if ch in "(<[":
@@ -193,6 +205,63 @@ def override_methods(text: str) -> dict[tuple[str, str], bool]:
     return out
 
 
+def double_declarations(text: str) -> list[tuple[str, str, str]]:
+    """(class, base, body) for every direct seam-interface test double.
+
+    Matches the FIRST base after the colon: every double in the tree derives
+    from one concern, and a multi-base double should get a conscious review
+    anyway. Both `struct X : Input {` and
+    `class X final : public gbarecomp::Input {` parse.
+    """
+    out: list[tuple[str, str, str]] = []
+    for m in re.finditer(
+            r"\b(?:class|struct)\s+([A-Za-z_]\w*)\s*(?:final\s*)?:\s*"
+            r"(?:(?:public|protected|private)\s+)?"
+            r"(?:::)?(?:[A-Za-z_]\w*::)*([A-Za-z_]\w*)", text):
+        cls, base = m.group(1), m.group(2)
+        if base not in INTERFACE_NAMES:
+            continue
+        body = struct_body(text, cls)
+        if body:
+            out.append((cls, base, body))
+    return out
+
+
+TEST_SOURCE_SUFFIXES = {".cpp", ".h", ".hpp", ".cc"}
+
+
+def test_double_failures(
+        tests_dir: Path,
+        want: dict[str, dict[tuple[str, str], bool]],
+) -> tuple[list[str], int, int]:
+    """Every test-double override of its interface contract.
+
+    Returns (problems, doubles scanned, interface methods checked). The
+    source scan is the parent-side companion to compilation: the framework
+    test targets are the only strict build of these doubles, and a consumer
+    pin bump never built them (2026-10-21 `NoopInput` regression).
+    """
+    problems: list[str] = []
+    doubles = methods = 0
+    for path in sorted(p for p in tests_dir.rglob("*")
+                       if p.suffix in TEST_SOURCE_SUFFIXES):
+        text = strip_comments(path.read_text())
+        for cls, base, body in double_declarations(text):
+            doubles += 1
+            site = override_methods(body)
+            for key, is_const in sorted(want.get(base, {}).items()):
+                methods += 1
+                if key not in site:
+                    problems.append(
+                        f"test double {cls} ({path.name}) has no override for "
+                        f"{base}::{key[0]}({key[1]})")
+                elif site[key] != is_const:
+                    problems.append(
+                        f"test double {cls} ({path.name}) const-ness drift on "
+                        f"{base}::{key[0]}({key[1]})")
+    return problems, doubles, methods
+
+
 def strip_comments(text: str) -> str:
     """Remove // line comments and /* */ blocks before marker scans.
 
@@ -233,6 +302,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--backend-cpp", type=Path, default=DEFAULT_BACKEND_CPP)
     ap.add_argument("--host-window", type=Path, default=DEFAULT_HOST_WINDOW)
     ap.add_argument("--factory", type=Path, default=DEFAULT_FACTORY)
+    ap.add_argument("--tests", type=Path, default=DEFAULT_TESTS,
+                    help="framework test tree scanned for interface doubles")
     args = ap.parse_args(argv)
 
     for p in (args.iface, args.backend_h, args.backend_cpp, args.host_window,
@@ -298,7 +369,18 @@ def main(argv: list[str] | None = None) -> int:
                     f"{'const' if is_const else 'non-const'}, {cls} "
                     f"{'const' if site[key] else 'non-const'}")
 
-    if failures or missing or mismatched:
+    # ── 4. complete test doubles ─────────────────────────────────────────
+    # The framework's test tree is scanned, not built: these doubles only
+    # compile in the fork's own test targets, and the pin bump that shipped
+    # the 2026-10-21 break never built them. Scan the pinned submodule so a
+    # consumer-side gate sees the drift at bump time.
+    double_problems: list[str] = []
+    doubles = double_methods = 0
+    if args.tests.is_dir():
+        double_problems, doubles, double_methods = test_double_failures(
+            args.tests, want)
+
+    if failures or missing or mismatched or double_problems:
         print(f"window seam INCOMPLETE ({total} interface methods)")
         for f in failures:
             print(f"  {f}")
@@ -306,12 +388,16 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  MISSING override: {m}")
         for problem in mismatched:
             print(f"  MISMATCH: {problem}")
+        for problem in double_problems:
+            print(f"  DOUBLE: {problem}")
         return 1
 
     print(f"window seam complete: {total} interface methods across "
           f"{len(INTERFACE_NAMES)} surfaces, all pure, each overridden at its "
           "own impl site")
     print("single generation: no flat class, no SDL backend")
+    print(f"test doubles complete: {doubles} doubles, {double_methods} "
+          "interface methods")
     return 0
 
 
