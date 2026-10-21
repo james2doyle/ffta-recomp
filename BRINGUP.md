@@ -9627,3 +9627,34 @@ number, kind 21 = the miss text.
 **Cleanup.** The TEMP boot self-test and the framework `[mod-guard]` census
 were stripped after the investigation; the feature keeps its bounded
 seams censuses (entry/entry-store/damage/popup/PULSE, ≤64 lines/session).
+
+## 2026-10-21 — CI red on the haptics pin: key census guard + missing test double
+
+**Report.** The tier-1 CI run for `37cf1fb` (issue #30 Phase 4 haptics)
+failed its `raylib-backend` job; the gbarecompx fork's own CI at
+`2c816e5` failed three of four jobs (stub, raylib-ON, rlsw headless).
+
+**Root cause — two build breaks carried in by the pin bumps; the haptic
+feature logic itself was not at fault.**
+1. `2cee21f` added the bounded desktop key census (`key_census_key`) but
+   left the definition unguarded while its only caller sits inside
+   `#if defined(GBARECOMP_USE_RAYLIB)` in `RaylibBackend::Input::read()`.
+   The stub build has no `TraceLog`/`LOG_INFO` and only a forward-declared
+   `RaylibApi`: `raylib_backend.cpp:1986` errors
+   (`LOG_INFO was not declared`, `incomplete type RaylibApi`), failing
+   the parent `raylib-compile` gate and the fork stub/rlsw jobs.
+2. `cf5b866` added `Input::controller_is_primary` (haptics primary
+   routing) without completing the `NoopInput` double in
+   `tests/runtime/backend_v2_types_test.cpp` — every job that built the
+   test target failed on the abstract type (`backend_v2_types_test.cpp:158`).
+
+**Fix.** Fork `2e07e84` wraps `key_census_key` in
+`#if defined(GBARECOMP_USE_RAYLIB)`; fork `2a8bffb` adds the missing
+`controller_is_primary() const override { return false; }` (touch
+default, matching `support/fake_backend.h`). Pin bumped to `2a8bffb`.
+
+**Evidence.** Parent `tools/check.py --only raylib-compile` PASS
+(backend compiles ON+OFF, raylib default still selected) and
+`--only unit-cpp` PASS; fork stub build + `ctest` 89/89, fork
+raylib-ON build + `ctest` 91/91 locally (Xvfb unavailable on the dev
+host — the raylib job's display tier is the post-push CI signal).
