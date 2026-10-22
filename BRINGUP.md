@@ -9787,3 +9787,28 @@ seeded with disassembly notes: `0x080D9350` (switch over u16 mode
 seeded `0x08132450`, bridged x3); `symbols/ffta_symbols.tsv` updated in the
 same session. Cold `tools/cycle.py` now emits **63,156** units (+22 from
 discovery), attract `1EF4C118…` unchanged; `tools/check.py` **18/18 PASS**.
+
+## 2026-10-22 — v2.1 release cut
+
+**Version.** Android `versionCode` 2 → 3, `versionName` "2.0" → "2.1".
+Tag `v2.1`; the four public ROM-less artifacts are built and verified locally
+with `tools/publish_release.py` (Linux zip, public APK, static Windows zip,
+Steam Deck AppImage from the pinned Debian 12 compat binary) plus
+`SHA256SUMS-v2.1.txt`. No ROM or retail BIOS bytes leave this machine.
+
+**Contents since v2.0.** Android battle haptics (issue #30 Phases 1/3/4):
+phone vibrator sink, primary-modality routing, two damage seams with
+popup-synced release, per-label pulses (8-frame rate limit), and a 2400-frame
+grace for long summons. Device-verified on the Mi 11 with a Totema (six
+labels → six pulses, strengths 0.88/0.84/0.98/0.92/0.94/0.93). Also the
+controller-Y settings shortcut, key-isolation tests, the CI test-double
+guard, 63,156 emitted units, and the two Totema-session coverage seeds.
+
+**Gates.** `tools/cycle.py` PASS (63,156 units; attract `1EF4C118…`
+unchanged); `tools/check.py` 18/18 PASS; device log evidence in
+`/tmp/ffta_device_perlabel.log` and the miss harvest in
+`logs/device_totema_misses.frag`.
+
+**Artifacts.** Names are `FFTARecomp-v2.1-{linux-x64.zip, linux-x86_64.AppImage,
+windows-x64.zip, android-arm64-v8a.apk}`; SHA-256 values are in
+`release-stage/SHA256SUMS-v2.1.txt` and the published release body.

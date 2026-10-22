@@ -144,7 +144,7 @@ relaunch lifecycle — guide `android/README.md`); **emibios migration**
 **release track** (issue #3) complete through the Steam Deck AppImage —
 Linux zip, public APK, **static MinGW Windows exe**, and the
 **glibc-2.35 AppImage** built in the pinned Debian 12 container, all
-guarded, deterministic where applicable, and live on **v2.0** (packager +
+guarded, deterministic where applicable, and live on **v2.1** (packager +
 cross-prefix + compat machinery: `tools/make_release.py`,
 `tools/win_cross_deps.py`, `tools/compat_build.py`,
 `tools/make_appimage.py`). Releases are built and uploaded locally
@@ -171,7 +171,8 @@ crash playbooks: `BRINGUP.md`.
   unhandled BUTTON_B into BACK — the "menu on B" symptom). Face buttons
   map label-wise; the pad's menu button (or Y) and the Back key both open the
   settings overlay; right trigger = fast-forward; left stick = d-pad.
-- **Android haptics (2026-10-20, issue #30 Phases 1+3):** the platform
+- **Android haptics (2026-10-20, issue #30 Phases 1+3; per-label 2026-10-22,
+  v2.1):** the platform
 vibrator sink is live (`android_haptics_pulse` → `GbaGameActivity.vibrate`,
 media/game-attributed) and `host_primary_haptic` routes by last-used input
 modality. Controller motors (Phase 2 glue capture) and the haptics setting
@@ -180,8 +181,10 @@ and device-verified (2026-10-20): two damage seams (the 0x080A2210 HP-delta
 helper and the 0x080A3250 enemy-array direct HP store — the Air Render-style
 path that bypasses the helper) feed one pulse pipeline, released when the
 damage-number popup spawns (0x080A8BF8) so the buzz lands with the number
-for every animation length (grace deadline 900 frames; state-epoch reset on
-savestate loads). Contract:
+for every animation length (grace deadline 2400 frames; state-epoch reset on
+savestate loads). v2.1 adds per-label pulses: each damage-number popup fires
+its own 120 ms pulse, rate-limited to 8 frames (a Totema summon was
+device-verified on the Mi 11 — six labels, six pulses). Contract:
 `gbarecompx/docs/HAPTICS.md` — fork-only, not in upstream gbarecomp.
 
 **Sharp scaling verified at the pixels** (fractional layouts differ

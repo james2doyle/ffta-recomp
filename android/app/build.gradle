@@ -16,8 +16,8 @@ def engineRoot = pick("gbarecompRoot", "GBARECOMP_ROOT",
 
 ext.gbaGame = [
     applicationId : "org.gbarecomp.fftarecomp",
-    versionCode   : 2,
-    versionName   : "2.0",
+    versionCode   : 3,
+    versionName   : "2.1",
     title         : "Final Fantasy Tactics Advance",
     romLabel      : "Final Fantasy Tactics Advance (USA) ROM",
     romSha1       : ["4ac05441f4de70a4ec3dd932116346c61b8783d9"],
