@@ -9773,6 +9773,17 @@ clears authorization; existing long-animation/grace/merge cases). Cold
 `tools/cycle.py` PASS — 63,134 units, attract `1EF4C118…` unchanged.
 `tools/check.py` 18/18 PASS. No `game.toml` / `symbols` change.
 
-**Device follow-up.** Rebuild/reinstall the APK, load `game.state1`, trigger
-a Totema: expect one `popup ... fire=1` + `PULSE fire ... (popup)` per damage
-number (~30–40 frames apart), with no buzz for the miss/zero popup.
+**Device verified (2026-10-22, APK `…-10-g3ee7643`).** State1 loaded on the
+Mi 11 (battle ptr `0x0200F4E8`, Montblanc's turn, JP 10); the Totema produced
+six per-label pulses: f=28414 0.88 (82), 28445 0.84 (76), 28483 0.98 (97),
+28520 0.92 (88), 28559 0.94 (91), 28596 0.93 (90), each with a matching
+`haptics-sink` line in logcat. The kind-26 zero popup stayed silent
+(`fire=0`); two later single hits each fired one pulse. User: "works
+perfectly."
+
+**Playtest harvest.** The device miss frag held two genuine entries, now
+seeded with disassembly notes: `0x080D9350` (switch over u16 mode
+0/1/0x100/0x101, bridged x1) and `0x08132474` (r1=5 veneer, same shape as the
+seeded `0x08132450`, bridged x3); `symbols/ffta_symbols.tsv` updated in the
+same session. Cold `tools/cycle.py` now emits **63,156** units (+22 from
+discovery), attract `1EF4C118…` unchanged; `tools/check.py` **18/18 PASS**.

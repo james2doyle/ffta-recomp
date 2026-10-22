@@ -7393,3 +7393,19 @@ addr = 0x08133618
 mode = "thumb"
 name = "sub_08133618"
 note = "event-callback-shaped leaf (f0b5 push {r4,lr} @0x08133618; bl 0x08131DD4 with r1=#0xD; conditional bl 0x080CDEC8; pop/pop/bx @0x08133634-38; disarm-verified). Bridged x1 on device during the suspend-resume continuation (bridge-log evidence, depth 14; NOT in the session frag — journal gap unexplained, the external android-runtime.log line is the record). In the unwalked gap 0x081333D8..0x0813388C."
+
+# ─── Batch 2026-10-22: on-device Totema haptics playtest ───
+# Two genuine entries bridged during the state1 Totema session on the Mi 11
+# (APK final_fantasy_tactics_advance-2.0-10-g3ee7643-debug-PRIVATE). Both
+# prologues disasm-verified; the miss frag is logs/device_totema_misses.frag.
+[[extra_func]]
+addr = 0x080D9350
+mode = "thumb"
+name = "sub_080D9350"
+note = "prologue push {r4,r5,r6,r7,lr} @0x080D9350; switch on u16 [r1] over 0/1/0x100/0x101 (cases @0x080D937A/9418/9420/947A); copies a 12-byte literal row to stack and writes u16 fields at [r2+0xA/0xC/...]; returns pop/pop/bx @0x080D9482-86. Bridged x1 on device during the state1 Totema haptics session 2026-10-22."
+
+[[extra_func]]
+addr = 0x08132474
+mode = "thumb"
+name = "sub_08132474"
+note = "prologue push {r4,lr} @0x08132474; r1=5 call to 0x08131DD4; tests flag 0x10 at [r4+0x26]; calls 0x080CDDAC(unit,1) when clear; pop/pop/bx @0x08132490-94. Same veneer shape as the seeded 0x08132450 (r1=3/0x080CDD64). Bridged x3 on device during the state1 Totema haptics session 2026-10-22."

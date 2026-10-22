@@ -680,3 +680,8 @@
 # Issue #30 Phase 4 (2026-10-20): HP helper at the battle-damage haptic seam
 # (disarm: r0 unit, r1 signed delta, `strh r5,[r6,#0x18]` @0x080A2298).
 0x080A2210	thumb	unit_apply_hp_delta
+
+# 2026-10-22 device Totema playtest (state1, APK ...-10-g3ee7643): genuine
+# entries bridged during the run; see the game.toml batch notes.
+0x080D9350	thumb	sub_080D9350
+0x08132474	thumb	sub_08132474
