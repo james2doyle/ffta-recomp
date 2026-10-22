@@ -172,7 +172,15 @@ inline void haptics_arm(std::int32_t delta, std::uint32_t max_hp,
                      coalesced ? " (coalesced)" : "");
         ++haptics_detail::logged();
     }
-    if (coalesced) return;
+    // Same action: keep the strongest hit instead of dropping it. A
+    // multi-target summon applies its damage in one burst; the first hit used
+    // to win and under-drove the pulse (Totema: first hit 0.74, later hits
+    // 1.00). The 120 ms post-fire window still drops follow-ups silently.
+    if (coalesced) {
+        auto& p = haptics_detail::pending();
+        if (p.armed) p.strength = haptic_merge_strength(p.strength, strength);
+        return;
+    }
     haptics_detail::last_ms() = now;
     haptics_detail::have_last() = true;
     // Arm instead of firing: the frame policy releases the pulse when the
@@ -279,7 +287,9 @@ inline int haptics_popup_hook(std::uint32_t addr, int thumb,
     if (haptics_detail::popup_logged() < 24) {
         ++haptics_detail::popup_logged();
         std::fprintf(stderr,
-                     "[ffta] haptics: popup value=%d kind=%d armed=%d\n",
+                     "[ffta] haptics: popup f=%llu value=%d kind=%d armed=%d\n",
+                     static_cast<unsigned long long>(
+                         haptics_detail::last_popup_frame()),
                      static_cast<int>(static_cast<std::int16_t>(
                          cpu->R[2] & 0xFFFFu)),
                      static_cast<int>(cpu->R[8] & 0xFFu), p.armed ? 1 : 0);

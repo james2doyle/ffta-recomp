@@ -26,10 +26,13 @@ inline constexpr std::uint32_t kHapticsCoalesceMs = 120u;
 // The armed pulse is released when the game spawns the damage-number popup
 // (the 0x080A8BF8 display-element initializer), so the buzz lands with the
 // number for EVERY flow — the gap between the HP apply and the popup varies
-// per animation (measured: fast melee ~22 frames; Air Render ~240; see
-// BRINGUP 2026-10-20). If no popup arrives (unknown display path), the
-// pulse still fires at the grace deadline — late, never lost.
-inline constexpr std::uint64_t kHapticsFireGraceFrames = 900u;
+// per animation (measured: fast melee ~22 frames; Air Render ~240; Totema
+// summon >900, with the numbers landing after the old 900-frame deadline —
+// BRINGUP 2026-10-22). If no popup arrives (unknown display path), the pulse
+// still fires at the grace deadline — late, never lost. The deadline must
+// exceed the longest animation, or a long summon fires early at the deadline
+// and coalesces its remaining hits.
+inline constexpr std::uint64_t kHapticsFireGraceFrames = 2400u;
 
 // Battle state installs a battle object pointer into this EWRAM cell for the
 // duration of a fight. The range is deliberately loose: any object in EWRAM is
@@ -58,6 +61,13 @@ inline float haptic_damage_strength(std::uint32_t amount,
         if (ratio > 1.0f) ratio = 1.0f;
     }
     return 0.35f + 0.65f * ratio;
+}
+
+// Strongest request wins when a later hit coalesces into an already-armed
+// pulse. A multi-target summon applies one burst: keeping the first hit
+// under-drove the Totema pulse (0.74) while later hits were 1.00.
+inline float haptic_merge_strength(float pending, float incoming) {
+    return incoming > pending ? incoming : pending;
 }
 
 }  // namespace ffta

@@ -450,7 +450,9 @@ silently drop them. A device without a vibrator is a silent no-op; the
 `VIBRATE` permission already ships. Damage-triggered haptics are implemented
 and device-verified (issue #30 Phase 4, 2026-10-20): the two damage-apply
 seams feed a pulse that releases when the damage-number popup spawns (impact
-sync for every animation; misses are silent). The haptics setting (Phase 5)
+sync for every animation, including long Totema summons — the 2400-frame
+grace raised 2026-10-22 after the Totema numbers landed past the old
+deadline; misses are silent). The haptics setting (Phase 5)
 is not wired.
 Contract and platform details: [`gbarecompx/docs/HAPTICS.md`](../gbarecompx/docs/HAPTICS.md).
 

@@ -9698,3 +9698,45 @@ for Input::controller_is_primary()`; restored tree passes. Gates:
 `check.py --only raylib-backend,stub-backend,unit-py` 3/3 PASS,
 `--only raylib-compile` PASS (ON+OFF), `--fast` 8/8 PASS (attract
 `1EF4C118…` unchanged).
+
+## 2026-10-22 — Totema-summon haptics: grace deadline shorter than the animation
+
+**Report.** "Haptics on damage works, but it didn't work during the totem
+attack." A Totema-summon run logged the whole pipeline, but the buzz did not
+land with the damage numbers.
+
+**Evidence (user run).** The first hit armed at f=25792
+(`entry delta=72 lr=0x080A3167`, strength 0.74, grace 26692). The remaining
+Totema hits (the `entry-store` 35→0 and the helper hits 101/104/88/93) all
+logged `(coalesced)`. `release-check f=25793 arm=25792 grace=26692 popup=0`,
+then `PULSE fire f=26692 strength=0.74 ms=120 (grace)`. The damage-number
+popups printed only after that (`popup value=72 kind=0 armed=0`, then 77/1,
+101/0, 104/0, 88/0, 93/0). So the popup hook was live and would have synced;
+the 900-frame deadline expired first. The first hit's 0.74 strength also won
+over later 1.00 hits.
+
+**Scope check.** The Totema hits all reached the existing two seams
+(`0x080A2210` helper and `0x080A3250` store). The third direct HP store found
+at `0x080A41FE` was investigated as a candidate but is **not** on this run's
+path; no third hook was added.
+
+**Fix (host-only, `src/`).**
+- `kHapticsFireGraceFrames` 900 → 2400 (40 s at 60 Hz) so long summon
+  animations still release on their popup. 900 was calibrated for Air Render
+  (~240 frames) and was shorter than the Totema gap.
+- Coalesced hits now keep the strongest strength via
+  `haptic_merge_strength()`; a multi-target burst no longer under-drives the
+  pulse from its first, weakest hit.
+- The popup census now logs the guest frame (`popup f=...`) so a future
+  long-animation gap is measurable.
+
+**Evidence (gates).** `ffta_unit_tests` PASS (new long-animation case stays
+armed past the old 900-frame window and releases on the popup; the 2400-frame
+grace still fires; max-strength merge). Cold `tools/cycle.py` PASS — 63,134
+units, dispatch aligned, attract `1EF4C118…` unchanged. `tools/check.py`
+18/18 PASS (unit-cpp, attract, ws smoke, routes B/G/K + user_load
+FULLY_STATIC, desktop-accept, hle-audit). No `game.toml` / `symbols` change.
+
+**Device follow-up.** Rerun a Totema on the phone: the new
+`popup f=<frame>` line should land before the 2400-frame grace, and the buzz
+should coincide with the numbers.

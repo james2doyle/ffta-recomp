@@ -79,7 +79,7 @@ int run_haptics_tests() {
     using ffta::haptics_frame_service;
     using ffta::haptics_reset;
     constexpr std::uint64_t kGrace = ffta::kHapticsFireGraceFrames;
-    HAPTIC_CHECK(kGrace == 900);
+    HAPTIC_CHECK(kGrace == 2400);
 
     haptics_reset();
     // Nothing armed: frame service is a no-op.
@@ -118,6 +118,27 @@ int run_haptics_tests() {
     HAPTIC_CHECK(haptics_detail::pending().armed);
     haptics_frame_service(2000 + kGrace);  // grace deadline
     HAPTIC_CHECK(!haptics_detail::pending().armed);
+
+    // Long animation (Totema, 2026-10-22): the damage numbers can land well
+    // past 900 frames. The pulse must stay armed through the old deadline and
+    // release on the popup, not fire early at grace.
+    haptics_detail::pending().arm_frame = 5000;
+    haptics_detail::pending().grace_frame = 5000 + kGrace;
+    haptics_detail::pending().strength = 0.74f;
+    haptics_detail::pending().armed = true;
+    haptics_detail::pending().popup_seen = false;
+    haptics_frame_service(5000 + 1500);  // past the old 900-frame window
+    HAPTIC_CHECK(haptics_detail::pending().armed);
+    haptics_detail::pending().popup_seen = true;
+    haptics_frame_service(5000 + 1501);
+    HAPTIC_CHECK(!haptics_detail::pending().armed);
+
+    // Coalesced hits keep the strongest request: a multi-target Totema first
+    // hit 72/121 (0.74), later hits 101/100 (1.00) — the pulse must not stay
+    // at the first, weaker value.
+    HAPTIC_CHECK(haptic_merge_strength(0.74f, 1.0f) == 1.0f);
+    HAPTIC_CHECK(haptic_merge_strength(0.74f, 0.50f) == 0.74f);
+    HAPTIC_CHECK(haptic_merge_strength(0.74f, 0.74f) == 0.74f);
 
     // Late service (pause/frame gap): a frame past the grace still fires on
     // the first frame the policy sees — a pulse never disappears.
