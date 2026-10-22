@@ -55,6 +55,22 @@ inline std::uint64_t& last_popup_frame() {
     static std::uint64_t value = 0;
     return value;
 }
+// Guest frame of the most recent real damage apply. The popup path only
+// fires when a positive HP delta authorized it within the grace window;
+// heals, misses, and status popups never set it.
+inline std::uint64_t& last_damage_frame() {
+    static std::uint64_t value = 0;
+    return value;
+}
+// Popup-driven pulse rate limit (guest frames).
+inline std::uint64_t& last_popup_pulse_frame() {
+    static std::uint64_t value = 0;
+    return value;
+}
+inline bool& have_popup_pulse() {
+    static bool value = false;
+    return value;
+}
 // Coalescing window state (millisecond clock), as before.
 inline std::uint32_t& last_ms() {
     static std::uint32_t value = 0;
@@ -98,6 +114,9 @@ inline void haptics_reset() {
     haptics_detail::have_last() = false;
     haptics_detail::last_ms() = 0;
     haptics_detail::last_popup_frame() = 0;
+    haptics_detail::last_damage_frame() = 0;
+    haptics_detail::last_popup_pulse_frame() = 0;
+    haptics_detail::have_popup_pulse() = false;
 }
 
 // Per-frame service: called from the game's extended-view frame policy (the
@@ -155,6 +174,11 @@ inline void haptics_arm(std::int32_t delta, std::uint32_t max_hp,
     const float strength = haptic_damage_strength(
         static_cast<std::uint32_t>(delta), max_hp);
     const std::uint32_t now = gbarecomp::real_host_clock().millis();
+    const std::uint64_t now_frame = runtime_guest_frame_count();
+    // Authorize the popup path for this damage burst. Every real HP apply
+    // refreshes it, including coalesced ones: the Totema's numbers land
+    // >1300 frames after the last apply, and every label must still fire.
+    haptics_detail::last_damage_frame() = now_frame;
     const bool coalesced =
         haptics_detail::pending().armed ||
         (haptics_detail::have_last() &&
@@ -172,10 +196,9 @@ inline void haptics_arm(std::int32_t delta, std::uint32_t max_hp,
                      coalesced ? " (coalesced)" : "");
         ++haptics_detail::logged();
     }
-    // Same action: keep the strongest hit instead of dropping it. A
-    // multi-target summon applies its damage in one burst; the first hit used
-    // to win and under-drove the pulse (Totema: first hit 0.74, later hits
-    // 1.00). The 120 ms post-fire window still drops follow-ups silently.
+    // Same action: keep the strongest hit for the grace fallback. The popup
+    // path fires per displayed number; the pending pulse is only the
+    // no-popup safety net.
     if (coalesced) {
         auto& p = haptics_detail::pending();
         if (p.armed) p.strength = haptic_merge_strength(p.strength, strength);
@@ -188,7 +211,6 @@ inline void haptics_arm(std::int32_t delta, std::uint32_t max_hp,
     // perfect sync for every animation length — or at the grace deadline if
     // no popup arrives. Frames come from the same counter the frame policy
     // consumes (ExtendedViewFrameInfo::frame_count = PPU frame_count).
-    const std::uint64_t now_frame = runtime_guest_frame_count();
     haptics_detail::pending().arm_frame = now_frame;
     haptics_detail::pending().grace_frame =
         now_frame + kHapticsFireGraceFrames;
@@ -271,28 +293,74 @@ inline int haptics_hp_store_hook(std::uint32_t addr, int thumb,
 // at 0x080A8BF8 — the damage-number popup spawn (both parents tail-call /
 // dispatch into this split root, so every popup init passes the guard).
 // At entry: r2 = signed displayed value, r0 = abs(value) (stored to
-// element+8), r8 = element kind, r5 = element. Armed pulses release on the
-// next frame-service tick, so the buzz lands with the number for every
-// animation length.
+// element+8), r8 = element kind, r5 = element.
+//
+// Per-label pulses (2026-10-22, user request): each damage number fires its
+// own short pulse, rate-limited to kHapticsPopupPulseGapFrames so rapid
+// multi-hits collapse. Kinds 0/1 are the player/enemy number elements and the
+// sign is meaningful (positive damage, negative heal); kind 21 is the miss
+// text. Authorization comes from the HP seams: a positive apply must have
+// happened within the grace window, so heals, misses, and stray status
+// numbers stay silent. The armed pending pulse remains the no-popup fallback.
 inline int haptics_popup_hook(std::uint32_t addr, int thumb,
                               ArmCpuState* cpu) {
     (void)addr;
     (void)thumb;
-    haptics_detail::last_popup_frame() = runtime_guest_frame_count();
+    const std::uint64_t now_frame = runtime_guest_frame_count();
+    haptics_detail::last_popup_frame() = now_frame;
     auto& p = haptics_detail::pending();
-    if (p.armed) p.popup_seen = true;
-    // Bounded popup census (own budget): shows value/kind/armed for the
+    const std::int16_t value =
+        static_cast<std::int16_t>(cpu->R[2] & 0xFFFFu);
+    const int kind = static_cast<int>(cpu->R[8] & 0xFFu);
+    const bool damage_number = (kind == 0 || kind == 1) && value > 0;
+    const std::uint64_t last_apply = haptics_detail::last_damage_frame();
+    const bool authorized =
+        damage_number && last_apply != 0 && now_frame >= last_apply &&
+        now_frame - last_apply <= kHapticsFireGraceFrames;
+    if (p.armed && authorized) p.popup_seen = true;
+
+    bool fired = false;
+    float fired_strength = 0.0f;
+    if (authorized) {
+        const bool rate_ok =
+            !haptics_detail::have_popup_pulse() ||
+            now_frame - haptics_detail::last_popup_pulse_frame() >=
+                kHapticsPopupPulseGapFrames;
+        if (rate_ok) {
+            fired_strength =
+                haptic_popup_strength(static_cast<std::uint32_t>(value));
+            // This popup is the real release; do not also fire the armed
+            // grace fallback for the same hit.
+            p.armed = false;
+            haptics_detail::last_popup_pulse_frame() = now_frame;
+            haptics_detail::have_popup_pulse() = true;
+            fired = true;
+        }
+    }
+
+    // Bounded popup census (own budget): shows value/kind/armed/fire for the
     // first popups of the session — enough to verify the seam, never a
     // flood.
     if (haptics_detail::popup_logged() < 24) {
         ++haptics_detail::popup_logged();
         std::fprintf(stderr,
-                     "[ffta] haptics: popup f=%llu value=%d kind=%d armed=%d\n",
-                     static_cast<unsigned long long>(
-                         haptics_detail::last_popup_frame()),
-                     static_cast<int>(static_cast<std::int16_t>(
-                         cpu->R[2] & 0xFFFFu)),
-                     static_cast<int>(cpu->R[8] & 0xFFu), p.armed ? 1 : 0);
+                     "[ffta] haptics: popup f=%llu value=%d kind=%d armed=%d "
+                     "fire=%d\n",
+                     static_cast<unsigned long long>(now_frame),
+                     static_cast<int>(value), kind, p.armed ? 1 : 0,
+                     fired ? 1 : 0);
+    }
+    if (fired) {
+        if (haptics_detail::logged() < 64) {
+            std::fprintf(stderr,
+                         "[ffta] haptics: PULSE fire f=%llu strength=%.2f "
+                         "ms=%u (popup)\n",
+                         static_cast<unsigned long long>(now_frame),
+                         static_cast<double>(fired_strength),
+                         static_cast<unsigned>(kHapticsPulseMs));
+            ++haptics_detail::logged();
+        }
+        gbarecomp::host_primary_haptic(fired_strength, kHapticsPulseMs);
     }
     return 0;  // observer: never consume the guest call
 }

@@ -9740,3 +9740,39 @@ FULLY_STATIC, desktop-accept, hle-audit). No `game.toml` / `symbols` change.
 **Device follow-up.** Rerun a Totema on the phone: the new
 `popup f=<frame>` line should land before the 2400-frame grace, and the buzz
 should coincide with the numbers.
+
+## 2026-10-22 (later) — Totema haptics: one pulse per damage label
+
+**Report.** After the 2400-frame grace fix, the device run buzzed only on the
+first Totema damage label. Device log: popup 84 at f=31725 (arm 30389, gap
+1336) → `PULSE fire f=31726 strength=1.00`; then popups 88 (kind 1), 89, 100,
+99, 87 at f=31756…31908 all logged `armed=0`, so the later labels were silent.
+The user chose per-label haptics.
+
+**Policy (user-selected).** Every damage number gets its own short pulse,
+rate-limited to ~120 ms (8 guest frames) so rapid multi-hits on one target
+still collapse. The popup element carries only the displayed number, so the
+popup strength uses a 100-damage reference
+(`0.35 + 0.65 * min(value/100, 1)`); the HP-apply strength remains the
+no-popup grace fallback.
+
+**Implementation (`src/`).**
+- `ffta_haptics.h`: `haptic_popup_strength()` + `kHapticsPopupPulseGapFrames`
+  (8) and `kHapticsPopupReferenceDamage` (100).
+- `ffta_haptics_hook.h`: the two damage seams record `last_damage_frame()` on
+  every qualifying apply (including coalesced ones). The popup hook accepts
+  only kinds 0/1 with a positive value (kind 21 = miss, negative = heal),
+  requires a damage apply within the grace window, rate-limits via
+  `last_popup_pulse_frame()`, fires `host_primary_haptic()` immediately, and
+  disarms the grace fallback. `haptics_reset()` clears the new state.
+- Diagnostics: `popup ... fire=0/1` plus one `PULSE fire ... (popup)` line per
+  fired number (bounded by the existing 64-line budget).
+
+**Evidence.** `ffta_unit_tests` PASS (popup strength 50/84/100/200, reset
+clears authorization; existing long-animation/grace/merge cases). Cold
+`tools/cycle.py` PASS — 63,134 units, attract `1EF4C118…` unchanged.
+`tools/check.py` 18/18 PASS. No `game.toml` / `symbols` change.
+
+**Device follow-up.** Rebuild/reinstall the APK, load `game.state1`, trigger
+a Totema: expect one `popup ... fire=1` + `PULSE fire ... (popup)` per damage
+number (~30–40 frames apart), with no buzz for the miss/zero popup.

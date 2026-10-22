@@ -133,12 +133,18 @@ int run_haptics_tests() {
     haptics_frame_service(5000 + 1501);
     HAPTIC_CHECK(!haptics_detail::pending().armed);
 
-    // Coalesced hits keep the strongest request: a multi-target Totema first
-    // hit 72/121 (0.74), later hits 101/100 (1.00) — the pulse must not stay
-    // at the first, weaker value.
+    // Coalesced hits keep the strongest request for the grace fallback: a
+    // multi-target Totema first hit 72/121 (0.74), later hits 101/100 (1.00).
     HAPTIC_CHECK(haptic_merge_strength(0.74f, 1.0f) == 1.0f);
     HAPTIC_CHECK(haptic_merge_strength(0.74f, 0.50f) == 0.74f);
     HAPTIC_CHECK(haptic_merge_strength(0.74f, 0.74f) == 0.74f);
+
+    // Per-label popup strength: the displayed number is the scale (100-ref).
+    HAPTIC_CHECK(haptic_popup_strength(0) == 0.0f);
+    HAPTIC_CHECK(close_to(haptic_popup_strength(50), 0.675f));
+    HAPTIC_CHECK(close_to(haptic_popup_strength(84), 0.896f));
+    HAPTIC_CHECK(close_to(haptic_popup_strength(100), 1.0f));
+    HAPTIC_CHECK(close_to(haptic_popup_strength(200), 1.0f));
 
     // Late service (pause/frame gap): a frame past the grace still fires on
     // the first frame the policy sees — a pulse never disappears.
@@ -153,8 +159,12 @@ int run_haptics_tests() {
     haptics_detail::pending().arm_frame = 4000;
     haptics_detail::pending().grace_frame = 4000 + kGrace;
     haptics_detail::pending().armed = true;
+    haptics_detail::last_damage_frame() = 4000;
+    haptics_detail::have_popup_pulse() = true;
     haptics_reset();
     HAPTIC_CHECK(!haptics_detail::pending().armed);
+    HAPTIC_CHECK(haptics_detail::last_damage_frame() == 0);
+    HAPTIC_CHECK(!haptics_detail::have_popup_pulse());
 
     // Wrap-safety of the frame comparison is trivial (u64); but the
     // arm-time clock (PPU frame_count) is also u64 — no wrap in practice.

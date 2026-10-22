@@ -23,6 +23,14 @@ inline constexpr std::uint32_t kHpSwapReturnThumb = 0x080A3383u;
 
 inline constexpr std::uint32_t kHapticsPulseMs = 120u;
 inline constexpr std::uint32_t kHapticsCoalesceMs = 120u;
+// Popup-driven pulses: one per displayed damage number, rate-limited to the
+// same 120 ms window (8 guest frames at 60 Hz). A multi-hit burst that draws
+// several numbers in one frame still collapses to one pulse.
+inline constexpr std::uint32_t kHapticsPopupPulseGapFrames = 8u;
+// The popup path has no target max HP (the display element carries only the
+// number), so it scales the displayed damage against this reference. 100 is
+// the observed full-bar-ish hit; anything above caps at 1.0.
+inline constexpr std::uint32_t kHapticsPopupReferenceDamage = 100u;
 // The armed pulse is released when the game spawns the damage-number popup
 // (the 0x080A8BF8 display-element initializer), so the buzz lands with the
 // number for EVERY flow — the gap between the HP apply and the popup varies
@@ -68,6 +76,17 @@ inline float haptic_damage_strength(std::uint32_t amount,
 // under-drove the Totema pulse (0.74) while later hits were 1.00.
 inline float haptic_merge_strength(float pending, float incoming) {
     return incoming > pending ? incoming : pending;
+}
+
+// Strength for a popup-driven pulse. The displayed number is the only scale
+// available at the popup, so use the 100-damage reference above. Same floor
+// and span as haptic_damage_strength().
+inline float haptic_popup_strength(std::uint32_t value) {
+    if (value == 0) return 0.0f;
+    float ratio = static_cast<float>(value) /
+                  static_cast<float>(kHapticsPopupReferenceDamage);
+    if (ratio > 1.0f) ratio = 1.0f;
+    return 0.35f + 0.65f * ratio;
 }
 
 }  // namespace ffta

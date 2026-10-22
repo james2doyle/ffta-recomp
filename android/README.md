@@ -448,12 +448,12 @@ attributed as media/game (`VibrationAttributes.USAGE_MEDIA` on API 33+,
 `AudioAttributes.USAGE_GAME` below) so OEM "touch haptics off" settings do not
 silently drop them. A device without a vibrator is a silent no-op; the
 `VIBRATE` permission already ships. Damage-triggered haptics are implemented
-and device-verified (issue #30 Phase 4, 2026-10-20): the two damage-apply
-seams feed a pulse that releases when the damage-number popup spawns (impact
-sync for every animation, including long Totema summons — the 2400-frame
-grace raised 2026-10-22 after the Totema numbers landed past the old
-deadline; misses are silent). The haptics setting (Phase 5)
-is not wired.
+and device-verified (issue #30 Phase 4, 2026-10-20; per-label on 2026-10-22):
+the two damage-apply seams authorize the pulse, and every damage-number popup
+fires its own 120 ms pulse (rate-limited to 8 guest frames so rapid multi-hits
+collapse; strength follows the displayed number). A 2400-frame grace fallback
+covers popup-less paths. Long Totema summons buzz on each of their numbers;
+heals and misses stay silent. The haptics setting (Phase 5) is not wired.
 Contract and platform details: [`gbarecompx/docs/HAPTICS.md`](../gbarecompx/docs/HAPTICS.md).
 
 ## Known behavior
