@@ -62,7 +62,7 @@ APPIMAGE_RUNTIME_URL = (
     "https://github.com/AppImage/type2-runtime/releases/download/continuous/"
     "runtime-x86_64")
 APPIMAGE_RUNTIME_SHA256 = (
-    "156f4bdbde9c52d01814600013e0a273f0118dc2de98975f3c8c63427ec79074")
+    "617aa77314d57c8b8e4fae9c3f0b35af7b30d5529cb69e98f64f92510ed98a46")
 
 APPIMAGE_README = """
 ## AppImage

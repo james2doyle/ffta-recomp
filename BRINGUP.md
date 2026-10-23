@@ -9812,3 +9812,12 @@ unchanged); `tools/check.py` 18/18 PASS; device log evidence in
 **Artifacts.** Names are `FFTARecomp-v2.1-{linux-x64.zip, linux-x86_64.AppImage,
 windows-x64.zip, android-arm64-v8a.apk}`; SHA-256 values are in
 `release-stage/SHA256SUMS-v2.1.txt` and the published release body.
+
+**v2.1 AppImage runtime pin drift (2026-10-22).** The pinned
+`type2-runtime/continuous/runtime-x86_64` URL moved upstream: the download
+hashed `617aa773…` instead of the pinned `156f4bdb…`, so the first v2.1
+publish run stopped after the Linux/APK/Windows artifacts. The AppImage was
+rebuilt with the upstream runtime via `--runtime-file` (guard + packaged
+FULLY_STATIC smoke PASS) and published; the pin is updated to `617aa773…`
+on main for future builds. The `v2.1` tag predates this pin fix and remains
+immutable; rebuilding from that exact tag requires the runtime override.
