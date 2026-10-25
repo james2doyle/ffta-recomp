@@ -133,7 +133,7 @@ cmake --build build --target FFTARecomp --parallel 8
 ## Status (2026-10-19)
 
 All phases complete; **every executed path strict-FULLY_STATIC**; corpus
-**63,134 emitted units** (device-resume healing batch, BRINGUP late);
+**63,156 emitted units** (device-resume healing batch, BRINGUP late);
 attract hash stable since pinning; widescreen W1–W3 complete; save/summon
 hangs fixed; suspend-flow phantom closed (IRQ abandon-close + split-loop
 gap roll-in — issue #30 fixes);
@@ -148,10 +148,15 @@ guarded, deterministic where applicable, and live on **v2.1** (packager +
 cross-prefix + compat machinery: `tools/make_release.py`,
 `tools/win_cross_deps.py`, `tools/compat_build.py`,
 `tools/make_appimage.py`). Releases are built and uploaded locally
+**Framework sync (2026-10-24):** 11 commits landed on
+`sync/upstream-20261024` (pushed) — coverage honesty, bridge stop-contract
+(`e6330562`/`715f6c0d`), MP2K shadow audio, snapshot-layout rejection,
+stack-probe elision, toml++ fetch timing, overlay PATH quoting. All gates
+green; no release cut.
 (`tools/publish_release.py`); the tag workflow is GitHub-hosted and
 ROM-free — it only creates the draft release shell. Remaining:
 offline-push re-trial (gated on an interior-split policy), f6000+ contact
-sheet, upstream note on the bridge stop-contract, APK release-signing key
+sheet, APK release-signing key
 (`gbaKeystore` vs debug — still debug-signed). History, evidence,
 crash playbooks: `BRINGUP.md`.
 

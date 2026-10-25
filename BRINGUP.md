@@ -9821,3 +9821,71 @@ rebuilt with the upstream runtime via `--runtime-file` (guard + packaged
 FULLY_STATIC smoke PASS) and published; the pin is updated to `617aa773…`
 on main for future builds. The `v2.1` tag predates this pin fix and remains
 immutable; rebuilding from that exact tag requires the runtime override.
+
+## 2026-10-24 — framework sync: mstan/gbarecomp → gbarecompx (11 commits)
+
+**Decision.** Ported the game-relevant subset of the framework's 2026-10-23/24
+work into the gbarecompx fork on branch `sync/upstream-20261024` (pushed to
+`james2doyle/gbarecompx`). Eleven commits total: 9 upstream cherry-picks
+(via `git am`, provenance noted in each message) + 2 local fixes:
+
+- **Coverage honesty:** `f64ac801` (truthful `fully_static` requires
+  `g_interp_insns == 0`).
+- **Bridge logging:** `add03084` (gated bridge-entry fprintf behind
+  `self_heal_verbose()`).
+- **Stack probes:** `43e6ad88` (compile-time no-op on hosts without a
+  budget).
+- **Snapshot layout:** `2c20d2e6` (tests) + local `c393ee2` (one-line
+  legacy-v1 rejection hand-ported from upstream `d4c88e68`; SWI-continuation
+  ledger half deferred to the ledger family). All frozen `.state` fixtures
+  verified v2 first — no fixture breakage.
+- **Bridge stop-contract:** `e6330562` + `715f6c0d` (the latter clean-applied
+  once the former was in, exactly as the triage predicted). Adds
+  `runtime_call_stack_floor()` and the outer-frame return break in
+  `runtime_bridge_interpret` (verbose stop log gated by
+  `GBARECOMP_SELFHEAL_VERBOSE`), plus the IRQ-continuation iret break.
+- **MP2K shadow audio:** `683ffdb5` + `89b6f139` (glide output gains; play
+  at the canon DirectSound level). Inert on FFTA default (`[audio] shadow =
+  false`); kept the subsystem current with upstream. Audio listen pass not
+  exercised (no audio-output fixture in the harness) — flagged unverified.
+- **Recompiler/build:** `6cc7ab5c` (toml++ fetched at build time, not
+  configure time) + `7501945f` (Windows child-compiler PATH quoting for the
+  self-compiling overlay).
+
+**Skipped (decided, documented in `.opencode/COMMIT_SYNC.md`):** `df2ae614`
+(netplay SDK pin — FFTA does not use netplay); `87586a39` (deletes the
+`GBARECOMP_MISS_FRAG` durability write the playtest flow relies on — only
+portable with the miss-journal family); `c3978e6d` (needs
+`RECOMP_RUNTIME_UI_KEY_QUIT`, undefined in the fork — fold into an Android
+re-derive). `6a4df7c6` ported but caveat stands: authored after two
+group-B siblings that did not port; a real rebuild is the proof.
+
+**Bridge-port behavioral acceptance (unverified-by-import).** The bridge is
+dormant on every deterministic path I can drive (the frozen routes are
+FULLY_STATIC; the historical crash repro state has been auto-archived away
+by `play.sh`, so the crash-#1 scenario cannot be replayed verbatim). Three
+cheap attempts failed to manufacture a bridge engagement (route_B +
+0x080543EC, state2 + session2 trace, attract/route_B ring histogram — the
+ring tail is idle-loop only). The port's fidelity rests on the triage
+evidence (clean apply + symbol greps + upstream ancestor relationship) and
+the framework's own gate. Deferred to the next real playtest/healing
+session, where the strict-replay acceptance governs.
+
+**Gates.** Framework: `cmake --build gbarecompx/build` + `ctest` 89/89 PASS
+(stub tier). Game: `tools/cycle.py` PASS (63,156 units; attract
+`1EF4C118…` unchanged); `tools/check.py` 18/18 PASS (route_B/G/K
+FULLY_STATIC, hle-audit 1317/1317 + 7341/7341, desktop-accept PASS).
+Android: `python3 build_apk.py` built the private arm64 APK
+(`final_fantasy_tactics_advance-2.1-1-g8d1c9a9-debug-PRIVATE-rom-included.apk`,
+38.5 MiB), content guard 8/8, installed to the Mi 11 (`30c1f958`), device
+gate PASSED; runtime log shows `cpu_backend=static-recompiled`.
+
+**Docs.** `AGENTS.md`: corpus count 63,134 → 63,156; removed the
+"upstream note on the bridge stop-contract" remaining item (now ported).
+`.opencode/COMMIT_SYNC.md`: triage evidence updated with the trap/rescue
+outcomes and the framediff-strict correction (framediff forces
+`GBARECOMP_STRICT_STATIC=1`, so it can never exercise the bridge).
+
+**Submodule.** `gbarecompx` gitlink advanced from `2a8bffb` to `c72da76`
+(sync branch pushed to `james2doyle/gbarecompx`). No release cut (per
+request); no merge to the fork's `main` (branch stays reviewable).
