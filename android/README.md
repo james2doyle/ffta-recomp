@@ -45,6 +45,7 @@ This repo therefore adds only a thin surface:
 | `tools/android_press_test.py` | On-device press acceptance over the observe TCP (savestate load → `set_keyinput` A press → frames/anomaly/crash assertions) |
 | `tools/android_lifecycle_test.py` | On-device suspend/kill/relaunch lifecycle gate (15 assertions: flush, marker survival, auto-resume, reconnect) |
 | `tools/android_touch_test.py` | Touch-pad realism check (real-pipeline tap → KEYINPUT/journal/gesture); adb taps are OS-filtered on this ROM — see § Touch realism |
+| `tools/android_pill_test.py` | Issue #11 touch-pill validation on a device: pill visible/dark → latched/GOLD (rate boost) → unlatched → no spurious toggle; screenshots in `android/artifacts/pill-test/` |
 | `tools/android_static_check.py` | Device-free checks: identity pins, payload contract, hygiene, fake-`adb` gate self-test (suite `android-static`) |
 | `tools/android_apk_check.py` | APK content guard for built APKs (payload vs sources, embed pins, libs/ABI, manifest, junk/duplicates) — `check.py --only android-apk` |
 
@@ -144,11 +145,11 @@ export JAVA_HOME=/usr/lib/jvm/java-21-openjdk ANDROID_HOME=/opt/android-sdk
 ./gradlew :app:assembleDebug -PgbaAbis=arm64-v8a -PgbaNativeJobs=12
 ```
 
-Notes: each ABI is a full native compile of the ~55k-unit corpus — always
+Notes: each ABI is a full native compile of the corpus — always
 narrow with `-PgbaAbis` while iterating (a full arm64 build took ~3 min on 12
 jobs; libmain.so ≈ 99 MB). `generated/` must be fresh (`tools/cycle.py`
 regenerates on desktop). The engine helper scripts under
-`gbarecomp/platform/android/tools/` are PowerShell-only; on Linux drive
+`gbarecompx/platform/android/tools/` are PowerShell-only; on Linux drive
 Gradle/adb directly as above. `sdkmanager` exits 1 after successfully
 unzipping an NDK when a root-owned `emulator/package.xml` blocks its legacy
 XML rewrite — harmless.
@@ -504,8 +505,8 @@ Contract and platform details: [`gbarecompx/docs/HAPTICS.md`](../gbarecompx/docs
 
 ## Deferred (do later, in rough order)
 
-1. Release packaging: keystore/signing, arm64-only release, version
-   stamping.
+1. Release signing key: the public APK is still debug-signed
+   (`gbaKeystore` vs debug decision).
 2. Touch-first input scheme (the engine's virtual pad is the v1 control).
 3. Perf/size pass (first build only measured qualitatively).
 4. Upstream note: mods-state default persistence on launcher-less runs.

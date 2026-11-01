@@ -6,6 +6,20 @@ holds the rest: project status, what the recompilation actually is, how to
 run and tune the built binary, the manual build route, the full repository
 map, and the contribution rules.
 
+## Documentation map
+
+| Need | Authoritative document |
+|---|---|
+| Play: release quick start, features, controls | [root README](../README.md) |
+| Build from source (manual route) | [manual-build.md](manual-build.md) |
+| Test, heal coverage, run gates and CI | [tests/README.md](../tests/README.md) |
+| Tool inventory and usage | [tools/README.md](../tools/README.md) |
+| Android target: build, device gate, controls | [android/README.md](../android/README.md) |
+| ROM/RAM research, study notes, credits | [reference/README.md](../reference/README.md) |
+| Contributor rules and agent instructions | [AGENTS.md](../AGENTS.md) |
+| Dated decisions, evidence, crash playbooks | [BRINGUP.md](../BRINGUP.md) |
+| Framework internals and config schema | [PRINCIPLES.md](../gbarecompx/PRINCIPLES.md), [DEBUG.md](../gbarecompx/DEBUG.md), [TOML_SCHEMA.md](../gbarecompx/docs/TOML_SCHEMA.md) |
+
 ## Status
 
 All bring-up phases are complete. The game boots and runs on Linux,
@@ -20,10 +34,10 @@ in a Debian 12 container for a SteamOS-safe glibc floor (the produced
 binaries require glibc 2.35); the AppImage's `AppRun` unpacks to a
 writable XDG data directory because the game keeps `rom.cfg`, settings and
 saves beside its executable. Android is
-device-verified on a Xiaomi Poco X3 Pro (Android 14): boot,
-press-acceptance, and the suspend/kill/relaunch lifecycle gates passed
-2026-10-09. Builds are experimental, so back up important saves and report
-repeatable crashes.
+device-verified on a Xiaomi Poco X3 Pro, a Xiaomi Mi 11, and an AYN Odin:
+boot, press-acceptance, suspend/kill/relaunch, controller, and haptics
+gates passed between 2026-10-08 and 2026-10-22. Builds are experimental, so
+back up important saves and report repeatable crashes.
 
 Open items and gating decisions: [AGENTS.md](../AGENTS.md) § Status.
 Dated evidence, history, and crash playbooks: [BRINGUP.md](../BRINGUP.md).
@@ -91,8 +105,9 @@ Fast-forward controls, the in-game **Assist → Fast-forward speed** row
 ### Headless flags
 
 Headless flags (`--frames N`, `--no-window`, `--dump-png`, `--load-state`,
-`--tcp-observe PORT`, …) exist for scripts, regression gates, and debugging,
-not for play. Run modes and their traps:
+…) exist for scripts, regression gates, and debugging, not for play. The
+windowed-observe exception is `--tcp-observe PORT` (a window plus a read-only
+debug port); plain `--tcp` is structurally headless. Run modes and their traps:
 [tests/README.md](../tests/README.md) and
 [reference/dev-gotchas.md](../reference/dev-gotchas.md).
 

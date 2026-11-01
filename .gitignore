@@ -180,7 +180,7 @@ selfheal*.json
 # -----------------------------------------------------------------------------
 # Intentionally tracked — do NOT add rules for these:
 #   game.toml, src/, inputs/, mods/, BRINGUP.md, AGENTS.md,
-#   and the gbarecomp / recomp-ui submodules
+#   and the gbarecompx submodule
 # -----------------------------------------------------------------------------
 hang_trace.csv
 hang_fp_tail.csv
@@ -197,6 +197,7 @@ cross-build/
 build-win/
 
 # -----------------------------------------------------------------------------
-# (removed 2026-10-18: the gbarecompx fork became the gbarecomp submodule —
-# see BRINGUP § Phase 7 close-out; no in-tree dev tree anymore)
+# (removed 2026-10-18: the gbarecomp submodule was repointed to the
+# gbarecompx fork — see BRINGUP § Phase 7 close-out; no separate in-tree
+# framework tree remains)
 # -----------------------------------------------------------------------------

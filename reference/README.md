@@ -9,9 +9,10 @@ live in [THIRD_PARTY_ATTRIBUTION.md](../THIRD_PARTY_ATTRIBUTION.md).
 
 | Note | What |
 |---|---|
-| [dev-gotchas.md](dev-gotchas.md) | Harness traps: run modes, capture envs, close handling, RAM dispatch, saves, submodule pins, framework patches, Android device forensics |
+| [dev-gotchas.md](dev-gotchas.md) | Harness traps: run modes, capture envs, close handling, RAM dispatch, saves, submodule pins, fork sync, Android device forensics |
 | [oracle-harness.md](oracle-harness.md) | The mGBA frame-diff oracle: park phase, sync rules, builds |
 | [widescreen.md](widescreen.md) | Widescreen internals + validation |
+| [upscale-shaders.md](upscale-shaders.md) | Upscale-shader rationale: sharp scaling, pixel grid, and the >3× crossover |
 | [event-vm.md](event-vm.md) | The event interpreter (VM) + scripts |
 | [gba-bios-boot-and-spsr.md](gba-bios-boot-and-spsr.md) | BIOS boot/SoftReset/System-SPSR semantics, validated vs GBATEK + mGBA source |
 | [ffta-decomp.md](ffta-decomp.md), [fergusson-mechanics.md](fergusson-mechanics.md), [bcrobert-notes.md](bcrobert-notes.md), [jokyr-hack-guide.md](jokyr-hack-guide.md), [ffta-gamefaqs-code-guides.md](ffta-gamefaqs-code-guides.md) | Community source summaries (decomp, engine hacks, FAQs, notes) |

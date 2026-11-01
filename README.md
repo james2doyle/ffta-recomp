@@ -31,9 +31,9 @@ no Nintendo BIOS dump is required.
 - Frame enhancements: frame interpolation (experimental) and LCD ghosting
   (frame blending), also configurable in the in-game menu
 - Cartridge saves and save states
-- Fast-forward speed boost — hold `Tab` / right trigger, or tap the `FF`
-  touch pill to latch it; speed (2–10x) is set in the in-game menu's
-  **Assist** section
+- Fast-forward speed boost — hold `2` (default Assist binding) or `Tab`
+  (Turbo) / right trigger, or tap the `FF` touch pill to latch it; speed
+  (2–10x) is set in the in-game menu's **Assist** section
 - Strict fully-static execution — zero interpreter fallback on any executed
   path, kept that way by a self-healing coverage loop
 - GBA screen simulation: `raw`, `unlit`, `frontlit`, `backlit`, `classic`
@@ -49,13 +49,14 @@ no Nintendo BIOS dump is required.
 | Start | Enter | Start |
 | Select | Backspace | Back (Select) |
 | L / R | C / V | LB / RB |
-| Fast-forward (hold) | Tab | Right trigger |
+| Fast-forward (hold) | Tab (Turbo) / 2 | Right trigger |
 | In-game menu | Del | Guide or Y button |
 
 Controllers are detected automatically. The left analog stick doubles as
 the D-Pad. Inside the menu, the D-Pad/arrows move, A selects, and B goes
 back; `Del`, the Guide button, or Y opens and closes it. Fast-forward runs the
-game faster while held or latched; its speed (2–10x) is configurable in the
+game faster while held or latched; `2` is the default Assist binding, `Tab`
+is the separate Turbo binding, and its speed (2–10x) is configurable in the
 in-game menu's **Assist** section.
 
 On Android, use the on-screen touch controls — tap the `FF` pill at the top

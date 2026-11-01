@@ -82,7 +82,7 @@ close handling live in `reference/dev-gotchas.md`.
 
 ```sh
 # framework tools (re-run after submodule changes)
-cmake -S gbarecomp -B gbarecompx/build -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake -S gbarecompx -B gbarecompx/build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build gbarecompx/build --target gba_recompile gba_scan --parallel 8
 # regenerate static code (canonical form; cycle.py wraps this)
 ./gbarecompx/build/gba_recompile --rom game.gba --config game.toml \
@@ -115,7 +115,7 @@ cmake --build build --target FFTARecomp --parallel 8
 | Oracle diff / lockstep probes | `gbarecompx/tools/framediff.py --lo 4 --hi 300`; `gbarecompx/tools/dualrun.py --help` |
 | Coverage (three lenses) | `.venv/bin/python tools/coverage_report.py` |
 | Instruction-ring query | `gbarecompx/tools/ringscan.py --file /tmp/fp.bin [--pc P \| --reg R \| --reg-range LO HI]` |
-| Unit tests only | `cmake --build build --target ffta_unit_tests && ctest --test-dir build -R ram_dispatch` |
+| Unit tests only | `cmake --build build --target ffta_unit_tests ffta_ws_margin_tests && ctest --test-dir build -R "ram_dispatch\|ws_margin"` |
 
 ## Codebase map
 
@@ -130,10 +130,11 @@ cmake --build build --target FFTARecomp --parallel 8
 | `mods/` `inputs/` `symbols/` `reference/` | Widescreen catalog; input traces; symbol seeds; study notes |
 | `gbarecompx/` | Pinned submodule = the framework fork (`james2doyle/gbarecompx`, **public**; every former patch is committed history there; owns the framework tests + agent rules `gbarecompx/AGENTS.md`) — do not update casually (pin bumps: `reference/dev-gotchas.md` § Submodules) |
 
-## Status (2026-10-19)
+## Status (rolling — last update 2026-10-31)
 
-All phases complete; **every executed path strict-FULLY_STATIC**; corpus
-**63,156 emitted units** (device-resume healing batch, BRINGUP late);
+All phases complete; **every executed path strict-FULLY_STATIC**; corpus at
+the current snapshot (device-resume healing batch, BRINGUP late; coverage
+details in `tests/README.md`);
 attract hash stable since pinning; widescreen W1–W3 complete; save/summon
 hangs fixed; suspend-flow phantom closed (IRQ abandon-close + split-loop
 gap roll-in — issue #30 fixes);
@@ -196,16 +197,17 @@ device-verified on the Mi 11 — six labels, six pulses). Contract:
   ~70%, exact-integer layouts identical — the designed inertness per
   the rsn8887 recipe) and the menu's status line names the inert case.
 - **Test ownership split**: the game's CI tests only game code —
-  `tests/unit/` is 3 files (ram_dispatch, speed_boost, ws_margin); the
+  `tests/unit/` is 4 files (ram_dispatch, speed_boost, haptics, ws_margin); the
   framework's tests (HostWindow contracts, backend selection, host-stack
   guard, frame pacer, the present pipeline) moved to
   `gbarecompx/tests/runtime/` and run in the fork's four-job CI
-  (86/86 stub, 88/88 raylib tier). Framework-side agent rules:
-  `gbarecompx/AGENTS.md`.
+  ([workflow](gbarecompx/.github/workflows/ci.yml)). Framework-side agent
+  rules: `gbarecompx/AGENTS.md`.
 
 ### Launcher track (2026-10-16 → 2026-10-18, complete) — recomp-ui removed; raygui launch screen
 
-Plan: `.opencode/RAYGUI_LAUNCHER.md`. recomp-ui removed entirely
+History: `BRINGUP.md` § 2026-10-16 launcher phases through § 2026-10-18
+Phase 7 close-out. recomp-ui removed entirely
 (submodule, seam flags, patches, `ui-tests` suite, SDL2/freetype/harfbuzz
 cross-deps). The pre-boot surface is **framework code in the gbarecompx
 fork** (not game-repo `src/` — plan erratum corrected 2026-10-18):
@@ -250,6 +252,7 @@ dropped.
 | Harness traps: run modes, capture envs, close handling, RAM-dispatch, saves, submodule pins, Android native build + input traps | `reference/dev-gotchas.md` |
 | Oracle + frame-diff protocol (park phase, sync rules, builds) | `reference/oracle-harness.md` |
 | Widescreen internals + validation | `reference/widescreen.md` |
+| Upscale-shader rationale (sharp scaling, pixel grid) | `reference/upscale-shaders.md` |
 | Fast-forward controls, 2–10x speed setting, expected behavior | `docs/fast-forward.md` |
 | Event VM + scripts | `reference/event-vm.md` |
 | Community source summaries (decomp, engine hacks, FAQs, notes) | `reference/{ffta-decomp,fergusson-mechanics,bcrobert-notes,jokyr-hack-guide,ffta-gamefaqs-code-guides}.md` |
