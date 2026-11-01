@@ -9889,3 +9889,139 @@ outcomes and the framediff-strict correction (framediff forces
 **Submodule.** `gbarecompx` gitlink advanced from `2a8bffb` to `c72da76`
 (sync branch pushed to `james2doyle/gbarecompx`). No release cut (per
 request); no merge to the fork's `main` (branch stays reviewable).
+
+## 2026-10-31 — housekeeping Phase 1: stale contributor directions
+
+Corrected instructions that sent contributors to nonexistent paths: framework
+configure is `-S gbarecompx` (AGENTS.md, docs/manual-build.md); the compiler
+requirement is C++20 (docs/manual-build.md, matching `CMakeLists.txt`); the
+Android helper scripts live under `gbarecompx/platform/android/tools/`.
+`build.py`'s BIOS hint now points at docs/manual-build.md and its completion
+message distinguishes normal play (`./build/FFTARecomp`) from the instrumented
+playtest harness (`tools/play.sh`). `tools/play.sh` no longer claims
+`--view-width` is unsupported (links reference/widescreen.md instead).
+`--tcp-observe` left the "headless flags" list in docs/README.md and is
+labelled the windowed-observe exception. AGENTS.md's launcher history now
+cites BRINGUP instead of the ignored `.opencode/RAYGUI_LAUNCHER.md`.
+
+Verified: `python3 -m py_compile build.py`, `bash -n tools/play.sh`, and a
+stale-term `rg` sweep over the touched files (no hits).
+
+## 2026-10-31 — housekeeping Phase 2: test/gate inventories match the tree
+
+`tools/check.py`'s `unit-cpp` suite now builds both game-owned C++ targets
+(`ffta_unit_tests`, `ffta_ws_margin_tests`) and runs CTest
+`ram_dispatch|ws_margin`; the gate line reports the CTest pass count.
+Removed the retired "patch validity" and "ui tests" claims from the
+`check.py` docstring and tests/README.md, and aligned the `--fast` example
+with FAST (unit tests + savecheck + Android + backend guards + attract).
+tests/README.md now distinguishes the two targets, includes the haptics
+test, and describes the host-stack guard/frame pacer as framework-owned
+(`gbarecompx/tests/runtime/`). AGENTS.md's test-ownership note reflects the
+four `tests/unit/` files. tools/README.md reclassifies `hle_audit.py` and
+`hangrepro.py` as registered check suites rather than one-off probes.
+
+Verified: both targets build; `ctest -R "ram_dispatch|ws_margin"` 2/2
+PASS; `tools/check.py --only unit-cpp,unit-py` ALL PASS (2/2); no
+`patch validity`/`ui tests` hits outside the historical AGENTS.md note.
+
+## 2026-10-31 — housekeeping Phase 3: tools inventory and probe repairs
+
+tools/README.md is now grouped into Build/release, Regression gates,
+Playtest/debug, Android, and Specialized probes, covering every tracked
+top-level script. All are retained: registered gates, documented manual
+diagnostics, or reproducible bring-up probes. No obsolete candidate was
+found (each script's unique behavior and references were checked; e.g.
+`android_pill_test.py` is documented in BRINGUP § issue #11 and now appears
+in the Android test inventory). `hle_audit.py`/`hangrepro.py` remain
+registered suites; `check_raylib_backend_complete.py` is listed with its
+`raylib-backend` suite.
+
+Repaired the retained probes' framework imports: `chunkprobe.py`,
+`keyprobe.py`, `readseq_probe.py`, and `spinhunt.py` now resolve
+`framediff` from `gbarecompx/tools/`. `readseq_probe.py`'s oracle path
+points at `gbarecompx/build/oracle/` and the README states the optional
+oracle prerequisite. `reference/upscale-shaders.md` is preserved and added
+to reference/README.md and the AGENTS.md reference index; the .gitignore
+comment now names only the `gbarecompx` submodule.
+
+Verified: `py_compile` on all four probes; import probes reach the expected
+failure (keyprobe = connection refused; chunkprobe/spinhunt = missing argv;
+readseq = missing optional oracle), never ModuleNotFoundError.
+
+## 2026-10-31 — housekeeping Phase 4: document ownership, retire stale workflow
+
+Removed `.agents/skills/patch-prs/` (SKILL.md + four references). It
+documented exporting `tools/patches/*.patch`, a workflow retired 2026-10-18;
+the patch tree and apply step are gone, the fork is public, and nothing else
+in the repository referenced the skill. Android's Deferred list now retains
+only real open work: the release signing key is still the main release item
+(the public APK is debug-signed); release packaging, arm64-v8a targeting,
+and version stamping are implemented (`tools/make_release.py --apk`,
+`android/app/build.gradle`, release naming). The AGENTS.md status heading is
+now rolling (last update 2026-10-24), so the 2026-10-20..24 entries are not
+hidden under an older date.
+
+The tests/README coverage snapshot was refreshed from the local strict log:
+corpus 63,156 units; walker reach 63,156/63,973 (~98.7%); pointer-pool
+63,156/66,622 (~94.8%); executed path 100% FULLY_STATIC. While running the
+refresh, `tools/coverage_report.py --log <relative path>` was found to crash
+printing its own log path (`Path.relative_to` on a relative path); it now
+resolves first and the command exits 0. The root README's fast-forward
+summary now matches docs/fast-forward.md (`2` = default Assist binding,
+`Tab` = separate Turbo binding). docs/README.md gained a documentation map
+naming one authoritative location per workflow.
+
+Verified: `coverage_report.py --log logs/coverage_report_strict_1200.log`
+exits 0 and prints the refreshed table; `py_compile` on the edited tool;
+relative links in the touched docs resolve.
+
+## 2026-10-31 — housekeeping close-out: verification
+
+All five cleanup phases landed in the working tree (no commit):
+instructions/path fixes, test/gate inventory alignment, tools inventory and
+probe repairs, and removal of the retired patch-prs skill with a refreshed
+documentation map. No ROM corpus, `game.toml` seed, generated code, runtime
+behavior, or framework submodule content changed.
+
+Verification:
+- Stale-term sweep (`gbarecomp/`, `patch validity`, `ui tests`, `C++17`,
+  `README § Setup`, `tools/patches`, `gbarecomp/build`, `clamps to 240`,
+  `RAYGUI_LAUNCHER`, `patch-prs`): remaining hits are historical BRINGUP
+  entries (pre-rename commands and retired patch filenames), the AGENTS.md
+  note that the patch suite is retired, and the new cleanup entries. No
+  live instruction points at a stale path.
+- Relative Markdown links: all resolve except the intentional
+  `[text](target)` placeholder inside a historical BRINGUP link-check note
+  (left untouched as history).
+- Retained probes: `keyprobe.py` imports and reaches the TCP connect step;
+  `chunkprobe.py`/`spinhunt.py` reach their argv checks; `readseq_probe.py`
+  reaches the documented optional-oracle prerequisite. `py_compile` and
+  `bash -n` pass for all edited scripts.
+- Unit gate: both `ffta_unit_tests` and `ffta_ws_margin_tests` build; CTest
+  `ram_dispatch|ws_margin` 2/2 PASS; `tools/check.py --only
+  unit-cpp,unit-py` ALL PASS (2/2).
+- Coverage refresh: `coverage_report.py --log
+  logs/coverage_report_strict_1200.log` exits 0 and reproduces the table in
+  tests/README.md.
+- `git diff --check` clean. The final diff is 23 files (18 modified, 5
+  deleted skill files); `git status` shows no untracked ROM-derived,
+  generated, fixture, or local planning material.
+
+## 2026-10-31 — housekeeping follow-ups: count hygiene and stale claims
+
+Removed duplicated test/corpus tallies from the high-level docs: AGENTS.md
+now links the fork CI instead of quoting test counts, and its status line
+drops the corpus number (coverage metrics remain in tests/README.md);
+android/README.md no longer quotes the corpus size. AGENTS' status heading
+is now dated 2026-10-31. Corrected the .gitignore repoint note (the
+gbarecomp submodule was repointed to the gbarecompx fork), changed
+reference/README's dev-gotchas description from "framework patches" to
+"fork sync", and updated docs/README's Android verification to name the
+Poco X3 Pro, Mi 11, and AYN Odin with the 2026-10-08..22 gate dates.
+`tools/check.py`'s `unit-cpp` now passes the requested `--jobs` count
+through to the CMake build instead of hardcoding 8.
+
+Verified: `tools/check.py --only unit-cpp,unit-py --jobs 2` ALL PASS (2/2);
+the AGENTS CI link target exists; stale-term rg for the old counts/wording
+is clean; `git diff --check` clean.
