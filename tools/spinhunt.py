@@ -15,10 +15,9 @@ import socket
 import subprocess
 import sys
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from framediff import Client
-
 REPO = pathlib.Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO / "gbarecompx/tools"))
+from framediff import Client
 BIOS = REPO / "bios/emibios_gba_bios.bin"
 ROM = REPO / "game.gba"
 NATIVE = REPO / "build/FFTARecomp"

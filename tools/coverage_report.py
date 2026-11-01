@@ -218,7 +218,8 @@ def main() -> int:
                   f"{spec['units']:,}** | **~{report['pointer_pool']['percent']}%** |")
             print()
             if ex and ex.get("log"):
-                print(f"- Executed-path log: `{Path(ex['log']).relative_to(ROOT)}`")
+                print(f"- Executed-path log: "
+                      f"`{Path(ex['log']).resolve().relative_to(ROOT)}`")
             print(f"- Corpus units (current config): {corpus:,} "
                   f"(TOTAL emitted; includes interior split units + IWRAM code-copy).")
             if spec.get("literal_seeds_kept") is not None:

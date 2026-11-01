@@ -7,14 +7,13 @@ Inputs from the trace are applied stickily by frame on both sides.
 """
 import os, pathlib, shutil, socket, subprocess, sys, tempfile
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from framediff import Client
-
 REPO = pathlib.Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO / "gbarecompx/tools"))
+from framediff import Client
 BIOS = REPO / "bios/emibios_gba_bios.bin"
 ROM = REPO / "game.gba"
 NATIVE = REPO / "build/FFTARecomp"
-ORACLE = REPO / "gbarecomp/build/oracle/gbarecomp_oracle"
+ORACLE = REPO / "gbarecompx/build/oracle/gbarecomp_oracle"
 SAVE = REPO / "saves/found_save.mGBA.sav"
 TRACE = pathlib.Path(os.environ.get("READSEQ_TRACE", str(REPO / "saves/trace_prev_20261007_114607.csv")))
 CALL_PC = 0x08141BA0
