@@ -15,7 +15,7 @@ The sequence was verified end-to-end from a fresh clone on 2026-10-08
 
 - Linux x86-64 host for the desktop build. The static Windows release is
   cross-compiled from the same tree (MinGW-w64; see Troubleshooting).
-- CMake ≥ 3.20, Ninja, GCC or Clang with C++17, git, and Python 3.10+.
+- CMake ≥ 3.20, Ninja, GCC or Clang with C++20, git, and Python 3.10+.
 - OpenGL + X11 development headers. Debian/Ubuntu:
 
   ```sh
@@ -105,7 +105,7 @@ uv venv .venv
 **4. Build the framework tools** (one-time; re-run only after submodule
 changes):
 ```sh
-cmake -S gbarecomp -B gbarecompx/build -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake -S gbarecompx -B gbarecompx/build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build gbarecompx/build --target gba_recompile gba_scan --parallel 8
 ```
 

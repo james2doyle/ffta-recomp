@@ -210,7 +210,8 @@ def step_bios(force):
         die("BIOS recompile failed", hint=tail(r))
     if not BIOS_OUT.exists() or BIOS_OUT.stat().st_size == 0:
         die("BIOS recompile produced no output",
-            hint="it must run with cwd = gbarecompx/ (see README § Setup)")
+            hint="it must run with cwd = gbarecompx/ "
+                 "(see docs/manual-build.md § Manual pipeline)")
     m = re.search(r"discovered (\d+) function", r.stdout)
     return f"{m.group(1)} functions" if m else "done"
 
@@ -328,7 +329,8 @@ def main():
 
     dur = time.time() - t0
     print(f"\nbuild.py: DONE in {dur:.1f}s — build/FFTARecomp is ready")
-    print("  play:      tools/play.sh")
+    print("  play:      ./build/FFTARecomp")
+    print("  playtest:  tools/play.sh   (instrumented harness)")
     print("  gate:      .venv/bin/python tools/check.py")
     print("  optional:  mGBA oracle build — see reference/oracle-harness.md")
     return 0

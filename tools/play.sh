@@ -30,7 +30,7 @@
 #              pixels (scale 1-8; 8 = 1920x1280 on a 4K-class display)
 #          tools/play.sh --fullscreen     borderless desktop fullscreen
 #              NOTE: --view-width is the widescreen *view* feature, NOT
-#              window size; FFTA is unsupported there (clamps to 240).
+#              window size; see reference/widescreen.md.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 mkdir -p logs saves
