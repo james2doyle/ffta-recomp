@@ -9,11 +9,13 @@ start, features, controls, building); running and display options live in
 ## Host unit tests
 
 - **C++ (`src/` custom code, no ROM/BIOS):**
-  `cmake --build build --target ffta_unit_tests && ctest --test-dir build -R ram_dispatch`
-  — `ffta_ram_dispatch` (RAM-code canonicalizer) + the host-stack-guard
-  test, which **compiles where the framework submodule declares the guard
-  APIs** (`HOST_STACK_GUARD_API` in the gbarecompx fork; a checkout
-  missing them prints a skip).
+  `cmake --build build --target ffta_unit_tests ffta_ws_margin_tests && ctest --test-dir build -R "ram_dispatch|ws_margin"`
+  — `ffta_unit_tests` (CTest `ram_dispatch`) covers the RAM-code
+  canonicalizer, `ffta_speed_boost`, and the battle-damage haptics policy
+  (`tests/unit/test_haptics.cpp`, issue #30: battle gate, damage filter,
+  popup-synced release). `ffta_ws_margin_tests` is a **separate** target
+  for the widescreen margin policy (size-0 layer mask, -1/0 span contract),
+  registered as CTest `ws_margin`.
   Also unit-covered since the 2026-10-09 src audit: the **LZSS entry guard**
   (`ffta::lzss_entry_guard`, `src/ffta_lzss_guard.h`) — plausible length →
   declined, implausible → return-to-LR with the thumb bit stripped, and the
@@ -21,13 +23,13 @@ start, features, controls, building); running and display options live in
   mid-copy-resume regressions (sentinel `r2 == -1` from any address,
   including a byte-matching re-plant, must pass through; two-byte-early
   entries only run on a byte-match) and the copy-count clamp semantics.
-- **Frame pacer (moved 2026-10-17 to `gbarecompx/tests/runtime/frame_pacer_test.cpp` —
-  the framework owns `host_platform`):**
-  `wait_for_next_frame(k)` throttles k periods (the issue-#8 fix — a
-  4-frame present must take ~4 periods, not 1), the default paces one
-  frame, uncapped returns immediately, and absurd banks clamp instead of
-  sleeping for seconds. Wide timing margins (no flakes); red-verified
-  against the pre-fix single-period behavior.
+- **Framework-owned tests (not part of local `unit-cpp`):** the
+  host-stack guard, backend-selection predicate, HostWindow contracts,
+  frame pacer, and raylib present pipeline live in
+  `gbarecompx/tests/runtime/` and run in the fork's CI. The frame pacer test
+  still documents the issue-#8 fix (`wait_for_next_frame(k)` throttles k
+  periods; the default paces one frame; uncapped returns immediately; absurd
+  banks clamp), red-verified against the pre-fix single-period behavior.
 - **Python tooling:** `.venv/bin/python tests/python/test_tools.py`
   (stdlib only; run by `tools/check.py --only unit-py`).
   Covers cheap structural guards:
@@ -359,7 +361,7 @@ GBARECOMP_INPUT_REPLAY=logs/playthrough.csv ./build/FFTARecomp ...` — expect
   there is no every-other-frame read gate to patch (unlike MKSC's affine
   track).
 - **Full gate:** `.venv/bin/python tools/check.py` — host unit tests
-  (C++ + Python), patch validity, the device-free Android checks, the
+  (C++ + Python), the device-free Android checks, the
   seam guard (backend *and* framework test-double completeness), the
   offline `stub-backend` compile (`USE_RAYLIB=OFF`),
   the attract gate, the widescreen smoke,
@@ -412,22 +414,22 @@ GBARECOMP_INPUT_REPLAY=logs/playthrough.csv ./build/FFTARecomp ...` — expect
   when the gitignored `game.state3` / `saves/playtest.sav` are absent.
   BRINGUP § 2026-10-09.
 
-Current snapshot (2026-10-09, strict 1200-frame run; refresh with
+Current snapshot (2026-10-31, strict 1200-frame log; refresh with
 `.venv/bin/python tools/coverage_report.py`):
 
 | Lens | Mapped / total | % |
 |---|---|---|
 | **Executed path** (strict 1200-frame run) | everything that ran | **100 % — FULLY_STATIC, zero interpreter fallback** |
-| **Walker's static reach** (whole-ROM scan trial) | **55,102 / 56,332** emitted units | **≈ 97.8 %** |
-| **Pointer-pool reach** (speculative-harvest trial) | **55,102 / 55,514** | **≈ 99.3 %** |
+| **Walker's static reach** (whole-ROM scan trial) | **63,156 / 63,973** emitted units | **≈ 98.7 %** |
+| **Pointer-pool reach** (speculative-harvest trial) | **63,156 / 66,622** | **≈ 94.8 %** |
 
 Rows 2–3 are proxies with different denominators (no ground-truth function
 inventory exists); a route is done when its replay is FULLY_STATIC. Corpus:
-55,102 emitted units (interior split units + IWRAM code-copy included;
-55,103 before the 2026-10-09 split-loop gap roll-in merged
-`vblank_wait_loop_cont` into its host as a resume alias); the
-speculative-harvest trial kept 2,204 pointer candidates out of 105,815
-PC-relative literals (`false` in `game.toml` by policy).
+63,156 emitted units (interior split units + IWRAM code-copy included; see
+AGENTS.md § Status for the current count). The speculative-harvest trial kept
+2,607 pointer candidates out of 115,356 PC-relative literals (`false` in
+`game.toml` by policy). The executed-path log is
+`logs/coverage_report_strict_1200.log` (local-only).
 
 **Save flows — resolved (2026-10-08).** The 2026-10-07 stall/runaway class on
 certain save contents was root-caused to a bug on OUR side, not a guest

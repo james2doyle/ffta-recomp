@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """One-command regression gate for the FFTA recomp worktree.
 
-Runs: host unit tests (C++ + Python) -> patch validity -> device-free Android
-checks -> attract golden gate -> widescreen smoke (margin census / center-
-crop / stale
+Runs: host unit tests (C++ + Python) -> device-free Android checks ->
+attract golden gate -> widescreen smoke (margin census / center-crop / stale
 guard, needs the local game.state1/state2 fixtures) -> render-path cadence
 gate (60 Hz scheduler invariants + no every-other-frame consumer on the
 presented surfaces) -> strict route replays
@@ -23,7 +22,7 @@ silently redefining the baseline.
 
 Usage:
   .venv/bin/python tools/check.py            # everything (~1.5-2 min)
-  .venv/bin/python tools/check.py --fast     # unit tests + ui tests + android checks + raylib default probe + attract
+  .venv/bin/python tools/check.py --fast     # unit tests + savecheck + android checks + backend guards + attract
   .venv/bin/python tools/check.py --jobs 1   # serial
   .venv/bin/python tools/check.py --only NAME[,NAME...]
 
@@ -54,6 +53,7 @@ ROM = REPO / "game.gba"
 REG = REPO / "saves/regress"
 FIXTURE_SAVE = REG / "skyemu_20261007.sav"
 FIXTURE_SHA_PREFIX = "65742af1"
+UNIT_BUILD_JOBS = 0
 
 
 def clean_env():
@@ -66,13 +66,18 @@ def run(cmd, env=None, timeout=600):
 
 
 def check_unit_cpp():
+    parallel = str(UNIT_BUILD_JOBS or min(8, os.cpu_count() or 4))
     b = run(["cmake", "--build", "build", "--target", "ffta_unit_tests",
-             "--parallel", "8"])
+             "ffta_ws_margin_tests", "--parallel", parallel])
     if b.returncode != 0:
         return False, "build failed: " + b.stderr.strip()[-160:]
-    r = run([str(REPO / "build/ffta_unit_tests")])
-    line = (r.stdout.strip().splitlines() or [""])[-1]
-    return r.returncode == 0 and "PASS" in line, line
+    r = run(["ctest", "--test-dir", "build", "-R", "ram_dispatch|ws_margin",
+             "--output-on-failure"])
+    line = next((ln.strip() for ln in r.stdout.splitlines()
+                 if "tests passed" in ln), "")
+    if not line:
+        line = (r.stdout.strip().splitlines() or [""])[-1]
+    return r.returncode == 0, line
 
 
 def check_unit_py():
@@ -575,6 +580,7 @@ NEEDS_EXE = {"attract", "hle-audit", "ws_smoke", "user_load", "route_G",
 
 
 def main():
+    global UNIT_BUILD_JOBS
     ap = argparse.ArgumentParser()
     ap.add_argument("--fast", action="store_true")
     ap.add_argument("--only",
@@ -606,8 +612,8 @@ def main():
             return 1
     names = names if a.only else (
         FAST if a.fast else [n for n in CHECKS if n not in OPTIONAL])
-    jobs = a.jobs if a.jobs > 0 else min(8, os.cpu_count() or 4)
-    jobs = max(1, min(jobs, len(names)))
+    UNIT_BUILD_JOBS = a.jobs if a.jobs > 0 else min(8, os.cpu_count() or 4)
+    jobs = max(1, min(UNIT_BUILD_JOBS, len(names)))
     print(f"check: {len(names)} check(s), jobs={jobs}", flush=True)
 
     def run_one(name):
