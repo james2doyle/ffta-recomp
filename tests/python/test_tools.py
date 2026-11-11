@@ -640,6 +640,7 @@ class ReleasePackTests(unittest.TestCase):
 
         f(exe)
         f("game.toml")
+        f("recomplauncher.json")
         # The real committed BIOS at its pin: the one .bin the sweep allows.
         f("bios/emibios_gba_bios.bin",
           (REPO / "bios/emibios_gba_bios.bin").read_bytes())
@@ -705,6 +706,29 @@ vma:            Hint    Time      Forward  DLL       First
         clean = {"KERNEL32.DLL", "MSVCRT.DLL", "USER32.DLL", "ADVAPI32.DLL",
                  "SHELL32.DLL", "OPENGL32.DLL", "VERSION.DLL"}
         self.assertEqual(self.mr.static_link_violations(clean), [])
+
+    def test_sweep_requires_recomplauncher_manifest(self):
+        # Every release ships the launcher profile; a stage without it
+        # must be rejected, not silently packaged.
+        import tempfile
+        with tempfile.TemporaryDirectory(dir="/tmp") as td:
+            root = self._stage(td)
+            (root / "recomplauncher.json").unlink()
+            v = self.mr.sweep_stage(root)
+            self.assertTrue(
+                any("missing required file: recomplauncher.json" in x
+                    for x in v), v)
+
+    def test_recomplauncher_manifest_starts_staged_executables(self):
+        # The committed profile must name the executables the packager
+        # stages (the .exe, the Linux binary) and pass the ROM by path.
+        import json
+        manifest = json.loads((REPO / "recomplauncher.json").read_text())
+        self.assertEqual(manifest["format"], 1)
+        program = manifest["start"]["program"]
+        self.assertIn("FFTARecomp.exe", program)
+        self.assertIn("FFTARecomp", program)
+        self.assertEqual(manifest["start"]["args"], ["--rom", "{input:rom}"])
 
     def test_sweep_rejects_gba(self):
         import tempfile

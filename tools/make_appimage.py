@@ -281,6 +281,9 @@ def build_appdir(payload, version, appdir):
 
     if not ICON.is_file():
         die(f"missing AppImage icon: {ICON}")
+    # RecompLauncher reads this straight out of the image's SquashFS root
+    # (the payload's copy under usr/bin is for the unpacked app folder).
+    shutil.copy2(REPO / "recomplauncher.json", appdir / "recomplauncher.json")
     shutil.copy2(ICON, appdir / "ffta-recomp.png")
     shutil.copy2(ICON, appdir / ".DirIcon")
     icon_dir = appdir / "usr" / "share" / "icons" / "hicolor" / \
@@ -341,6 +344,8 @@ def guard_appimage(output):
         violations = mr.sweep_stage(payload)
         if violations:
             die("AppImage payload rejected:\n  " + "\n  ".join(violations))
+        if not (root / "recomplauncher.json").is_file():
+            die("AppImage has no recomplauncher.json at its root")
         if not (root / "ffta-recomp.desktop").is_file():
             die("AppImage has no desktop entry")
         if not (root / "ffta-recomp.png").is_file():
