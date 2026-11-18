@@ -1,0 +1,79 @@
+{
+  "$schema": "https://recomplauncher.com/schema/recomplauncher.json",
+  "format": 1,
+  "name": "FFTA Recomp",
+  "repo": "james2doyle/ffta-recomp",
+  "inputs": [
+    {
+      "id": "rom",
+      "label": "Your Final Fantasy Tactics Advance ROM (.gba), USA release (AFXE).",
+      "role": "game",
+      "formats": [{ "type": "file", "extensions": ["gba"] }]
+    }
+  ],
+  "start": {
+    "program": ["FFTARecomp.exe", "FFTARecomp", "FFTARecomp.AppImage"],
+    "args": ["--rom", "{input:rom}"]
+  },
+  "saves": ["{install}/saves", "{local}/ffta-recomp/app/saves"],
+  "folders": {
+    "saves": [
+      { "path": "{local}/ffta-recomp/app/saves", "if": "{local}/ffta-recomp/app/saves" },
+      { "path": "{install}/saves" }
+    ]
+  },
+  "settings": [
+    {
+      "id": "window",
+      "label": "Window",
+      "in": "args",
+      "help": "Windowed uses the Window size below. Fullscreen fills your screen without borders.",
+      "choices": [
+        { "label": "Game's option", "args": [] },
+        { "label": "Fullscreen", "args": ["--fullscreen=1"] }
+      ]
+    },
+    {
+      "id": "window_size",
+      "label": "Window size",
+      "in": "args",
+      "help": "How big the window is when not fullscreen, as a multiple of the GBA's 240 x 160 picture.",
+      "choices": [
+        { "label": "Game's option", "args": [] },
+        { "label": "2x", "args": ["--scale", "2"] },
+        { "label": "4x", "args": ["--scale", "4"] },
+        { "label": "5x", "args": ["--scale", "5"] },
+        { "label": "6x", "args": ["--scale", "6"] }
+      ]
+    },
+    {
+      "id": "view",
+      "label": "Widescreen",
+      "in": "args",
+      "help": "Shows more of the battlefield on a wide screen. Original keeps the GBA's 240 x 160 picture. Fit to window follows the window's shape.",
+      "choices": [
+        { "label": "Game's option", "args": [] },
+        { "label": "Original", "args": ["--view-width", "240"] },
+        { "label": "Wide (448)", "args": ["--view-width", "448"] },
+        { "label": "Fit to window", "args": ["--resize-view"] }
+      ]
+    },
+    {
+      "id": "screen",
+      "label": "GBA screen",
+      "in": "args",
+      "help": "Makes the picture look like a GBA screen. Raw is the unchanged picture.",
+      "choices": [
+        { "label": "Game's option", "args": [] },
+        { "label": "Raw", "args": ["--screen", "raw"] },
+        { "label": "Unlit", "args": ["--screen", "unlit"] },
+        { "label": "Frontlit", "args": ["--screen", "frontlit"] },
+        { "label": "Backlit", "args": ["--screen", "backlit"] },
+        { "label": "Classic", "args": ["--screen", "classic"] }
+      ]
+    }
+  ],
+  "actions": [
+    { "id": "saves", "label": "Saves", "help": "Your cartridge save (ffta_us.sav).", "open": "saves" }
+  ]
+}

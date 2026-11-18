@@ -16,6 +16,7 @@ the asset picker use the same sidecar chain):
       assets/img/boxart.png         launch-screen box art
       mods/                         preloaded mod catalog (default-enabled)
       game.toml
+      recomplauncher.json           RecompLauncher setup + settings profile
       bios/emibios_gba_bios.bin     committed clean-room BIOS (LGPL)
       bios/README.md
       README.md                     generated, self-contained (no dead links)
@@ -80,6 +81,7 @@ FORBIDDEN_EXTS = {".gba", ".agb", ".sav", ".srm", ".apk"}
 REQUIRED_FILES = [
     "FFTARecomp",
     "game.toml",
+    "recomplauncher.json",
     "bios/emibios_gba_bios.bin",
     "bios/README.md",
     "README.md",
@@ -569,6 +571,7 @@ def stage_windows(version, strip=True, jobs=8):
         shutil.copytree(src, stage / sub)
 
     cp_file(REPO / "game.toml", "game.toml")
+    cp_file(REPO / "recomplauncher.json", "recomplauncher.json")
     cp_file(REPO / "bios/emibios_gba_bios.bin", "bios/emibios_gba_bios.bin")
     cp_file(REPO / "bios/README.md", "bios/README.md")
     cp_file(REPO / "LICENSE", "LICENSE")
@@ -719,13 +722,14 @@ def stage_release(version, strip=True, binary=None, out_dir=None, folder=None,
     cp_file(REPO / "recomp/launcher/boxart.png", "assets/img/boxart.png")
 
     cp_file(REPO / "game.toml", "game.toml")
+    cp_file(REPO / "recomplauncher.json", "recomplauncher.json")
     cp_file(REPO / "bios/emibios_gba_bios.bin", "bios/emibios_gba_bios.bin")
     cp_file(REPO / "bios/README.md", "bios/README.md")
     cp_file(REPO / "LICENSE", "LICENSE")
     shutil.copytree(REPO / "LICENSES", stage / "LICENSES")
     cp_file(REPO / "THIRD_PARTY_ATTRIBUTION.md", "THIRD_PARTY_ATTRIBUTION.md")
 
-    readme = (README_TEMPLATE.format(rom_sha1=ROM_SHA1) + README_NOTE)
+    readme =(README_TEMPLATE.format(rom_sha1=ROM_SHA1) + README_NOTE)
     (stage / "README.md").write_text(readme, encoding="utf-8")
     return stage, folder
 
