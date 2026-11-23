@@ -12,6 +12,8 @@
 #include "ffta_ram_dispatch.h"
 #include "ffta_lzss_guard.h"
 #include "ffta_haptics_hook.h"
+#include "ffta_cheats.h"
+#include "menu_model.h"
 #include "ffta_speed_boost.h"
 #include "ffta_ws_margin.h"
 #include "mobile_platform.h"
@@ -113,6 +115,7 @@ static void ffta_mod_reset() {
     gba_mod_set_function_hook_enabled("ffta.lzss-guard", 1);
     gba_mod_set_function_hook_enabled("ffta.haptics", 1);
     ffta::haptics_reset();
+    ffta::cheats_reset();
 }
 
 // Activation plugin "ffta.widescreen" (manifest:
@@ -129,6 +132,33 @@ static void ffta_ws_activate() {
     std::fprintf(stderr, "[ffta] ws: margin policy installed (ffta.widescreen)\n");
 }
 
+static void ffta_menu_rebuild(void*, gbarecomp::MenuModel& model) {
+    if (model.section_count >= gbarecomp::MenuModel::kMaxSections) return;
+    const int sec = model.section_count;
+    model.sections[sec].title = "Cheats";
+    model.section_count = sec + 1;
+    gbarecomp::MenuRow row{};
+    row.kind = gbarecomp::MenuRowKind::Toggle;
+    row.label = "No Laws";
+    row.section = sec;
+    row.int_value = ffta::cheats_no_laws_enabled() ? 1 : 0;
+    gbarecomp::menu_add_row(model, row);
+}
+static void ffta_menu_apply(void*, const gbarecomp::MenuModel& model,
+                            const gbarecomp::MenuResult&) {
+    for (int i = 0; i < model.row_count; ++i) {
+        if (model.rows[i].label &&
+            std::strcmp(model.rows[i].label, "No Laws") == 0) {
+            ffta::cheats_set_no_laws(
+                gbarecomp::menu_value_int(model, i) != 0);
+            break;
+        }
+    }
+}
+static void ffta_cheats_activate() {
+    std::fprintf(stderr, "[ffta] cheats: no-laws plugin active (flag=%d)\n",
+                 ffta::cheats_no_laws_enabled() ? 1 : 0);
+}
 GBA_MOD_CONSTRUCTOR(register_ffta_mod_plugins) {
     gba_mod_register_function_entry_plugin("ffta.lzss-guard", 0x0800543Cu, 1,
                                            ffta::lzss_entry_guard);
@@ -140,6 +170,7 @@ GBA_MOD_CONSTRUCTOR(register_ffta_mod_plugins) {
                                            ffta::haptics_popup_hook);
     gba_mod_register_reset_callback(ffta_mod_reset);
     gba_mod_register_activation_plugin("ffta.widescreen", ffta_ws_activate);
+    gba_mod_register_activation_plugin("ffta.no-laws", ffta_cheats_activate);
 }
 
 // ── Widescreen (W3/W4): per-scene margin policy ────────────────────────────
@@ -203,6 +234,7 @@ void ffta_ws_margin_policy(const gbarecomp::ExtendedViewFrameInfo* frame) {
         ffta::haptics_reset();
     }
     ffta::haptics_frame_service(frame->frame_count);
+    ffta::cheats_apply_no_laws(bus_write_u16);
     if (frame->extra_left == 0 && frame->extra_right == 0) return;
     const std::uint8_t* io = frame->io;
     const unsigned bg0 = io[0x08] | (io[0x09] << 8);
@@ -473,6 +505,8 @@ int ffta_main(int argc, char** argv) {
     // and menu latch provide; the engine polls speed_boost_requested() once
     // per input pump under the shared Assist-enable gate. Presentation-only
     // on desktop (the pill appears on touch activity, never for keyboard).
+    opts.menu_rebuild = &ffta_menu_rebuild;
+    opts.menu_apply = &ffta_menu_apply;
     opts.host_overlay = &ffta::speed_boost_overlay;
     opts.fast_forward_request = &ffta::speed_boost_requested;
 
