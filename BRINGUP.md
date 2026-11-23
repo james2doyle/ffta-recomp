@@ -10025,3 +10025,14 @@ through to the CMake build instead of hardcoding 8.
 Verified: `tools/check.py --only unit-cpp,unit-py --jobs 2` ALL PASS (2/2);
 the AGENTS CI link target exists; stale-term rg for the old counts/wording
 is clean; `git diff --check` clean.
+
+## 2026-11-23 — issue #22 first toggle: No Laws (dex l6n37oxd)
+
+RED->GREEN: `tests/unit/test_cheats.cpp` (fails on missing
+`src/ffta_cheats.h`) -> header-only `src/ffta_cheats.h` (kNoLawsAddr
+0x02003C34, 4x u16 apply). Framework seam: `RunOptions::menu_rebuild` /
+`menu_apply` (`gbarecompx/src/runtime/runtime.h`) chained in `runtime.cpp`;
+game appends Cheats/No-Laws Toggle (`src/main.cpp`), mod package
+`ffta.gameplay.cheats`, reset + per-frame apply. Disarm: `0x0802D764`
+law-count loop, `0x08027640` action check. Unit `ram_dispatch` PASS.
+Docs: `docs/hacks.md`. Live battle replay -> manual QA tasks.

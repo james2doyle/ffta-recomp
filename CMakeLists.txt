@@ -208,7 +208,8 @@ if(FFTA_BUILD_TESTS AND NOT ANDROID)
     add_executable(ffta_unit_tests
         tests/unit/test_ram_dispatch.cpp
         tests/unit/test_speed_boost.cpp
-        tests/unit/test_haptics.cpp)
+        tests/unit/test_haptics.cpp
+        tests/unit/test_cheats.cpp)
     target_include_directories(ffta_unit_tests PRIVATE
         "${GBARECOMP_ROOT}/src/armv4t"
         "${GBARECOMP_ROOT}/src/runtime"

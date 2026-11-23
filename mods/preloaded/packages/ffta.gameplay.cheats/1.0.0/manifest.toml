@@ -1,0 +1,21 @@
+format_version = 1
+id = "ffta.gameplay.cheats"
+version = "1.0.0"
+name = "FFTA Gameplay Cheats"
+author = "ffta-recompiled"
+description = "Runtime RAM-poke cheats (ROM-hash-independent). First: No Laws zeroes gBattleLaws 0x02003C34."
+license = "PolyForm-Noncommercial-1.0.0"
+resolver = "declarative"
+save_compatibility = "shared"
+[[target]]
+game_id = "ffta-us"
+rom_sha1 = "4ac05441f4de70a4ec3dd932116346c61b8783d9"
+[[feature]]
+id = "no-laws"
+name = "No Laws"
+description = "Zero battle law cells so no yellow/red cards trigger. Judges stay."
+group = "Gameplay"
+default_enabled = false
+[[plugin]]
+feature = "no-laws"
+id = "ffta.no-laws"

@@ -291,6 +291,10 @@ int main() {
         extern int run_haptics_tests();
         g_failures += run_haptics_tests();
     }
+    {
+        extern int run_cheats_tests();
+        g_failures += run_cheats_tests();
+    }
 
     std::printf("%s (%d failure%s)\n", g_failures ? "FAIL" : "PASS",
                 g_failures, g_failures == 1 ? "" : "s");

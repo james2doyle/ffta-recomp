@@ -36,6 +36,9 @@ no Nintendo BIOS dump is required.
 - Fast-forward speed boost — hold `2` (default Assist binding) or `Tab`
   (Turbo) / right trigger, or tap the `FF` touch pill to latch it; speed
   (2–10x) is set in the in-game menu's **Assist** section
+- Gameplay cheats — starting with a **No Laws** toggle in the in-game menu's
+  new **Cheats** section (more cheats to come); see
+  [docs/hacks.md](docs/hacks.md) for how to add new ones
 - Strict fully-static execution — zero interpreter fallback on any executed
   path, kept that way by a self-healing coverage loop
 - GBA screen simulation: `raw`, `unlit`, `frontlit`, `backlit`, `classic`
